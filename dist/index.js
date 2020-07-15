@@ -921,8 +921,7 @@ function run() {
         try {
             let token = core.getInput('token', { required: true });
             let configPath = core.getInput('configPath', { required: true });
-            let report = yield generator_1.generate(token, configPath);
-            //console.log(JSON.stringify(report, null, 2));
+            yield generator_1.generate(token, configPath);
         }
         catch (err) {
             core.setFailed(err.message);

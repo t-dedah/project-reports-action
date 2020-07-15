@@ -7,9 +7,7 @@ async function run() {
         let token = core.getInput('token', { required: true });
         let configPath = core.getInput('configPath', { required: true });
     
-        let report: ReportSnapshot = await generate(token, configPath);
-    
-        //console.log(JSON.stringify(report, null, 2));
+        await generate(token, configPath);
     }
     catch (err) {
         core.setFailed(err.message)
