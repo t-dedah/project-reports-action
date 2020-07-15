@@ -3,8 +3,14 @@ import * as os from 'os';
 
 export function getDefaultConfiguration(): any {
     return <any>{
-        "active-limit": 2,
-        "triage-limit": 10
+        "wip-limits": {
+            "New": 2,
+            "Ready for Triage": 10,
+            "Ready for Work": 4,
+            "Active" : 2,
+            "Complete": 20,
+            "Blocked": 3
+        }
     };
 }
 
@@ -19,12 +25,44 @@ export function process(data: ProjectData): ProjectData {
     return data;
 }
 
+function getWipViolationIcon(limit: number, actual: number): string {
+    if (actual > limit) {
+        return "🔴";
+    }
+
+    if (actual == limit) {
+        return "🟠";
+    }
+
+    if (actual <limit) {
+        return "🟢";
+    }
+}
+
 export function render(projData: ProjectData): string {
     let lines: string[] = []
-    lines.push(`# Echo data for ${projData.name}`);
+    let config = getDefaultConfiguration()
+    lines.push(`# ${projData.name}`);
+    let columnHeader = "|  | ";
+    let columnHeaderSeparatorRow = "|:--|";
+    let dataRow = "|  |";
+    let wipViolationRow = "| Wip Limit status | ";
+    let wipLimitsRow = "| Wip Limits | ";
+    for (let stage in projData.stages) {
 
-    // TODO: write useful report :)
-    lines.push("🔴 🟠 🟡 🟢 🔵");
+        let wipCount = projData.stages[stage].length;
+        columnHeader += `${stage}|`;
+        columnHeaderSeparatorRow += ":---|";
+        dataRow += `${wipCount}|`;
+        wipViolationRow += `${getWipViolationIcon(config["wip-limits"][stage], wipCount)} |`
+        wipLimitsRow += `${config["wip-limits"][stage]}|`;
+    }
+
+    lines.push(columnHeader);
+    lines.push(columnHeaderSeparatorRow);
+    lines.push(dataRow);
+    lines.push(wipViolationRow)
+    lines.push(wipLimitsRow);
 
     return lines.join(os.EOL);
 }
