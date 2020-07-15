@@ -1,0 +1,23 @@
+name: "TODO"
+columnMap:
+  New: ["In Box"]                          # Drafts author is working on.  Has a chance of moving soon
+  Ready for Triage: ["In Box"]             # Ready for review
+  Ready for Work: ["Next"]                 # Approved, waiting for assignment
+  Active: ["Next", "In Progress"]          # Work is underway
+  Complete: ["Done"]                       # Celebrate
+  Blocked: []                              # Blocked, e.g. waiting on external etc.
+
+projects: 
+  - https://github.com/users/bryanmacfarlane/projects/1
+
+reports:
+  - name: "echo-board"
+    config:
+      add-age: "hours"
+  - name: "wip-limits"
+    config:
+      active-limit: 2
+      triage-limit: 10
+
+
+

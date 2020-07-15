@@ -1,0 +1,26 @@
+{
+  "name": "issue-reports",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && ncc build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@actions/core": "^1.2.4",
+    "@actions/github": "^4.0.0",
+    "@octokit/rest": "^18.0.0",
+    "js-yaml": "^3.14.0",
+    "tablemark": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^3.12.5",
+    "@types/node": "^14.0.23",
+    "@zeit/ncc": "^0.22.3",
+    "typescript": "^3.9.6"
+  }
+}
