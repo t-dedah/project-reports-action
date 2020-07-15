@@ -166,7 +166,7 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
     });
 
     issueCard.events = [];
-    console.log(res.data);
+    // console.log(res.data);
     for (const cardEvent of res.data) {
         let newEvent = <IssueCardEvent>{
             event: cardEvent.event,
