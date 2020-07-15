@@ -58,7 +58,7 @@ function getWipViolationIcon(limit, actual) {
 function render(projData) {
     let lines = [];
     let config = getDefaultConfiguration();
-    lines.push(`# ${projData.name}`);
+    lines.push(`# WIP limits for ${projData.name}`);
     let columnHeader = "|  | ";
     let columnHeaderSeparatorRow = "|:--|";
     let dataRow = "|  |";
