@@ -1,10 +1,10 @@
 const { Octokit } = require('@octokit/rest');
 import * as cache from './cache'
 import * as url from 'url' 
-import {ProjectsData, ProjectData} from './interfaces'
+import {ProjectsData, ProjectData, IssueCard, IssueCardEvent} from './interfaces'
 
-function getCacheKey(projUrl: string) {
-    let purl = new url.URL(projUrl)
+function getCacheKey(srcurl: string) {
+    let purl = new url.URL(srcurl)
     return purl.pathname.replace(/\//g, '_');    
 }
 
@@ -113,5 +113,109 @@ export async function getCardsForColumns(token: string, colId: number, colName: 
 
     let cards = await octokit.projects.listCards({column_id: colId});
     cache.write("cards-" + colName, cards);
-    return cards;
+    return cards.data;
+}
+
+
+// returns null if not an issue
+export async function getIssueCard(token: string, card:any, projectId: number): Promise<IssueCard> {
+    if (!card.content_url) {
+        return null;
+    }
+
+    let cached = cache.read(getCacheKey(card.content_url))
+    if (cached) {
+        return cached;
+    }
+
+    let cardUrl = new url.URL(card.content_url);
+    let cardParts = cardUrl.pathname.split('/').filter(e => e);
+
+    const octokit = new Octokit({
+        auth: token, 
+        previews: ['starfox-preview', 'sailor-v-preview']
+    });
+
+    // /repos/:owner/:repo/issues/events/:event_id
+    // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
+
+    let owner = cardParts[1];
+    let repo = cardParts[2];
+    let issue_number = cardParts[4];
+
+    let issueCard = <IssueCard>{};
+
+    let res = await octokit.issues.get({
+        owner: owner,
+        repo: repo,
+        issue_number: issue_number
+    });
+    let issue = res.data;
+
+    issueCard.title =  issue.title;
+    issueCard.number = issue.number;
+    issueCard.html_url = issue.html_url;
+    issueCard.labels = [];
+    for (const label of issue.labels) {
+        issueCard.labels.push(label.name);
+    }
+
+    // TODO: paginate
+    res = await octokit.issues.listEvents({
+        owner: owner,
+        repo: repo,
+        issue_number: issue_number,
+        per_page: 100
+    });
+
+    issueCard.events = [];
+    for (const cardEvent of res.data) {
+        let newEvent = <IssueCardEvent>{
+            event: cardEvent.event,
+            created: new Date(cardEvent.created_at)
+        };
+
+        // "event": "added_to_project",
+        // "created_at": "2020-07-08T16:51:02Z",
+        // "project_card": {
+        //   "project_id": 3125939,
+        //   "column_name": "..."        
+        if (cardEvent.event === "added_to_project" && cardEvent.project_card.project_id == projectId) {
+            newEvent.data = {
+                column_name: cardEvent.project_card.column_name
+            }
+            issueCard.events.push(newEvent);
+        }
+        // "event": "assigned",
+        // "created_at": "2020-07-08T16:51:02Z",
+        // "assignee": {
+        //   "login": "bob",
+        //   "html_url": "https://github.com/bob",            
+        else if (cardEvent.event === "assigned") {
+            newEvent.data = {
+                login: cardEvent.assignee.login,
+                html_url: cardEvent.assignee.html_url
+            }
+            issueCard.events.push(newEvent);
+        }
+        // "event": "labeled",
+        // "created_at": "2020-07-07T18:30:36Z",
+        // "label": {
+        //   "name": "needs-triage",
+        else if (cardEvent.event === "labeled") {
+            newEvent.data = {
+                name: cardEvent.label.name
+            }
+            issueCard.events.push(newEvent);
+        }
+        else if (cardEvent.event === "unlabeled") {
+            newEvent.data = {
+                name: cardEvent.label.name
+            }
+            issueCard.events.push(newEvent);
+        }                
+    }
+
+    cache.write(getCacheKey(card.content_url), issueCard);
+    return issueCard;
 }

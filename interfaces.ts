@@ -23,17 +23,28 @@ export interface ReportSnapshot {
     snapshots: ReportSnapshotItem[]
 }
 
-export interface IssueInfo {
-    title: string
-}
-
 export interface ProjectData {
     id: number,
     html_url: string,
     name: string,
-    stages: { [key: string]: IssueInfo[] }
+    columns: { [key: string]: number }
+    stages: { [key: string]: IssueCard[] }
 }
 
 export interface ProjectsData {
     projects: { [key: string]: ProjectData }
+}
+
+export interface IssueCardEvent {
+    created: Date,
+    event: string,
+    data: any
+}
+
+export interface IssueCard {
+    title: string,
+    number: number;
+    html_url: string,
+    labels: string[],
+    events: IssueCardEvent[]
 }
