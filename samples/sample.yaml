@@ -16,7 +16,9 @@ reports:
   - name: "echo-board"
     config:
       add-age: "hours"
-
+  - name: "wip-limits"
+    config:
+      add-age: "hours"
 
 
 
