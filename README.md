@@ -49,3 +49,6 @@ generator:
 reports
 1. wip-limits
 2. ... others after 4 above??
+
+tests
+1.  Add some tests.  If we copy over an instance cache into a mock directory then we could run end to end and shortcut the n^3 queries and test the report generation?
