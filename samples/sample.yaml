@@ -13,12 +13,15 @@ projects:
 output: "_reports"
 
 reports:
-  - name: "echo-board"
-    config:
-      add-age: "hours"
-  - name: "wip-limits"
-    config:
-      add-age: "hours"
+  - name: "{{{ config.name }}} Summary {{{ report.details.time }}}" 
+    timezoneOffset: -8
+    sections:
+      - name: "wip-limits"
+        config:
+          add-age: "hours"
+      - name: "echo-board"
+        config:
+          add-age: "hours"          
 
 
 

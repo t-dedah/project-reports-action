@@ -1,6 +1,17 @@
-export interface ReportConfiguration {
+export interface ReportSection {
     name: string,
     configuration: any
+}
+
+export interface ReportDetails {
+    time: string
+}
+
+export interface ReportConfig {
+    name: string,
+    timezoneOffset: number,
+    sections: ReportSection[],
+    details: ReportDetails
 }
 
 export interface GeneratorConfiguration {
@@ -9,7 +20,7 @@ export interface GeneratorConfiguration {
     projects: string[],
     filter: string,
     output: string,
-    reports: ReportConfiguration[]    
+    reports: ReportConfig[]    
 }
 
 export interface ReportSnapshotData {

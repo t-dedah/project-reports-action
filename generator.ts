@@ -1,13 +1,17 @@
 import * as path from 'path'
 import * as fs from 'fs'
+import * as util from './util'
 import * as yaml from 'js-yaml'
 import * as github from './github'
-import {GeneratorConfiguration, ReportSnapshot, ReportConfiguration, ProjectsData, ProjectData, ProjectReport} from './interfaces'
+import * as mustache from 'mustache'
+let sanitize = require('sanitize-filename')
+
+import {GeneratorConfiguration, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReport, ReportDetails} from './interfaces'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
 
-    let configPath = path.join(__dirname, configYaml);
+    let configPath = path.join(process.env["GITHUB_WORKSPACE"], configYaml);
     let config = <GeneratorConfiguration>yaml.load(fs.readFileSync(configPath, 'utf-8'))
 
     let snapshot = <ReportSnapshot>{};
@@ -20,35 +24,52 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     // load up the projects, their columns and all the issue cards + events.
     let projectsData: ProjectsData = await loadProjectsData(token, config);
 
+    // update report config details
+    for (const report of config.reports) {
+        report.timezoneOffset = report.timezoneOffset || -8;
+
+        report.details = <ReportDetails>{
+            time: util.getTimeForOffset(snapshot.datetime, report.timezoneOffset)
+        }
+
+        report.name = mustache.render(report.name, {
+            config: config,
+            report: report
+        });
+    }
+
     let outPath = await writeSnapshot(snapshot);
 
     // hand that full data set to each report to render
     for (const proj in projectsData) {
         const projectData = projectsData[proj];
 
-        for (const reportConfig of config.reports) {
-            console.log(`Generating ${reportConfig.name} for ${proj} ...`);
+        for (const report of config.reports) {
+            let output = "";
+            console.log(`Generating ${report.name} for ${proj} ...`);
 
-            // TODO: offer a config setting for the report path.
-            //       this will allow reports to be cloned and run 
-            let reportModule = `./reports/${reportConfig.name}`;
-            if (!fs.existsSync(path.join(__dirname, `${reportModule}.js`))) {
-                throw new Error(`Report not found: ${reportConfig.name}`);
+            for (const reportSection of report.sections) {
+                // TODO: offer a config setting for the report path.
+                //       this will allow reports to be cloned and run 
+                let reportModule = `./reports/${reportSection.name}`;
+                if (!fs.existsSync(path.join(__dirname, `${reportModule}.js`))) {
+                    throw new Error(`Report not found: ${report.name}`);
+                }
+        
+                // run as many reports as we can but fail action if any failed.
+                let failed = [];
+                try {
+                    let report = require(reportModule) as ProjectReport;
+        
+                    let processed = report.process(projectData);
+                    output += report.render(processed);
+                }
+                catch (err) {
+                    console.error(`Failed: ${err.message}`);
+                    failed.push({ report: report.name, error: err })
+                }
             }
-    
-            // run as many reports as we can but fail action if any failed.
-            let failed = [];
-            try {
-                let report = require(reportModule) as ProjectReport;
-    
-                let processed = report.process(projectData);
-                let contents = report.render(processed);
-                writeReport(outPath, reportConfig, projectData, contents);
-            }
-            catch (err) {
-                console.error(`Failed: ${err.message}`);
-                failed.push({ report: reportConfig.name, error: err })
-            }
+            writeReport(outPath, report, projectData, output);            
         }
     }
 
@@ -75,8 +96,8 @@ async function writeSnapshot(snapshot: ReportSnapshot): Promise<string> {
     return snapshotPath;
 }
 
-async function writeReport(basePath: string, reportConfig: ReportConfiguration, projectData: ProjectData, contents: string) {
-    const reportPath = path.join(basePath, reportConfig.name);
+async function writeReport(basePath: string, report: ReportConfig, projectData: ProjectData, contents: string) {
+    const reportPath = path.join(basePath, sanitize(report.name));
     if (!fs.existsSync(reportPath)) {
         fs.mkdirSync(reportPath);
     }
