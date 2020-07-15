@@ -1,3 +1,5 @@
 *.js
+!dist/*.js
 node_modules/
 _cache
+dist/samples
