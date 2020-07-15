@@ -922,7 +922,7 @@ function run() {
             let token = core.getInput('token', { required: true });
             let configPath = core.getInput('configPath', { required: true });
             let report = yield generator_1.generate(token, configPath);
-            console.log(JSON.stringify(report, null, 2));
+            //console.log(JSON.stringify(report, null, 2));
         }
         catch (err) {
             core.setFailed(err.message);
@@ -1075,8 +1075,6 @@ function getProject(token, projectHtmlUrl) {
             }
             let projects = res.data;
             count = projects.length;
-            console.log(`returned ${count}`);
-            // projects.forEach((project) => {
             for (const project of projects) {
                 if (projectHtmlUrl.indexOf(project.html_url) > -1) {
                     proj = {
@@ -4543,14 +4541,68 @@ function generate(token, configYaml) {
         let snapshot = {};
         snapshot.datetime = new Date();
         snapshot.config = config;
+        // apply defaults
+        snapshot.config.output = snapshot.config.output || "_reports";
+        // load up the projects, their columns and all the issue cards + events.
         let projectsData = yield loadProjectsData(token, config);
-        console.log(JSON.stringify(projectsData, null, 2));
+        let outPath = yield writeSnapshot(snapshot);
+        // hand that full data set to each report to render
+        for (const proj in projectsData) {
+            const projectData = projectsData[proj];
+            for (const reportConfig of config.reports) {
+                console.log(`Generating ${reportConfig.name} for ${proj} ...`);
+                let reportModule = `./reports/${reportConfig.name}`;
+                if (!fs.existsSync(path.join(__dirname, `${reportModule}.js`))) {
+                    throw new Error(`Report not found: ${reportConfig.name}`);
+                }
+                // run as many reports as we can but fail action if any failed.
+                let failed = [];
+                try {
+                    let report = require(reportModule);
+                    let processed = report.process(projectData);
+                    let contents = report.render(processed);
+                    writeReport(outPath, reportConfig, projectData, contents);
+                }
+                catch (err) {
+                    console.error(`Failed: ${err.message}`);
+                    failed.push({ report: reportConfig.name, error: err });
+                }
+            }
+        }
         return snapshot;
     });
 }
 exports.generate = generate;
+// creates directory structure for the reports and hands back the root path to write reports in
+function writeSnapshot(snapshot) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const workspacePath = process.env["GITHUB_WORKSPACE"];
+        if (!workspacePath) {
+            throw new Error("GITHUB_WORKSPACE not defined");
+        }
+        let d = snapshot.datetime;
+        let dt = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDay()}_${d.getUTCHours()}-${d.getUTCMinutes()}`;
+        const snapshotPath = path.join(workspacePath, snapshot.config.output, dt);
+        if (!fs.existsSync(snapshotPath)) {
+            fs.mkdirSync(snapshotPath, { recursive: true });
+        }
+        fs.writeFileSync(path.join(snapshotPath, "snapshot.json"), JSON.stringify(snapshot, null, 2));
+        return snapshotPath;
+    });
+}
+function writeReport(basePath, reportConfig, projectData, contents) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const reportPath = path.join(basePath, reportConfig.name);
+        if (!fs.existsSync(reportPath)) {
+            fs.mkdirSync(reportPath);
+        }
+        fs.writeFileSync(path.join(reportPath, "report.md"), contents);
+        fs.writeFileSync(path.join(reportPath, "data.json"), JSON.stringify(projectData, null, 2));
+    });
+}
 function loadProjectsData(token, config) {
     return __awaiter(this, void 0, void 0, function* () {
+        console.log("Querying project data ...");
         let projMap = {};
         for (const projHtmlUrl of config.projects) {
             let proj = yield github.getProject(token, projHtmlUrl);
@@ -4559,7 +4611,7 @@ function loadProjectsData(token, config) {
             }
             projMap[projHtmlUrl] = proj;
         }
-        console.log(JSON.stringify(projMap, null, 2));
+        //console.log(JSON.stringify(projMap, null, 2));
         for (const projectUrl of config.projects) {
             let project = projMap[projectUrl];
             project.columns = {};

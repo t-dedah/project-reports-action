@@ -9,7 +9,7 @@ async function run() {
     
         let report: ReportSnapshot = await generate(token, configPath);
     
-        console.log(JSON.stringify(report, null, 2));
+        //console.log(JSON.stringify(report, null, 2));
     }
     catch (err) {
         core.setFailed(err.message)

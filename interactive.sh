@@ -12,9 +12,10 @@ echo "Running ${INPUT_CONFIGPATH}"
     echo "set GHPAT envvar" && exit 
 }
 
+export GITHUB_WORKSPACE="${SCRIPT_DIR}"
 export INPUT_TOKEN="${GHPAT}"
 
 echo "Running action"
-npx ncc build
+npm run build
 cp -R samples dist
 node ./dist/index.js

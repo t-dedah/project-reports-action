@@ -8,19 +8,18 @@ export interface GeneratorConfiguration {
     columnMap: any,
     projects: string[],
     filter: string,
+    output: string,
     reports: ReportConfiguration[]    
 }
 
-export interface ReportSnapshotItem {
+export interface ReportSnapshotData {
     name: string,
-    report: any,
-    snapshot: any[]  // TODO: change to issuesummary[]
+    contents: string
 }
 
 export interface ReportSnapshot {
     datetime: Date,
-    config: GeneratorConfiguration,
-    snapshots: ReportSnapshotItem[]
+    config: GeneratorConfiguration
 }
 
 export interface ProjectData {
@@ -47,4 +46,10 @@ export interface IssueCard {
     html_url: string,
     labels: string[],
     events: IssueCardEvent[]
+}
+
+export interface ProjectReport {
+    getDefaultConfiguration(): any;
+    process(data: ProjectData): ProjectData;
+    render(data: ProjectData): string;
 }

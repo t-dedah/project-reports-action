@@ -72,9 +72,6 @@ export async function getProject(token: string, projectHtmlUrl: string): Promise
         let projects = res.data;
         count = projects.length;
 
-        console.log(`returned ${count}`);
-
-        // projects.forEach((project) => {
         for (const project of projects) {
             if (projectHtmlUrl.indexOf(project.html_url) > -1) {
                 proj = <ProjectData>{

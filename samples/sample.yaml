@@ -10,14 +10,13 @@ columnMap:
 projects: 
   - https://github.com/users/bryanmacfarlane/projects/1
 
+output: "_reports"
+
 reports:
   - name: "echo-board"
     config:
       add-age: "hours"
-  - name: "wip-limits"
-    config:
-      active-limit: 2
-      triage-limit: 10
+
 
 
 
