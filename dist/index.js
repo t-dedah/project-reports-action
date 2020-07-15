@@ -1159,6 +1159,7 @@ function getIssueCard(token, card, projectId) {
             per_page: 100
         });
         issueCard.events = [];
+        console.log(res.data);
         for (const cardEvent of res.data) {
             let newEvent = {
                 event: cardEvent.event,
@@ -1169,10 +1170,16 @@ function getIssueCard(token, card, projectId) {
             // "project_card": {
             //   "project_id": 3125939,
             //   "column_name": "..."        
-            if (cardEvent.event === "added_to_project" && cardEvent.project_card.project_id == projectId) {
+            if ((cardEvent.event === "added_to_project" ||
+                cardEvent.event === "converted_note_to_issue" ||
+                cardEvent.event === "moved_columns_in_project") && cardEvent.project_card.project_id == projectId) {
+                // TODO: added the stage (mapped column), not just the physcial column from the event so it's useful in report gen
                 newEvent.data = {
                     column_name: cardEvent.project_card.column_name
                 };
+                if (cardEvent.project_card.previous_column_name) {
+                    newEvent.data.previous_colum_name = cardEvent.project_card.previous_column_name;
+                }
                 issueCard.events.push(newEvent);
             }
             // "event": "assigned",
@@ -1203,7 +1210,12 @@ function getIssueCard(token, card, projectId) {
                 };
                 issueCard.events.push(newEvent);
             }
+            else if (cardEvent.event === "closed") {
+                newEvent.data = {};
+                issueCard.events.push(newEvent);
+            }
         }
+        //TODO: sort ascending by date so it's a good historical view
         cache.write(getCacheKey(card.content_url), issueCard);
         return issueCard;
     });
@@ -4550,6 +4562,8 @@ function generate(token, configYaml) {
             const projectData = projectsData[proj];
             for (const reportConfig of config.reports) {
                 console.log(`Generating ${reportConfig.name} for ${proj} ...`);
+                // TODO: offer a config setting for the report path.
+                //       this will allow reports to be cloned and run 
                 let reportModule = `./reports/${reportConfig.name}`;
                 if (!fs.existsSync(path.join(__dirname, `${reportModule}.js`))) {
                     throw new Error(`Report not found: ${reportConfig.name}`);
@@ -4568,6 +4582,7 @@ function generate(token, configYaml) {
                 }
             }
         }
+        // TODO: throw if failed length > 0
         return snapshot;
     });
 }

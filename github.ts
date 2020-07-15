@@ -166,6 +166,7 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
     });
 
     issueCard.events = [];
+    console.log(res.data);
     for (const cardEvent of res.data) {
         let newEvent = <IssueCardEvent>{
             event: cardEvent.event,
@@ -177,12 +178,21 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
         // "project_card": {
         //   "project_id": 3125939,
         //   "column_name": "..."        
-        if (cardEvent.event === "added_to_project" && cardEvent.project_card.project_id == projectId) {
+        if ((cardEvent.event === "added_to_project" || 
+             cardEvent.event === "converted_note_to_issue" ||
+             cardEvent.event === "moved_columns_in_project") && cardEvent.project_card.project_id == projectId) {
+
+            // TODO: added the stage (mapped column), not just the physcial column from the event so it's useful in report gen
             newEvent.data = {
                 column_name: cardEvent.project_card.column_name
             }
+
+            if (cardEvent.project_card.previous_column_name) {
+                newEvent.data.previous_colum_name = cardEvent.project_card.previous_column_name;
+            }
+
             issueCard.events.push(newEvent);
-        }
+        }      
         // "event": "assigned",
         // "created_at": "2020-07-08T16:51:02Z",
         // "assignee": {
@@ -210,8 +220,14 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
                 name: cardEvent.label.name
             }
             issueCard.events.push(newEvent);
-        }                
+        }
+        else if (cardEvent.event === "closed") {
+            newEvent.data = {}
+            issueCard.events.push(newEvent);
+        }                        
     }
+
+    //TODO: sort ascending by date so it's a good historical view
 
     cache.write(getCacheKey(card.content_url), issueCard);
     return issueCard;

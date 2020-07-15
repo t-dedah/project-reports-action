@@ -29,6 +29,8 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         for (const reportConfig of config.reports) {
             console.log(`Generating ${reportConfig.name} for ${proj} ...`);
 
+            // TODO: offer a config setting for the report path.
+            //       this will allow reports to be cloned and run 
             let reportModule = `./reports/${reportConfig.name}`;
             if (!fs.existsSync(path.join(__dirname, `${reportModule}.js`))) {
                 throw new Error(`Report not found: ${reportConfig.name}`);
@@ -49,6 +51,8 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             }
         }
     }
+
+    // TODO: throw if failed length > 0
 
     return snapshot;
 }

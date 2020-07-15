@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e 
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 export RUNNER_TEMP="${SCRIPT_DIR}/_cache"
