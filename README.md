@@ -31,8 +31,9 @@ Haven't run this way yet.  Need to make public next and then create another priv
 
 ```yaml
 - uses: bryanmacfarlane/project-reports@master
-  token: ${{ github.secrets.PROJECT_TOKEN }}
-  configPath: samples/sample.yaml
+  with:
+    token: ${{ github.secrets.PROJECT_TOKEN }}
+    configPath: samples/sample.yaml
 ```
 
 Note that the configPath is relative to the root of the repo
