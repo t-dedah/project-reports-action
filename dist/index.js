@@ -5304,6 +5304,7 @@ const fs = __importStar(__webpack_require__(747));
 const util = __importStar(__webpack_require__(702));
 const yaml = __importStar(__webpack_require__(414));
 const github = __importStar(__webpack_require__(126));
+const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
 let sanitize = __webpack_require__(834);
 function generate(token, configYaml) {
@@ -5337,6 +5338,7 @@ function generate(token, configYaml) {
                 let output = "";
                 console.log(`Generating ${report.name} for ${proj} ...`);
                 for (const reportSection of report.sections) {
+                    output += os.EOL;
                     // TODO: offer a config setting for the report path.
                     //       this will allow reports to be cloned and run 
                     let reportModule = `./reports/${reportSection.name}`;
@@ -5346,9 +5348,9 @@ function generate(token, configYaml) {
                     // run as many reports as we can but fail action if any failed.
                     let failed = [];
                     try {
-                        let report = require(reportModule);
-                        let processed = report.process(projectData);
-                        output += report.render(processed);
+                        let reportGenerator = require(reportModule);
+                        let processed = reportGenerator.process(projectData);
+                        output += reportGenerator.render(processed);
                     }
                     catch (err) {
                         console.error(`Failed: ${err.message}`);
