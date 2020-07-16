@@ -59,7 +59,7 @@ export interface IssueCard {
     events: IssueCardEvent[]
 }
 
-export interface ProjectReportGenerator {
+export interface ProjectReportBuilder {
     getDefaultConfiguration(): any;
     process(data: ProjectData): any;
     render(data: any): string;
