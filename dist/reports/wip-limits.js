@@ -39,9 +39,20 @@ exports.getDefaultConfiguration = getDefaultConfiguration;
 // processing the data does a js map on each items and adds data that the report rendering (generate) needs
 // we will dump the json data used to generate the reports next to the rendered report 
 // e.g. this function should look at the transition times and added wip status of yellow, red etc. 
-function process(data) {
-    // TODO: process and add age in hours
-    return data;
+function process(projData) {
+    let report = {
+        name: `# WIP limits for ${projData.name}`,
+        lineItems: []
+    };
+    const config = getDefaultConfiguration();
+    for (let stage in projData.stages) {
+        report.lineItems.push({
+            name: stage,
+            count: projData.stages[stage].length,
+            limit: config["wip-limits"][stage]
+        });
+    }
+    return report;
 }
 exports.process = process;
 function getWipViolationIcon(limit, actual) {
@@ -55,23 +66,22 @@ function getWipViolationIcon(limit, actual) {
         return "🟢";
     }
 }
-function render(projData) {
+function render(reportData) {
+    const wipLimitsReport = reportData;
     let lines = [];
-    let config = getDefaultConfiguration();
-    lines.push(`# WIP limits for ${projData.name}`);
     let columnHeader = "|  | ";
     let columnHeaderSeparatorRow = "|:--|";
     let dataRow = "|  |";
     let wipViolationRow = "| Wip Limit status | ";
     let wipLimitsRow = "| Wip Limits | ";
-    for (let stage in projData.stages) {
-        let wipCount = projData.stages[stage].length;
-        columnHeader += `${stage}|`;
+    lines.push(wipLimitsReport.name);
+    wipLimitsReport.lineItems.forEach(function (lineItem) {
+        columnHeader += `${lineItem.name}|`;
         columnHeaderSeparatorRow += ":---|";
-        dataRow += `${wipCount}|`;
-        wipViolationRow += `${getWipViolationIcon(config["wip-limits"][stage], wipCount)} |`;
-        wipLimitsRow += `${config["wip-limits"][stage]}|`;
-    }
+        dataRow += `${lineItem.count}|`;
+        wipViolationRow += `${getWipViolationIcon(lineItem.limit, lineItem.count)} |`;
+        wipLimitsRow += `${lineItem.limit}|`;
+    });
     lines.push(columnHeader);
     lines.push(columnHeaderSeparatorRow);
     lines.push(dataRow);

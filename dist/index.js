@@ -5337,6 +5337,7 @@ function generate(token, configYaml) {
                 let output = "";
                 console.log(`Generating ${report.name} for ${proj} ...`);
                 for (const reportSection of report.sections) {
+                    output += "\n";
                     // TODO: offer a config setting for the report path.
                     //       this will allow reports to be cloned and run 
                     let reportModule = `./reports/${reportSection.name}`;
@@ -5346,9 +5347,9 @@ function generate(token, configYaml) {
                     // run as many reports as we can but fail action if any failed.
                     let failed = [];
                     try {
-                        let report = require(reportModule);
-                        let processed = report.process(projectData);
-                        output += report.render(processed);
+                        let reportGenerator = require(reportModule);
+                        let processed = reportGenerator.process(projectData);
+                        output += reportGenerator.render(processed);
                     }
                     catch (err) {
                         console.error(`Failed: ${err.message}`);

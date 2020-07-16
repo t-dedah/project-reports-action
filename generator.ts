@@ -6,7 +6,7 @@ import * as github from './github'
 import * as mustache from 'mustache'
 let sanitize = require('sanitize-filename')
 
-import {GeneratorConfiguration, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReport, ReportDetails} from './interfaces'
+import {GeneratorConfiguration, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReportGenerator, ReportDetails} from './interfaces'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -49,6 +49,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             console.log(`Generating ${report.name} for ${proj} ...`);
 
             for (const reportSection of report.sections) {
+                output += "\n";
                 // TODO: offer a config setting for the report path.
                 //       this will allow reports to be cloned and run 
                 let reportModule = `./reports/${reportSection.name}`;
@@ -59,10 +60,10 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 // run as many reports as we can but fail action if any failed.
                 let failed = [];
                 try {
-                    let report = require(reportModule) as ProjectReport;
+                    let reportGenerator = require(reportModule) as ProjectReportGenerator;
         
-                    let processed = report.process(projectData);
-                    output += report.render(processed);
+                    let processed = reportGenerator.process(projectData);
+                    output += reportGenerator.render(processed);
                 }
                 catch (err) {
                     console.error(`Failed: ${err.message}`);
