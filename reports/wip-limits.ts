@@ -15,14 +15,13 @@ export function getDefaultConfiguration(): any {
 }
 
 interface WIPLimitsLineItem {
-    name: string,
     count: number,
     limit: number
 }
 
 interface WIPLimitsReport {
     name: string,
-    lineItems: WIPLimitsLineItem[]
+    stages: { [key: string]: WIPLimitsLineItem }
 }
 
 // write a table using.  see the example on stringifying the check emoji - we can do the colored circle emoji
@@ -34,16 +33,14 @@ interface WIPLimitsReport {
 export function process(projData: ProjectData): any {
     let report = {
         name: `# WIP limits for ${projData.name}`,
-        lineItems: []
+        stages: {}
     };
     const config = getDefaultConfiguration()
     for (let stage in projData.stages) {
-        report.lineItems.push(
-        {
-            name: stage,
+        report.stages[stage]= {
             count: projData.stages[stage].length,
             limit: config["wip-limits"][stage]
-        });
+        };
     }
 
     return report;
@@ -75,13 +72,14 @@ export function render(reportData: any): string {
 
     lines.push(wipLimitsReport.name);
 
-    wipLimitsReport.lineItems.forEach(function (lineItem: WIPLimitsLineItem) {
-        columnHeader += `${lineItem.name}|`;
+    for (const stage in wipLimitsReport.stages) {
+        const lineItem = wipLimitsReport.stages[stage];
+        columnHeader += `${stage}|`;
         columnHeaderSeparatorRow += ":---|";
         dataRow += `${lineItem.count}|`;
         wipViolationRow += `${getWipViolationIcon(lineItem.limit, lineItem.count)} |`
         wipLimitsRow += `${lineItem.limit}|`;
-    });
+    }
 
     lines.push(columnHeader);
     lines.push(columnHeaderSeparatorRow);

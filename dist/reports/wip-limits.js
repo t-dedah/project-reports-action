@@ -42,15 +42,14 @@ exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(projData) {
     let report = {
         name: `# WIP limits for ${projData.name}`,
-        lineItems: []
+        stages: {}
     };
     const config = getDefaultConfiguration();
     for (let stage in projData.stages) {
-        report.lineItems.push({
-            name: stage,
+        report.stages[stage] = {
             count: projData.stages[stage].length,
             limit: config["wip-limits"][stage]
-        });
+        };
     }
     return report;
 }
@@ -75,13 +74,14 @@ function render(reportData) {
     let wipViolationRow = "| Wip Limit status | ";
     let wipLimitsRow = "| Wip Limits | ";
     lines.push(wipLimitsReport.name);
-    wipLimitsReport.lineItems.forEach(function (lineItem) {
-        columnHeader += `${lineItem.name}|`;
+    for (const stage in wipLimitsReport.stages) {
+        const lineItem = wipLimitsReport.stages[stage];
+        columnHeader += `${stage}|`;
         columnHeaderSeparatorRow += ":---|";
         dataRow += `${lineItem.count}|`;
         wipViolationRow += `${getWipViolationIcon(lineItem.limit, lineItem.count)} |`;
         wipLimitsRow += `${lineItem.limit}|`;
-    });
+    }
     lines.push(columnHeader);
     lines.push(columnHeaderSeparatorRow);
     lines.push(dataRow);
