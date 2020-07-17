@@ -14,9 +14,16 @@ export function getDefaultConfiguration(): any {
     };
 }
 
+enum limitStatus {
+    OK = 1,
+    Warning,
+    Error
+}
+
 interface WIPLimitsLineItem {
     count: number,
-    limit: number
+    limit: number,
+    limitStatus: limitStatus
 }
 
 interface WIPLimitsReport {
@@ -32,52 +39,66 @@ interface WIPLimitsReport {
 // e.g. this function should look at the transition times and added wip status of yellow, red etc. 
 export function process(projData: ProjectData): any {
     let report = {
-        name: `# WIP limits for ${projData.name}`,
+        name: projData.name,
         stages: {}
     };
     const config = getDefaultConfiguration()
     for (let stage in projData.stages) {
         report.stages[stage]= {
             count: projData.stages[stage].length,
-            limit: config["wip-limits"][stage]
+            limit: config["wip-limits"][stage],
+            limitStatus: getWipLimitStatus(config["wip-limits"][stage], projData.stages[stage].length)
         };
     }
 
     return report;
 }
 
-function getWipViolationIcon(limit: number, actual: number): string {
+function getWipLimitStatus(limit: number, actual: number): limitStatus {
     if (actual > limit) {
-        return "🔴";
+        return limitStatus.Error;
     }
 
     if (actual == limit) {
-        return "🟠";
+        return limitStatus.Warning;
     }
 
-    if (actual <limit) {
-        return "🟢";
+    if (actual < limit) {
+        return limitStatus.OK;
+    }
+
+    return limitStatus.Error;
+}
+
+function getWipViolationIcon(status: limitStatus): string {
+    console.log(`status is ${status}`);
+    switch (status) {
+        case limitStatus.OK:
+            return "🟢";
+        case limitStatus.Warning:
+            return "🟠";
+        case limitStatus.Error:
+            return "🔴";
     }
 }
 
 export function render(reportData: any): string {
     const wipLimitsReport = reportData as WIPLimitsReport;
     let lines: string[] = []
-
     let columnHeader = "|  | ";
     let columnHeaderSeparatorRow = "|:--|";
     let dataRow = "|  |";
-    let wipViolationRow = "| Wip Limit status | ";
-    let wipLimitsRow = "| Wip Limits | ";
+    let wipViolationRow = "| WIP Limit status | ";
+    let wipLimitsRow = "| WIP Limits | ";
 
-    lines.push(wipLimitsReport.name);
+    lines.push(`# WIP limits for ${wipLimitsReport.name}`);
 
     for (const stage in wipLimitsReport.stages) {
         const lineItem = wipLimitsReport.stages[stage];
         columnHeader += `${stage}|`;
         columnHeaderSeparatorRow += ":---|";
         dataRow += `${lineItem.count}|`;
-        wipViolationRow += `${getWipViolationIcon(lineItem.limit, lineItem.count)} |`
+        wipViolationRow += `${getWipViolationIcon(lineItem.limitStatus)} |`
         wipLimitsRow += `${lineItem.limit}|`;
     }
 
