@@ -34,6 +34,12 @@ function getDefaultConfiguration() {
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
+var limitStatus;
+(function (limitStatus) {
+    limitStatus[limitStatus["OK"] = 1] = "OK";
+    limitStatus[limitStatus["Warning"] = 2] = "Warning";
+    limitStatus[limitStatus["Error"] = 3] = "Error";
+})(limitStatus || (limitStatus = {}));
 // write a table using.  see the example on stringifying the check emoji - we can do the colored circle emoji
 // https://github.com/citycide/tablemark
 // processing the data does a js map on each items and adds data that the report rendering (generate) needs
@@ -41,29 +47,41 @@ exports.getDefaultConfiguration = getDefaultConfiguration;
 // e.g. this function should look at the transition times and added wip status of yellow, red etc. 
 function process(projData) {
     let report = {
-        name: `# WIP limits for ${projData.name}`,
-        lineItems: []
+        name: projData.name,
+        stages: {}
     };
     const config = getDefaultConfiguration();
     for (let stage in projData.stages) {
-        report.lineItems.push({
-            name: stage,
+        report.stages[stage] = {
             count: projData.stages[stage].length,
-            limit: config["wip-limits"][stage]
-        });
+            limit: config["wip-limits"][stage],
+            limitStatus: getWipLimitStatus(config["wip-limits"][stage], projData.stages[stage].length)
+        };
     }
     return report;
 }
 exports.process = process;
-function getWipViolationIcon(limit, actual) {
+function getWipLimitStatus(limit, actual) {
     if (actual > limit) {
-        return "🔴";
+        return limitStatus.Error;
     }
     if (actual == limit) {
-        return "🟠";
+        return limitStatus.Warning;
     }
     if (actual < limit) {
-        return "🟢";
+        return limitStatus.OK;
+    }
+    return limitStatus.Error;
+}
+function getWipViolationIcon(status) {
+    console.log(`status is ${status}`);
+    switch (status) {
+        case limitStatus.OK:
+            return "🟢";
+        case limitStatus.Warning:
+            return "🟠";
+        case limitStatus.Error:
+            return "🔴";
     }
 }
 function render(reportData) {
@@ -72,16 +90,17 @@ function render(reportData) {
     let columnHeader = "|  | ";
     let columnHeaderSeparatorRow = "|:--|";
     let dataRow = "|  |";
-    let wipViolationRow = "| Wip Limit status | ";
-    let wipLimitsRow = "| Wip Limits | ";
-    lines.push(wipLimitsReport.name);
-    wipLimitsReport.lineItems.forEach(function (lineItem) {
-        columnHeader += `${lineItem.name}|`;
+    let wipViolationRow = "| WIP Limit status | ";
+    let wipLimitsRow = "| WIP Limits | ";
+    lines.push(`# WIP limits for ${wipLimitsReport.name}`);
+    for (const stage in wipLimitsReport.stages) {
+        const lineItem = wipLimitsReport.stages[stage];
+        columnHeader += `${stage}|`;
         columnHeaderSeparatorRow += ":---|";
         dataRow += `${lineItem.count}|`;
-        wipViolationRow += `${getWipViolationIcon(lineItem.limit, lineItem.count)} |`;
+        wipViolationRow += `${getWipViolationIcon(lineItem.limitStatus)} |`;
         wipLimitsRow += `${lineItem.limit}|`;
-    });
+    }
     lines.push(columnHeader);
     lines.push(columnHeaderSeparatorRow);
     lines.push(dataRow);
