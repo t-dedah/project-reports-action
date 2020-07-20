@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && ncc build && mkdir -p ./dist/reports && cp -R ./reports/*.js ./dist/reports && cp ./interfaces.js ./dist",
+    "build": "./build.sh",
     "test": "jest"
   },
   "keywords": [],

@@ -66,10 +66,10 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                     let reportModulePath;
 
                     if (reportModule.startsWith("./")) {
-                        reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}.js`);
+                        reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
                     }
                     else {
-                        reportModulePath = path.join(__dirname, `./reports/${reportSection.name}.js`);
+                        reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
                     }
 
                     console.log(`Loading: ${reportModulePath}`);

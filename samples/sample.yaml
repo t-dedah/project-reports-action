@@ -28,6 +28,3 @@ reports:
       - name: "echo-board"
         config:
           add-age: "hours"          
-
-
-
