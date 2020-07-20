@@ -1,114 +1,128 @@
-import {ProjectData} from '../interfaces';
+import {ProjectData, IssueCard} from '../interfaces';
+import * as rptLib from './project-reports-lib';
+const tablemark = require('tablemark')
 import * as os from 'os';
+import { Console } from 'console';
 
+/*
+ * Gives visibility into whether the team has untriaged debt, an approval bottleneck and 
+ * how focused the team is (e.g. how many efforts are going on)
+ * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
+ */
 export function getDefaultConfiguration(): any {
     return <any>{
-        "wip-limits": {
-            "New": 2,
-            "Ready for Triage": 10,
-            "Ready for Work": 4,
-            "Active" : 2,
-            "Complete": 20,
-            "Blocked": 3
+        // Epic for now.  Supports others. 
+        // Will appear on report in this casing but matches labels with lowercase version.
+        "report-on": ['Epic'],
+        "epic-proposed": 2,  
+        "epic-accepted": 10,
+        "epic-in-progress": 4,
+        "epic-done": 25,
+        "label-match": "(\\d+)-wip"
+    };
+}
+
+//
+// Builds a reporting structure of type with stages:
+//
+// <WipData>{
+//     "epic": <WipStage>{
+//         "Proposed" : <WipStageData>{
+//             flag: true,
+//             items: <IssueCardEx[]>[]
+//         }
+//     }
+// }
+
+export type WipData = { [key: string]: WipStage }
+export type WipStage = { [key: string]: WipStageData }
+export interface WipStageData {
+    flag: boolean,
+    wips: number, 
+    limit: number, 
+    // items that matched so possible to do drill in later
+    items: IssueCardEx[]    
+}
+export interface IssueCardEx extends IssueCard {
+    wips: number;
+}
+
+export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
+    let wipData = <WipData>{};
+
+    // epic, etc..
+    for (let cardType of config["report-on"]) { 
+        let wipStage = <WipStage>{};
+
+        // proposed, in-progress, etc...
+        for (let stage in projData.stages) {
+            let stageData = <WipStageData>{};
+
+            let cards = projData.stages[stage];
+            let cardsForType = rptLib.cardsWithLabel(cards, cardType);
+
+            drillIn(`wip-${cardType}-${stage}`, `Issues for ${stage} ${cardType}s`, cardsForType);
+
+            // add wip number to each card from the wip label
+            cardsForType.map((card: IssueCardEx) => {
+                card.wips = rptLib.getCountFromLabel(card, new RegExp(config["label-match"]));
+                return card;
+            })
+
+            stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
+
+            let limitKey = `${cardType.toLocaleLowerCase()}-${stage.toLocaleLowerCase()}`;
+            stageData.limit = config[limitKey] || 0;
+            stageData.flag = stageData.limit > 0 && stageData.wips > stageData.limit;
+
+            wipStage[stage] = stageData;    
         }
-    };
-}
-
-enum limitStatus {
-    OK = 1,
-    Warning,
-    Error
-}
-
-interface WIPLimitsLineItem {
-    count: number,
-    limit: number,
-    limitStatus: limitStatus
-}
-
-interface WIPLimitsReport {
-    name: string,
-    stages: { [key: string]: WIPLimitsLineItem }
-}
-
-// write a table using.  see the example on stringifying the check emoji - we can do the colored circle emoji
-// https://github.com/citycide/tablemark
-
-// processing the data does a js map on each items and adds data that the report rendering (generate) needs
-// we will dump the json data used to generate the reports next to the rendered report 
-// e.g. this function should look at the transition times and added wip status of yellow, red etc. 
-export function process(projData: ProjectData): any {
-    let report = {
-        name: projData.name,
-        stages: {}
-    };
-    const config = getDefaultConfiguration()
-    for (let stage in projData.stages) {
-        report.stages[stage]= {
-            count: projData.stages[stage].length,
-            limit: config["wip-limits"][stage],
-            limitStatus: getWipLimitStatus(config["wip-limits"][stage], projData.stages[stage].length)
-        };
+        
+        wipData[cardType] = wipStage;
     }
 
-    return report;
+    return wipData;
 }
 
-function getWipLimitStatus(limit: number, actual: number): limitStatus {
-    if (actual > limit) {
-        return limitStatus.Error;
-    }
-
-    if (actual == limit) {
-        return limitStatus.Warning;
-    }
-
-    if (actual < limit) {
-        return limitStatus.OK;
-    }
-
-    return limitStatus.Error;
+interface WipRow {
+    stage: string,
+    count: string,
+    limit: string,
+    flag: string
 }
 
-function getWipViolationIcon(status: limitStatus): string {
-    console.log(`status is ${status}`);
-    switch (status) {
-        case limitStatus.OK:
-            return "🟢";
-        case limitStatus.Warning:
-            return "🟠";
-        case limitStatus.Error:
-            return "🔴";
+export function renderMarkdown(projData: ProjectData, processedData: any): string {
+    let wipData = processedData as WipData;
+    let lines: string[] = [];
+
+    // console.log(JSON.stringify(processedData, null, 2));
+    // console.log(`Creating Wip-Limits for ${projData.name}`);
+    lines.push(`## Wip Limits`)
+    // create a report for each type.  e.g. "Epic"
+    for (let cardType in wipData) {
+        lines.push(`### ${cardType} WIP limits`);
+
+        let rows: WipRow[] = [];
+        for (let stageName in wipData[cardType]) {
+            let wipStage = wipData[cardType][stageName];
+            let wipRow = <WipRow>{};
+            wipRow.stage = stageName;
+            wipRow.count = `[${wipStage.wips}](./wip-${cardType}-${stageName}/cards.md)`;
+            wipRow.limit = wipStage.limit > 0 ? wipStage.limit.toString() : "";
+            wipRow.flag = wipStage.flag ? "🥵": "";
+            rows.push(wipRow);
+        }
+
+        let table: string = tablemark(rows);
+        lines.push(table);
     }
-}
-
-export function render(reportData: any): string {
-    const wipLimitsReport = reportData as WIPLimitsReport;
-    let lines: string[] = []
-    let columnHeader = "|  | ";
-    let columnHeaderSeparatorRow = "|:--|";
-    let dataRow = "|  |";
-    let wipViolationRow = "| WIP Limit status | ";
-    let wipLimitsRow = "| WIP Limits | ";
-
-    lines.push(`# WIP limits for ${wipLimitsReport.name}`);
-
-    for (const stage in wipLimitsReport.stages) {
-        const lineItem = wipLimitsReport.stages[stage];
-        columnHeader += `${stage}|`;
-        columnHeaderSeparatorRow += ":---|";
-        dataRow += `${lineItem.count}|`;
-        wipViolationRow += `${getWipViolationIcon(lineItem.limitStatus)} |`
-        wipLimitsRow += `${lineItem.limit}|`;
-    }
-
-    lines.push(columnHeader);
-    lines.push(columnHeaderSeparatorRow);
-    lines.push(dataRow);
-    lines.push(wipViolationRow)
-    lines.push(wipLimitsRow);
 
     return lines.join(os.EOL);
+}
+
+export function renderHtml(): string {
+    // Not supported yet
+    return "";
 }
 
 

@@ -3,3 +3,4 @@ export function getTimeForOffset(date: Date, offset: number) {
     var nd = new Date(utc + (3600000*offset));
     return nd.toLocaleString();
 }
+

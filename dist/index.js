@@ -40,7 +40,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(104);
+/******/ 		return __webpack_require__(731);
 /******/ 	};
 /******/
 /******/ 	// run startup
@@ -656,6 +656,65 @@ module.exports = windowsRelease;
 
 /***/ }),
 
+/***/ 67:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderHtml = exports.renderMarkdown = void 0;
+//const tablemark = require('tablemark')
+const os = __importStar(__webpack_require__(87));
+function renderMarkdown(heading, cards) {
+    let lines = [];
+    lines.push(`## ${heading}`);
+    // create a report for each type.  e.g. "Epic"
+    for (let card of cards) {
+        // note: the two spaces at the end of markdown strings are intentional for markdown new lines.  don't trim :)
+        lines.push(`  `);
+        let assigneeHtml = card.assignee ? `<img height="20" width="20" alt="@${card.assignee.login}" src="${card.assignee.avatar_url}"/>` : "";
+        // ### <img height="20" width="20" alt="@bryanmacfarlane" src="https://avatars3.githubusercontent.com/u/919564?v=4"/> [Initial Web UI](https://github.com/bryanmacfarlane/quotes-feed/issues/13) 
+        // > [@bryanmacfarlane](https://github.com/bryanmacfarlane)  
+        //   `1-dev` `epic`        
+        lines.push(`### ${assigneeHtml} [${card.title}](${card.html_url})  `);
+        let assigneeLink = card.assignee ? `[@${card.assignee.login}](${card.assignee.html_url})  ` : "not assigned  ";
+        lines.push(`> ${assigneeLink}`);
+        card.labels = card.labels.map((label) => {
+            return `\`${label}\``;
+        });
+        lines.push(`  ${card.labels.join(" ")}`);
+    }
+    return lines.join(os.EOL);
+}
+exports.renderMarkdown = renderMarkdown;
+function renderHtml() {
+    // Not supported yet
+    return "";
+}
+exports.renderHtml = renderHtml;
+
+
+/***/ }),
+
 /***/ 82:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -876,59 +935,6 @@ module.exports = new Type('tag:yaml.org,2002:set', {
   resolve: resolveYamlSet,
   construct: constructYamlSet
 });
-
-
-/***/ }),
-
-/***/ 104:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const core = __importStar(__webpack_require__(470));
-const generator_1 = __webpack_require__(341);
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            let token = core.getInput('token', { required: true });
-            let configPath = core.getInput('configPath', { required: true });
-            yield generator_1.generate(token, configPath);
-        }
-        catch (err) {
-            core.setFailed(err.message);
-        }
-    });
-}
-run();
 
 
 /***/ }),
@@ -1160,6 +1166,15 @@ function getIssueCard(token, card, projectId) {
         issueCard.title = issue.title;
         issueCard.number = issue.number;
         issueCard.html_url = issue.html_url;
+        if (issue.assignee) {
+            issueCard.assignee = {
+                login: issue.assignee.login,
+                id: issue.assignee.id,
+                avatar_url: issue.assignee.avatar_url,
+                url: issue.assignee.url,
+                html_url: issue.assignee.html_url
+            };
+        }
         issueCard.labels = [];
         for (const label of issue.labels) {
             issueCard.labels.push(label.name);
@@ -5306,6 +5321,7 @@ const yaml = __importStar(__webpack_require__(414));
 const github = __importStar(__webpack_require__(126));
 const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
+const drillInRpt = __importStar(__webpack_require__(67));
 let sanitize = __webpack_require__(834);
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -5336,35 +5352,87 @@ function generate(token, configYaml) {
             const projectData = projectsData[proj];
             for (const report of config.reports) {
                 let output = "";
+                console.log();
                 console.log(`Generating ${report.name} for ${proj} ...`);
+                let reportPath = yield createReportPath(outPath, report);
                 for (const reportSection of report.sections) {
                     output += os.EOL;
-                    // TODO: offer a config setting for the report path.
-                    //       this will allow reports to be cloned and run 
-                    let reportModule = `./reports/${reportSection.name}`;
-                    if (!fs.existsSync(path.join(__dirname, `${reportModule}.js`))) {
-                        throw new Error(`Report not found: ${report.name}`);
-                    }
-                    // run as many reports as we can but fail action if any failed.
-                    let failed = [];
+                    let reportModule = `${reportSection.name}`;
                     try {
-                        let reportGenerator = require(reportModule);
-                        let processed = reportGenerator.process(projectData);
-                        output += reportGenerator.render(processed);
+                        // if it's a relative path, find in the workflow repo relative path.
+                        // this allows for consume of action to create their own report sections
+                        // else look for built-ins
+                        console.log(`Report module ${reportModule}`);
+                        let reportModulePath;
+                        if (reportModule.startsWith("./")) {
+                            reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+                        }
+                        else {
+                            reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
+                        }
+                        console.log(`Loading: ${reportModulePath}`);
+                        if (!fs.existsSync(reportModulePath)) {
+                            throw new Error(`Report not found: ${reportSection.name}`);
+                        }
+                        let reportGenerator = require(reportModulePath);
+                        // overlay user settings over default settings 
+                        let config = reportGenerator.getDefaultConfiguration();
+                        for (let setting in reportSection.config) {
+                            config[setting] = reportSection.config[setting];
+                        }
+                        console.log("Processing data ...");
+                        let drillIns = [];
+                        let drillInCb = (identifier, title, cards) => {
+                            drillIns.push({
+                                identifier: identifier,
+                                title: title,
+                                cards: cards
+                            });
+                        };
+                        let processed = reportGenerator.process(config, projectData, drillInCb);
+                        yield writeSectionData(reportPath, reportModule, config, processed);
+                        if (report.kind === 'markdown') {
+                            output += reportGenerator.renderMarkdown(projectData, processed);
+                        }
+                        else {
+                            throw new Error(`Report kind ${report.kind} not supported`);
+                        }
+                        for (let drillIn of drillIns) {
+                            let drillInReport;
+                            if (report.kind === 'markdown') {
+                                drillInReport = drillInRpt.renderMarkdown(drillIn.title, drillIn.cards);
+                            }
+                            else {
+                                throw new Error(`Report kind ${report.kind} not supported`);
+                            }
+                            yield writeDrillIn(reportPath, drillIn.identifier, drillIn.cards, drillInReport);
+                        }
                     }
                     catch (err) {
-                        console.error(`Failed: ${err.message}`);
-                        failed.push({ report: report.name, error: err });
+                        console.error(err);
+                        throw new Error(`Failed generating report ${report.name}, section ${reportModule}`);
                     }
                 }
-                writeReport(outPath, report, projectData, output);
+                console.log("Writing report");
+                writeReport(reportPath, report, projectData, output);
+                console.log("Done.");
             }
+            console.log();
         }
-        // TODO: throw if failed length > 0
         return snapshot;
     });
 }
 exports.generate = generate;
+function writeDrillIn(basePath, identifier, cards, report) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let drillPath = path.join(basePath, identifier); // don't sanitize - must be valid dirname since parent report expects
+        if (!fs.existsSync(drillPath)) {
+            fs.mkdirSync(drillPath);
+        }
+        fs.writeFileSync(path.join(drillPath, "cards.json"), JSON.stringify(cards, null, 2));
+        fs.writeFileSync(path.join(drillPath, "cards.md"), report);
+    });
+}
 // creates directory structure for the reports and hands back the root path to write reports in
 function writeSnapshot(snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -5373,8 +5441,14 @@ function writeSnapshot(snapshot) {
             throw new Error("GITHUB_WORKSPACE not defined");
         }
         let d = snapshot.datetime;
-        let dt = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDay()}_${d.getUTCHours()}-${d.getUTCMinutes()}`;
+        let year = d.getUTCFullYear();
+        let month = (d.getUTCMonth() + 1).toString().padStart(2, "0");
+        let day = d.getUTCDate().toString().padStart(2, "0");
+        let hour = d.getUTCHours().toString().padStart(2, "0");
+        let minute = d.getUTCMinutes().toString().padStart(2, "0");
+        let dt = `${year}-${month}-${day}_${hour}-${minute}`;
         const snapshotPath = path.join(workspacePath, snapshot.config.output, dt);
+        console.log(`Writing to ${snapshotPath}`);
         if (!fs.existsSync(snapshotPath)) {
             fs.mkdirSync(snapshotPath, { recursive: true });
         }
@@ -5382,12 +5456,27 @@ function writeSnapshot(snapshot) {
         return snapshotPath;
     });
 }
-function writeReport(basePath, report, projectData, contents) {
+function createReportPath(basePath, report) {
     return __awaiter(this, void 0, void 0, function* () {
         const reportPath = path.join(basePath, sanitize(report.name));
         if (!fs.existsSync(reportPath)) {
             fs.mkdirSync(reportPath);
         }
+        return reportPath;
+    });
+}
+function writeSectionData(reportPath, name, settings, processed) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const sectionPath = path.join(reportPath, sanitize(name));
+        if (!fs.existsSync(sectionPath)) {
+            fs.mkdirSync(sectionPath);
+        }
+        fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
+        fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
+    });
+}
+function writeReport(reportPath, report, projectData, contents) {
+    return __awaiter(this, void 0, void 0, function* () {
         fs.writeFileSync(path.join(reportPath, "report.md"), contents);
         fs.writeFileSync(path.join(reportPath, "data.json"), JSON.stringify(projectData, null, 2));
     });
@@ -12066,6 +12155,59 @@ module.exports = new Schema({
     __webpack_require__(100)
   ]
 });
+
+
+/***/ }),
+
+/***/ 731:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const core = __importStar(__webpack_require__(470));
+const generator_1 = __webpack_require__(341);
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            let token = core.getInput('token', { required: true });
+            let configPath = core.getInput('configPath', { required: true });
+            yield generator_1.generate(token, configPath);
+        }
+        catch (err) {
+            core.setFailed(err.message);
+        }
+    });
+}
+run();
 
 
 /***/ }),
