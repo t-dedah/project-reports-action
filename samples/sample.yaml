@@ -1,11 +1,10 @@
 name: "TODO"
 columnMap:
-  New: ["In Box"]                          # Drafts author is working on.  Has a chance of moving soon
-  Ready for Triage: ["In Box"]             # Ready for review
-  Ready for Work: ["Next"]                 # Approved, waiting for assignment
-  Active: ["Next", "In Progress"]          # Work is underway
-  Complete: ["Done"]                       # Celebrate
-  Blocked: []                              # Blocked, e.g. waiting on external etc.
+  Proposed: ["In Box"]                  # Drafts author is working on.  Has a chance of moving soon
+  Accepted: ["Next"]                    # Ready for review
+  In-Progress: ["In Progress"]          # Work is underway
+  Done: ["Complete"]                    # Celebrate
+  Blocked: []                           # Blocked, e.g. waiting on external etc.
 
 projects: 
   - https://github.com/users/bryanmacfarlane/projects/1
@@ -13,12 +12,19 @@ projects:
 output: "_reports"
 
 reports:
-  - name: "{{{ config.name }}} Summary {{{ report.details.time }}}" 
+  - name: "{{{ config.name }}} Summary {{{ report.details.time }}}"
+    kind: markdown 
     timezoneOffset: -8
     sections:
       - name: "wip-limits"
-        config:
-          add-age: "hours"
+        config: 
+          report-on: ['Epic', 'Feature']
+          epic-proposed: 2  
+          epic-accepted: 2
+          epic-in-progress: 2
+          feature-accepted: 2
+          feature-in-progress: 2
+          label-match: "(\\d+)-dev"
       - name: "echo-board"
         config:
           add-age: "hours"          

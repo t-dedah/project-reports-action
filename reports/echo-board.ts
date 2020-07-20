@@ -16,12 +16,12 @@ export function process(data: ProjectData): ProjectData {
     return data;
 }
 
-export function render(projData: ProjectData): string {
+export function renderMarkdown(projData: ProjectData): string {
     let lines: string[] = []
-    lines.push(`# Echo data for ${projData.name}`);
+    lines.push(`## Echo data for ${projData.name}`);
 
     lines.push("")
-    lines.push("## Project Data");
+    lines.push("### Project Data");
     lines.push("");
     lines.push("```javascript")
     lines.push(JSON.stringify(projData, null, 2));
@@ -29,4 +29,9 @@ export function render(projData: ProjectData): string {
     // TODO
 
     return lines.join(os.EOL);
+}
+
+export function renderHtml(): string {
+    // Not supported yet
+    return "";
 }

@@ -19,93 +19,82 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.render = exports.process = exports.getDefaultConfiguration = void 0;
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = void 0;
+const rptLib = __importStar(require("./project-reports-lib"));
+const tablemark = require('tablemark');
 const os = __importStar(require("os"));
+/*
+ * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
+ * how focused the team is (e.g. how many efforts are going on)
+ * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
+ */
 function getDefaultConfiguration() {
     return {
-        "wip-limits": {
-            "New": 2,
-            "Ready for Triage": 10,
-            "Ready for Work": 4,
-            "Active": 2,
-            "Complete": 20,
-            "Blocked": 3
-        }
+        // Epic for now.  Supports others. 
+        // Will appear on report in this casing but matches labels with lowercase version.
+        "report-on": ['Epic'],
+        "epic-proposed": 2,
+        "epic-accepted": 10,
+        "epic-in-progress": 4,
+        "epic-done": 25,
+        "label-match": "(\\d+)-wip"
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
-var limitStatus;
-(function (limitStatus) {
-    limitStatus[limitStatus["OK"] = 1] = "OK";
-    limitStatus[limitStatus["Warning"] = 2] = "Warning";
-    limitStatus[limitStatus["Error"] = 3] = "Error";
-})(limitStatus || (limitStatus = {}));
-// write a table using.  see the example on stringifying the check emoji - we can do the colored circle emoji
-// https://github.com/citycide/tablemark
-// processing the data does a js map on each items and adds data that the report rendering (generate) needs
-// we will dump the json data used to generate the reports next to the rendered report 
-// e.g. this function should look at the transition times and added wip status of yellow, red etc. 
-function process(projData) {
-    let report = {
-        name: projData.name,
-        stages: {}
-    };
-    const config = getDefaultConfiguration();
-    for (let stage in projData.stages) {
-        report.stages[stage] = {
-            count: projData.stages[stage].length,
-            limit: config["wip-limits"][stage],
-            limitStatus: getWipLimitStatus(config["wip-limits"][stage], projData.stages[stage].length)
-        };
+function process(config, projData, drillIn) {
+    let wipData = {};
+    // epic, etc..
+    for (let cardType of config["report-on"]) {
+        let wipStage = {};
+        // proposed, in-progress, etc...
+        for (let stage in projData.stages) {
+            let stageData = {};
+            let cards = projData.stages[stage];
+            let cardsForType = rptLib.cardsWithLabel(cards, cardType);
+            drillIn(`wip-${cardType}-${stage}`, `Issues for ${stage} ${cardType}s`, cardsForType);
+            // add wip number to each card from the wip label
+            cardsForType.map((card) => {
+                card.wips = rptLib.getCountFromLabel(card, new RegExp(config["label-match"]));
+                return card;
+            });
+            stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
+            let limitKey = `${cardType.toLocaleLowerCase()}-${stage.toLocaleLowerCase()}`;
+            stageData.limit = config[limitKey] || 0;
+            stageData.flag = stageData.limit > 0 && stageData.wips > stageData.limit;
+            wipStage[stage] = stageData;
+        }
+        wipData[cardType] = wipStage;
     }
-    return report;
+    return wipData;
 }
 exports.process = process;
-function getWipLimitStatus(limit, actual) {
-    if (actual > limit) {
-        return limitStatus.Error;
-    }
-    if (actual == limit) {
-        return limitStatus.Warning;
-    }
-    if (actual < limit) {
-        return limitStatus.OK;
-    }
-    return limitStatus.Error;
-}
-function getWipViolationIcon(status) {
-    console.log(`status is ${status}`);
-    switch (status) {
-        case limitStatus.OK:
-            return "🟢";
-        case limitStatus.Warning:
-            return "🟠";
-        case limitStatus.Error:
-            return "🔴";
-    }
-}
-function render(reportData) {
-    const wipLimitsReport = reportData;
+function renderMarkdown(projData, processedData) {
+    let wipData = processedData;
     let lines = [];
-    let columnHeader = "|  | ";
-    let columnHeaderSeparatorRow = "|:--|";
-    let dataRow = "|  |";
-    let wipViolationRow = "| WIP Limit status | ";
-    let wipLimitsRow = "| WIP Limits | ";
-    lines.push(`# WIP limits for ${wipLimitsReport.name}`);
-    for (const stage in wipLimitsReport.stages) {
-        const lineItem = wipLimitsReport.stages[stage];
-        columnHeader += `${stage}|`;
-        columnHeaderSeparatorRow += ":---|";
-        dataRow += `${lineItem.count}|`;
-        wipViolationRow += `${getWipViolationIcon(lineItem.limitStatus)} |`;
-        wipLimitsRow += `${lineItem.limit}|`;
+    // console.log(JSON.stringify(processedData, null, 2));
+    // console.log(`Creating Wip-Limits for ${projData.name}`);
+    lines.push(`## Wip Limits`);
+    // create a report for each type.  e.g. "Epic"
+    for (let cardType in wipData) {
+        lines.push(`### ${cardType} WIP limits`);
+        let rows = [];
+        for (let stageName in wipData[cardType]) {
+            let wipStage = wipData[cardType][stageName];
+            let wipRow = {};
+            wipRow.stage = stageName;
+            wipRow.count = `[${wipStage.wips}](./wip-${cardType}-${stageName}/cards.md)`;
+            wipRow.limit = wipStage.limit > 0 ? wipStage.limit.toString() : "";
+            wipRow.flag = wipStage.flag ? "🥵" : "";
+            rows.push(wipRow);
+        }
+        let table = tablemark(rows);
+        lines.push(table);
     }
-    lines.push(columnHeader);
-    lines.push(columnHeaderSeparatorRow);
-    lines.push(dataRow);
-    lines.push(wipViolationRow);
-    lines.push(wipLimitsRow);
     return lines.join(os.EOL);
 }
-exports.render = render;
+exports.renderMarkdown = renderMarkdown;
+function renderHtml() {
+    // Not supported yet
+    return "";
+}
+exports.renderHtml = renderHtml;

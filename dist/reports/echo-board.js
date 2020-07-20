@@ -19,7 +19,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.render = exports.process = exports.getDefaultConfiguration = void 0;
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = void 0;
 const os = __importStar(require("os"));
 function getDefaultConfiguration() {
     return {
@@ -35,11 +35,11 @@ function process(data) {
     return data;
 }
 exports.process = process;
-function render(projData) {
+function renderMarkdown(projData) {
     let lines = [];
-    lines.push(`# Echo data for ${projData.name}`);
+    lines.push(`## Echo data for ${projData.name}`);
     lines.push("");
-    lines.push("## Project Data");
+    lines.push("### Project Data");
     lines.push("");
     lines.push("```javascript");
     lines.push(JSON.stringify(projData, null, 2));
@@ -47,4 +47,9 @@ function render(projData) {
     // TODO
     return lines.join(os.EOL);
 }
-exports.render = render;
+exports.renderMarkdown = renderMarkdown;
+function renderHtml() {
+    // Not supported yet
+    return "";
+}
+exports.renderHtml = renderHtml;

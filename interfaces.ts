@@ -1,6 +1,6 @@
 export interface ReportSection {
     name: string,
-    configuration: any
+    config: any
 }
 
 export interface ReportDetails {
@@ -9,6 +9,7 @@ export interface ReportDetails {
 
 export interface ReportConfig {
     name: string,
+    kind: 'markdown' | 'html',
     timezoneOffset: number,
     sections: ReportSection[],
     details: ReportDetails
@@ -51,16 +52,26 @@ export interface IssueCardEvent {
     data: any
 }
 
+export interface IssueUser {
+    login: string,
+    id: number,
+    avatar_url: string,
+    url: string,
+    html_url: string
+}
+
 export interface IssueCard {
     title: string,
     number: number;
     html_url: string,
     labels: string[],
+    assignee: IssueUser,
     events: IssueCardEvent[]
 }
 
 export interface ProjectReportBuilder {
     getDefaultConfiguration(): any;
-    process(data: ProjectData): any;
-    render(data: any): string;
+    process(config: any, data: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any;
+    renderMarkdown(projData: ProjectData, processedData?: any): string;
+    renderHtml(projData: ProjectData, processedData?: any): string;
 }

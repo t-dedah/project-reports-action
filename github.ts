@@ -1,7 +1,7 @@
 const { Octokit } = require('@octokit/rest');
 import * as cache from './cache'
 import * as url from 'url' 
-import {ProjectsData, ProjectData, IssueCard, IssueCardEvent} from './interfaces'
+import {ProjectsData, ProjectData, IssueCard, IssueCardEvent, IssueUser} from './interfaces'
 
 function getCacheKey(srcurl: string) {
     let purl = new url.URL(srcurl)
@@ -152,6 +152,16 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
     issueCard.title =  issue.title;
     issueCard.number = issue.number;
     issueCard.html_url = issue.html_url;
+    if (issue.assignee) {
+        issueCard.assignee = <IssueUser>{
+            login: issue.assignee.login,
+            id: issue.assignee.id,
+            avatar_url: issue.assignee.avatar_url,
+            url: issue.assignee.url,
+            html_url: issue.assignee.html_url        
+        }
+    }
+
     issueCard.labels = [];
     for (const label of issue.labels) {
         issueCard.labels.push(label.name);
