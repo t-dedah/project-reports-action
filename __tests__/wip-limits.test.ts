@@ -80,8 +80,8 @@ describe('report-lib', () => {
         let markdown = wipLimits.renderMarkdown(projectData, processed);
         expect(markdown).toBeDefined();
         expect(markdown).toContain("### Epic WIP limits");
-        expect(markdown).toContain("| In-Progress | [3](./wip-Epic-In-Progress/cards.md) | 2     | 🥵    |");
+        expect(markdown).toContain("| In-Progress | [3](./data/wip-Epic-In-Progress/cards.md) | 2     | 🥵    |");
         expect(markdown).toContain("### Feature WIP limits");
-        expect(markdown).toContain("| Done        | [1](./wip-Feature-Done/cards.md)        |       |       |");
+        expect(markdown).toContain("| Done        | [1](./data/wip-Feature-Done/cards.md)        |       |       |");
     });    
 });

@@ -7,6 +7,7 @@ import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
 import * as cp from 'child_process';
+import * as shell from 'shelljs';
 
 let sanitize = require('sanitize-filename')
 
@@ -142,7 +143,7 @@ function getReportHeading(report: ReportConfig) {
     if (report.kind === "markdown") {
         lines.push(`# ${report.title}  `)
         lines.push('  ');
-        lines.push(`Generated with :heart: by [report-generator](https://github.com/bryanmacfarlane/project-reports)  `);
+        lines.push(`Generated with :heart: by [project-reports-action](https://github.com/bryanmacfarlane/project-reports-action)  `);
         lines.push(`<sub><sup>${report.details.time}</sup></sub>  `);
         lines.push("  ");
     }
@@ -150,9 +151,9 @@ function getReportHeading(report: ReportConfig) {
     return lines.join(os.EOL);
 }
 async function writeDrillIn(basePath: string, identifier: string, cards: IssueCard[], report: string) {
-    let drillPath = path.join(basePath, identifier); // don't sanitize - must be valid dirname since parent report expects
+    let drillPath = path.join(basePath, 'data', identifier); // don't sanitize - must be valid dirname since parent report expects
     if (!fs.existsSync(drillPath)) {
-        fs.mkdirSync(drillPath);
+        fs.mkdirSync(drillPath, { recursive: true });
     }
 
     fs.writeFileSync(path.join(drillPath, "cards.json"), JSON.stringify(cards, null, 2));
@@ -177,12 +178,12 @@ async function writeSnapshot(snapshot: ReportSnapshot): Promise<string> {
     snapshot.datetimeString = dt;
 
     const rootPath = path.join(workspacePath, snapshot.config.output);
-    const genPath = path.join(rootPath, "_gen");
+    const genPath = path.join(rootPath, ".gen");
     if (!fs.existsSync(genPath)) {
         fs.mkdirSync(genPath, { recursive: true });
     }
 
-    const snapshotPath = path.join(rootPath, "_gen", `${snapshot.datetimeString}.json`);
+    const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
     console.log(`Writing to ${snapshotPath}`);
 
     fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
@@ -200,9 +201,9 @@ async function createReportPath(basePath: string, report: ReportConfig, snapshot
 }
 
 async function writeSectionData(reportPath: string, name: string, settings: any, processed: any) {
-    const sectionPath = path.join(reportPath, sanitize(name));
+    const sectionPath = path.join(reportPath, "data", sanitize(name));
     if (!fs.existsSync(sectionPath)) {
-        fs.mkdirSync(sectionPath);
+        fs.mkdirSync(sectionPath, { recursive: true });
     }
 
     fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
@@ -212,10 +213,14 @@ async function writeSectionData(reportPath: string, name: string, settings: any,
 async function writeReport(reportPath: string, report: ReportConfig, projectData: ProjectData, contents: string) {
     fs.writeFileSync(path.join(reportPath, "report.md"), contents);
     fs.writeFileSync(path.join(reportPath, "data.json"), JSON.stringify(projectData, null, 2));
-    let latest = path.join(reportPath, "..", "latest");
-    console.log(`creating symbolic link: ${reportPath} ${latest}`);
-    console.log(cp.exec(`unlink "${latest}"`).toString());
-    console.log(cp.execSync(`ln -sf "${reportPath}" "${latest}"`).toString());
+    let reportsRoot = path.join(reportPath, "..");
+    shell.pushd(reportsRoot);
+    let reportFolder = path.basename(reportPath);
+    console.log('current dir: ${process.cwd()}');
+    console.log(`creating symbolic link: ${reportFolder} "latest"`);
+    cp.exec(`unlink latest`);
+    cp.execSync(`ln -sf "${reportFolder}" latest`);
+    shell.popd();
 }
 
 async function loadProjectsData(token: string, config: GeneratorConfiguration): Promise<ProjectsData> {
