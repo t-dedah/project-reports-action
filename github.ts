@@ -113,6 +113,9 @@ export async function getCardsForColumns(token: string, colId: number, colName: 
     return cards.data;
 }
 
+function DateOrNull(date: string): Date {
+    return date ? new Date(date) : null;
+}
 
 // returns null if not an issue
 export async function getIssueCard(token: string, card:any, projectId: number): Promise<IssueCard> {
@@ -152,6 +155,10 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
     issueCard.title =  issue.title;
     issueCard.number = issue.number;
     issueCard.html_url = issue.html_url;
+    issueCard.closed_at = DateOrNull(issue.closed_at);
+    issueCard.created_at = DateOrNull(issue.created_at);
+    issueCard.updated_at = DateOrNull(issue.updated_at);
+         
     if (issue.assignee) {
         issueCard.assignee = <IssueUser>{
             login: issue.assignee.login,
@@ -190,15 +197,19 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
         //   "column_name": "..."        
         if ((cardEvent.event === "added_to_project" || 
              cardEvent.event === "converted_note_to_issue" ||
-             cardEvent.event === "moved_columns_in_project") && cardEvent.project_card.project_id == projectId) {
+             cardEvent.event === "moved_columns_in_project")) {
 
-            // TODO: added the stage (mapped column), not just the physcial column from the event so it's useful in report gen
             newEvent.data = {
-                column_name: cardEvent.project_card.column_name
+                column_name: cardEvent.project_card.column_name,
+
+                // Watch out!
+                // since an issue can belong to multiple boards and issues are cached, we have to add this project_id.
+                // when the projectData structure is build, it will conveniently strip out column events that aren't part of the project being processed
+                project_id: cardEvent.project_card.project_id
             }
 
             if (cardEvent.project_card.previous_column_name) {
-                newEvent.data.previous_colum_name = cardEvent.project_card.previous_column_name;
+                newEvent.data.previous_column_name = cardEvent.project_card.previous_column_name;
             }
 
             issueCard.events.push(newEvent);
@@ -231,7 +242,7 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
             }
             issueCard.events.push(newEvent);
         }
-        else if (cardEvent.event === "closed") {
+        else {
             newEvent.data = {}
             issueCard.events.push(newEvent);
         }                        

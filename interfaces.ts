@@ -17,7 +17,7 @@ export interface ReportConfig {
 
 export interface GeneratorConfiguration {
     name: string,
-    columnMap: any,
+    columnMap: { [key: string]: string[] },
     projects: string[],
     filter: string,
     output: string,
@@ -66,6 +66,9 @@ export interface IssueCard {
     html_url: string,
     labels: string[],
     assignee: IssueUser,
+    closed_at: Date,
+    created_at: Date,
+    updated_at: Date,    
     events: IssueCardEvent[]
 }
 

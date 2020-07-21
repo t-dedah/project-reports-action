@@ -711,7 +711,7 @@ function renderHtml() {
     return "";
 }
 exports.renderHtml = renderHtml;
-
+//# sourceMappingURL=drill-in.js.map
 
 /***/ }),
 
@@ -1135,6 +1135,9 @@ function getCardsForColumns(token, colId, colName) {
     });
 }
 exports.getCardsForColumns = getCardsForColumns;
+function DateOrNull(date) {
+    return date ? new Date(date) : null;
+}
 // returns null if not an issue
 function getIssueCard(token, card, projectId) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -1166,6 +1169,9 @@ function getIssueCard(token, card, projectId) {
         issueCard.title = issue.title;
         issueCard.number = issue.number;
         issueCard.html_url = issue.html_url;
+        issueCard.closed_at = DateOrNull(issue.closed_at);
+        issueCard.created_at = DateOrNull(issue.created_at);
+        issueCard.updated_at = DateOrNull(issue.updated_at);
         if (issue.assignee) {
             issueCard.assignee = {
                 login: issue.assignee.login,
@@ -1200,13 +1206,16 @@ function getIssueCard(token, card, projectId) {
             //   "column_name": "..."        
             if ((cardEvent.event === "added_to_project" ||
                 cardEvent.event === "converted_note_to_issue" ||
-                cardEvent.event === "moved_columns_in_project") && cardEvent.project_card.project_id == projectId) {
-                // TODO: added the stage (mapped column), not just the physcial column from the event so it's useful in report gen
+                cardEvent.event === "moved_columns_in_project")) {
                 newEvent.data = {
-                    column_name: cardEvent.project_card.column_name
+                    column_name: cardEvent.project_card.column_name,
+                    // Watch out!
+                    // since an issue can belong to multiple boards and issues are cached, we have to add this project_id.
+                    // when the projectData structure is build, it will conveniently strip out column events that aren't part of the project being processed
+                    project_id: cardEvent.project_card.project_id
                 };
                 if (cardEvent.project_card.previous_column_name) {
-                    newEvent.data.previous_colum_name = cardEvent.project_card.previous_column_name;
+                    newEvent.data.previous_column_name = cardEvent.project_card.previous_column_name;
                 }
                 issueCard.events.push(newEvent);
             }
@@ -1238,7 +1247,7 @@ function getIssueCard(token, card, projectId) {
                 };
                 issueCard.events.push(newEvent);
             }
-            else if (cardEvent.event === "closed") {
+            else {
                 newEvent.data = {};
                 issueCard.events.push(newEvent);
             }
@@ -1249,7 +1258,7 @@ function getIssueCard(token, card, projectId) {
     });
 }
 exports.getIssueCard = getIssueCard;
-
+//# sourceMappingURL=github.js.map
 
 /***/ }),
 
@@ -2215,7 +2224,7 @@ function read(name) {
     return item;
 }
 exports.read = read;
-
+//# sourceMappingURL=cache.js.map
 
 /***/ }),
 
@@ -5512,6 +5521,7 @@ function loadProjectsData(token, config) {
                         // read and build the event list once
                         let issueCard = yield github.getIssueCard(token, card, project.id);
                         if (issueCard) {
+                            util.processCard(issueCard, project.id, config);
                             project.stages[key].push(issueCard);
                         }
                     }
@@ -5521,7 +5531,7 @@ function loadProjectsData(token, config) {
         return projMap;
     });
 }
-
+//# sourceMappingURL=generator.js.map
 
 /***/ }),
 
@@ -12112,14 +12122,73 @@ module.exports = (promise, onFinally) => {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTimeForOffset = void 0;
+exports.processCard = exports.getStageFromColumn = exports.getTimeForOffset = void 0;
 function getTimeForOffset(date, offset) {
     var utc = date.getTime() + (date.getTimezoneOffset() * 60000);
     var nd = new Date(utc + (3600000 * offset));
     return nd.toLocaleString();
 }
 exports.getTimeForOffset = getTimeForOffset;
-
+// cache the resolution of stage names for a column
+// a columns by stage names are the default and resolve immediately
+let _columnMap = {
+    "proposed": "Proposed",
+    "accepted": "Accepted",
+    "in-progress": "In-Progress",
+    "done": "Done",
+    "blocked": "Blocked"
+};
+function getStageFromColumn(column, config) {
+    column = column.toLowerCase();
+    if (_columnMap[column]) {
+        return _columnMap[column];
+    }
+    let resolvedStage = null;
+    for (let stageName in config.columnMap) {
+        // case insensitve match
+        for (let mappedColumn of config.columnMap[stageName]) {
+            let lowerColumn = mappedColumn.toLowerCase();
+            if (lowerColumn === column.toLowerCase()) {
+                resolvedStage = stageName;
+                break;
+            }
+        }
+        if (resolvedStage) {
+            break;
+        }
+    }
+    // cache the n^2 reverse case insensitive lookup.  it will never change for this run
+    if (resolvedStage) {
+        _columnMap[column] = resolvedStage;
+    }
+    return resolvedStage;
+}
+exports.getStageFromColumn = getStageFromColumn;
+// process a card in context of the project it's being added to
+// filter column events to the project being processed only since. this makes it easier on the report author
+// add stage name to column move events so report authors don't have to repeatedly to that
+function processCard(card, projectId, config) {
+    let filteredEvents = [];
+    if (card.events) {
+        for (let event of card.events) {
+            // since we're adding this card to a projects / stage, let's filter out
+            // events for other project ids since an issue can be part of multiple boards
+            if (event.data["project_id"] && event.data["project_id"] !== projectId) {
+                continue;
+            }
+            if (event.data["column_name"]) {
+                event.data["stage_name"] = getStageFromColumn(event.data["column_name"], config);
+            }
+            if (event.data["previous_colum_name"]) {
+                event.data["stage_name"] = getStageFromColumn(event.data["previous_colum_name"], config);
+            }
+            filteredEvents.push(event);
+        }
+        card.events = filteredEvents;
+    }
+}
+exports.processCard = processCard;
+//# sourceMappingURL=util.js.map
 
 /***/ }),
 

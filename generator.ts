@@ -9,8 +9,6 @@ import * as drillInRpt from './reports/drill-in'
 let sanitize = require('sanitize-filename')
 
 import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
-import { Console } from 'console'
-import { setFailed } from '@actions/core'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -232,6 +230,7 @@ async function loadProjectsData(token: string, config: GeneratorConfiguration): 
                     // read and build the event list once
                     let issueCard = await github.getIssueCard(token, card, project.id);
                     if (issueCard) {
+                        util.processCard(issueCard, project.id, config);
                         project.stages[key].push(issueCard);
                     }
                 }
