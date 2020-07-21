@@ -12,7 +12,8 @@ projects:
 output: "_reports"
 
 reports:
-  - name: "{{{ config.name }}} Summary {{{ report.details.time }}}"
+  - name: TODO
+    title: "{{{ config.name }}} Project Report"
     kind: markdown 
     timezoneOffset: -8
     sections:

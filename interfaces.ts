@@ -9,6 +9,7 @@ export interface ReportDetails {
 
 export interface ReportConfig {
     name: string,
+    title: string,
     kind: 'markdown' | 'html',
     timezoneOffset: number,
     sections: ReportSection[],
@@ -31,6 +32,7 @@ export interface ReportSnapshotData {
 
 export interface ReportSnapshot {
     datetime: Date,
+    datetimeString: string, 
     config: GeneratorConfiguration
 }
 

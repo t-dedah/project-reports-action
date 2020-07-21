@@ -6,6 +6,8 @@ import * as github from './github'
 import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
+import * as cp from 'child_process';
+
 let sanitize = require('sanitize-filename')
 
 import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
@@ -34,7 +36,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             time: util.getTimeForOffset(snapshot.datetime, report.timezoneOffset)
         }
 
-        report.name = mustache.render(report.name, {
+        report.title = mustache.render(report.title, {
             config: config,
             report: report
         });
@@ -48,9 +50,11 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
         for (const report of config.reports) {
             let output = "";
+
+            output += getReportHeading(report);
             console.log();
             console.log(`Generating ${report.name} for ${proj} ...`);
-            let reportPath = await createReportPath(outPath, report);
+            let reportPath = await createReportPath(outPath, report, snapshot);
 
             for (const reportSection of report.sections) {
                 output += os.EOL;
@@ -132,6 +136,19 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     return snapshot;
 }
 
+function getReportHeading(report: ReportConfig) {
+    let lines: string[] = [];
+
+    if (report.kind === "markdown") {
+        lines.push(`# ${report.title}  `)
+        lines.push('  ');
+        lines.push(`Generated with :heart: by [report-generator](https://github.com/bryanmacfarlane/project-reports)  `);
+        lines.push(`<sub><sup>${report.details.time}</sup></sub>  `);
+        lines.push("  ");
+    }
+    
+    return lines.join(os.EOL);
+}
 async function writeDrillIn(basePath: string, identifier: string, cards: IssueCard[], report: string) {
     let drillPath = path.join(basePath, identifier); // don't sanitize - must be valid dirname since parent report expects
     if (!fs.existsSync(drillPath)) {
@@ -157,21 +174,26 @@ async function writeSnapshot(snapshot: ReportSnapshot): Promise<string> {
     let minute = d.getUTCMinutes().toString().padStart(2, "0");
     let dt: string = `${year}-${month}-${day}_${hour}-${minute}`;
 
-    const snapshotPath = path.join(workspacePath, snapshot.config.output, dt);
-    console.log(`Writing to ${snapshotPath}`);
+    snapshot.datetimeString = dt;
 
-    if (!fs.existsSync(snapshotPath)) {
-        fs.mkdirSync(snapshotPath, { recursive: true });
+    const rootPath = path.join(workspacePath, snapshot.config.output);
+    const genPath = path.join(rootPath, "_gen");
+    if (!fs.existsSync(genPath)) {
+        fs.mkdirSync(genPath, { recursive: true });
     }
 
-    fs.writeFileSync(path.join(snapshotPath, "snapshot.json"), JSON.stringify(snapshot, null, 2));
-    return snapshotPath;
+    const snapshotPath = path.join(rootPath, "_gen", `${snapshot.datetimeString}.json`);
+    console.log(`Writing to ${snapshotPath}`);
+
+    fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
+    return rootPath;
 }
 
-async function createReportPath(basePath: string, report: ReportConfig): Promise<string> {
-    const reportPath = path.join(basePath, sanitize(report.name));
+async function createReportPath(basePath: string, report: ReportConfig, snapshot: ReportSnapshot): Promise<string> {
+    const reportPath = path.join(basePath, sanitize(report.name), snapshot.datetimeString);
+    console.log(`Creating report path: ${reportPath}`);
     if (!fs.existsSync(reportPath)) {
-        fs.mkdirSync(reportPath);
+        fs.mkdirSync(reportPath, { recursive: true });
     }
 
     return reportPath;
@@ -190,6 +212,10 @@ async function writeSectionData(reportPath: string, name: string, settings: any,
 async function writeReport(reportPath: string, report: ReportConfig, projectData: ProjectData, contents: string) {
     fs.writeFileSync(path.join(reportPath, "report.md"), contents);
     fs.writeFileSync(path.join(reportPath, "data.json"), JSON.stringify(projectData, null, 2));
+    let latest = path.join(reportPath, "..", "latest");
+    console.log(`creating symbolic link: ${reportPath} ${latest}`);
+    console.log(cp.exec(`unlink "${latest}"`).toString());
+    console.log(cp.execSync(`ln -sf "${reportPath}" "${latest}"`).toString());
 }
 
 async function loadProjectsData(token: string, config: GeneratorConfiguration): Promise<ProjectsData> {
