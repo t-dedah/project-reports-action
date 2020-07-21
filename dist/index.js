@@ -5331,6 +5331,7 @@ const github = __importStar(__webpack_require__(126));
 const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
 const drillInRpt = __importStar(__webpack_require__(67));
+const cp = __importStar(__webpack_require__(129));
 let sanitize = __webpack_require__(834);
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -5350,7 +5351,7 @@ function generate(token, configYaml) {
             report.details = {
                 time: util.getTimeForOffset(snapshot.datetime, report.timezoneOffset)
             };
-            report.name = mustache.render(report.name, {
+            report.title = mustache.render(report.title, {
                 config: config,
                 report: report
             });
@@ -5361,9 +5362,10 @@ function generate(token, configYaml) {
             const projectData = projectsData[proj];
             for (const report of config.reports) {
                 let output = "";
+                output += getReportHeading(report);
                 console.log();
                 console.log(`Generating ${report.name} for ${proj} ...`);
-                let reportPath = yield createReportPath(outPath, report);
+                let reportPath = yield createReportPath(outPath, report, snapshot);
                 for (const reportSection of report.sections) {
                     output += os.EOL;
                     let reportModule = `${reportSection.name}`;
@@ -5432,6 +5434,17 @@ function generate(token, configYaml) {
     });
 }
 exports.generate = generate;
+function getReportHeading(report) {
+    let lines = [];
+    if (report.kind === "markdown") {
+        lines.push(`# ${report.title}  `);
+        lines.push('  ');
+        lines.push(`Generated with :heart: by [report-generator](https://github.com/bryanmacfarlane/project-reports)  `);
+        lines.push(`<sub><sup>${report.details.time}</sup></sub>  `);
+        lines.push("  ");
+    }
+    return lines.join(os.EOL);
+}
 function writeDrillIn(basePath, identifier, cards, report) {
     return __awaiter(this, void 0, void 0, function* () {
         let drillPath = path.join(basePath, identifier); // don't sanitize - must be valid dirname since parent report expects
@@ -5456,20 +5469,24 @@ function writeSnapshot(snapshot) {
         let hour = d.getUTCHours().toString().padStart(2, "0");
         let minute = d.getUTCMinutes().toString().padStart(2, "0");
         let dt = `${year}-${month}-${day}_${hour}-${minute}`;
-        const snapshotPath = path.join(workspacePath, snapshot.config.output, dt);
-        console.log(`Writing to ${snapshotPath}`);
-        if (!fs.existsSync(snapshotPath)) {
-            fs.mkdirSync(snapshotPath, { recursive: true });
+        snapshot.datetimeString = dt;
+        const rootPath = path.join(workspacePath, snapshot.config.output);
+        const genPath = path.join(rootPath, "_gen");
+        if (!fs.existsSync(genPath)) {
+            fs.mkdirSync(genPath, { recursive: true });
         }
-        fs.writeFileSync(path.join(snapshotPath, "snapshot.json"), JSON.stringify(snapshot, null, 2));
-        return snapshotPath;
+        const snapshotPath = path.join(rootPath, "_gen", `${snapshot.datetimeString}.json`);
+        console.log(`Writing to ${snapshotPath}`);
+        fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
+        return rootPath;
     });
 }
-function createReportPath(basePath, report) {
+function createReportPath(basePath, report, snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
-        const reportPath = path.join(basePath, sanitize(report.name));
+        const reportPath = path.join(basePath, sanitize(report.name), snapshot.datetimeString);
+        console.log(`Creating report path: ${reportPath}`);
         if (!fs.existsSync(reportPath)) {
-            fs.mkdirSync(reportPath);
+            fs.mkdirSync(reportPath, { recursive: true });
         }
         return reportPath;
     });
@@ -5488,6 +5505,10 @@ function writeReport(reportPath, report, projectData, contents) {
     return __awaiter(this, void 0, void 0, function* () {
         fs.writeFileSync(path.join(reportPath, "report.md"), contents);
         fs.writeFileSync(path.join(reportPath, "data.json"), JSON.stringify(projectData, null, 2));
+        let latest = path.join(reportPath, "..", "latest");
+        console.log(`creating symbolic link: ${reportPath} ${latest}`);
+        console.log(cp.exec(`unlink "${latest}"`).toString());
+        console.log(cp.execSync(`ln -sf "${reportPath}" "${latest}"`).toString());
     });
 }
 function loadProjectsData(token, config) {
