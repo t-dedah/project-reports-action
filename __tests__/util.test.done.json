@@ -1,0 +1,108 @@
+{
+  "title": "feed passes react state to client for hydration",
+  "number": 8,
+  "html_url": "https://github.com/bryanmacfarlane/quotes-feed/issues/8",
+  "assignee": {
+    "login": "bryanmacfarlane",
+    "id": 919564,
+    "avatar_url": "https://avatars3.githubusercontent.com/u/919564?v=4",
+    "url": "https://api.github.com/users/bryanmacfarlane",
+    "html_url": "https://github.com/bryanmacfarlane"
+  },
+  "labels": [
+    "1-dev",
+    "feature"
+  ],
+  "events": [
+    {
+      "event": "converted_note_to_issue",
+      "created": "2020-07-14T19:49:10.000Z",
+      "data": {
+        "column_name": "In Box",
+        "project_id": 4969651
+      }
+    },
+    {
+      "event": "moved_columns_in_project",
+      "created": "2020-07-14T19:49:19.000Z",
+      "data": {
+        "column_name": "Next",
+        "project_id": 4969651,
+        "previous_column_name": "In Box"
+      }
+    },
+    {
+      "event": "moved_columns_in_project",
+      "created": "2020-07-14T19:49:36.000Z",
+      "data": {
+        "column_name": "In Box",
+        "project_id": 4969651,
+        "previous_column_name": "Next"
+      }
+    },
+    {
+      "event": "moved_columns_in_project",
+      "created": "2020-07-14T19:54:58.000Z",
+      "data": {
+        "column_name": "Next",
+        "project_id": 4969651,
+        "previous_column_name": "In Box"
+      }
+    },
+    {
+      "event": "moved_columns_in_project",
+      "created": "2020-07-14T19:59:45.000Z",
+      "data": {
+        "column_name": "In Progress",
+        "project_id": 4969651,
+        "previous_column_name": "Next"
+      }
+    },
+    {
+      "event": "moved_columns_in_project",
+      "created": "2020-07-14T21:14:27.000Z",
+      "data": {
+        "column_name": "Done",
+        "project_id": 4969651,
+        "previous_column_name": "In Progress"
+      }
+    },
+    {
+      "event": "closed",
+      "created": "2020-07-15T04:28:13.000Z",
+      "data": {}
+    },
+    {
+      "event": "assigned",
+      "created": "2020-07-19T19:38:43.000Z",
+      "data": {
+        "login": "bryanmacfarlane",
+        "html_url": "https://github.com/bryanmacfarlane"
+      }
+    },
+    {
+      "event": "labeled",
+      "created": "2020-07-19T19:38:58.000Z",
+      "data": {
+        "name": "1-dev"
+      }
+    },
+    {
+      "event": "labeled",
+      "created": "2020-07-19T19:38:58.000Z",
+      "data": {
+        "name": "feature"
+      }
+    },
+    {
+      "event": "reopened",
+      "created": "2020-07-20T18:38:28.000Z",
+      "data": {}
+    },
+    {
+      "event": "closed",
+      "created": "2020-07-20T18:38:51.000Z",
+      "data": {}
+    }
+  ]
+}

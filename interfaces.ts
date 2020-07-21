@@ -70,7 +70,27 @@ export interface IssueCard {
     assignee: IssueUser,
     closed_at: Date,
     created_at: Date,
-    updated_at: Date,    
+    updated_at: Date,  
+    
+    // first added to the board on any column (no "from" column)
+    added_at: Date,
+    
+    // last occurence of moving to these columns from a lesser or no column
+    // example. if moved to accepted from proposed (or less), 
+    //      then in-progress (greater) and then back to accepted, first wins
+    proposed_at: Date,        
+    accepted_at: Date,
+    in_progress_at: Date,
+
+    // cleared if not currently blocked
+    blocked_at: Date,
+
+    // cleared if it moves out of done.  e.g. current state has to be done for this to be set
+    done_at: Date,
+
+    // current stage of this card on the board
+    stage: string,
+    
     events: IssueCardEvent[]
 }
 

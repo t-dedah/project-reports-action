@@ -1,4 +1,4 @@
-import {IssueCard} from '../interfaces';
+import {IssueCard} from './interfaces';
 
 // TODO: separate npm module.  for now it's a file till we flush out
 

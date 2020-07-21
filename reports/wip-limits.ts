@@ -1,8 +1,7 @@
 import {ProjectData, IssueCard} from '../interfaces';
-import * as rptLib from './project-reports-lib';
+import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
-import { Console } from 'console';
 
 /*
  * Gives visibility into whether the team has untriaged debt, an approval bottleneck and 
