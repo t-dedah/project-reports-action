@@ -715,7 +715,7 @@ function sumCardProperty(cards, prop) {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
 exports.sumCardProperty = sumCardProperty;
-
+//# sourceMappingURL=project-reports-lib.js.map
 
 /***/ })
 
