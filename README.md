@@ -19,7 +19,7 @@ Early personal experiment.  Do not rely on this.  Changing.
 3. Add this step to your workflow
 
 ```yaml
-  - uses: bryanmacfarlane/project-reports@master
+  - uses: bryanmacfarlane/project-reports@v1-alpha
     with: 
       token: ${{ secrets.PROJECT_TOKEN }}
       configPath: reports-config.yaml
@@ -33,13 +33,13 @@ Here's a full example including checking in the report after generation.
 ```yaml
     steps:
       - uses: actions/checkout@v2
-      - uses: bryanmacfarlane/project-reports@master
+      - uses: bryanmacfarlane/project-reports-action@v1-alpha
         with: 
           token: ${{ secrets.PROJECT_TOKEN }}
           configPath: reports-config.yaml
       - run: |
-          git config --global user.email "bryanmacf@gmail.com"
-          git config --global user.name "Bryan MacFarlane"      
+          git config --global user.email "youremail@gmail.com"
+          git config --global user.name "Your Name"      
           git add ./_reports
           git commit -a -m "adding reports"
           git push origin master

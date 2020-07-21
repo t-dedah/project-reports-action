@@ -106,7 +106,8 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
             let wipStage = wipData[cardType][stageName];
             let wipRow = <WipRow>{};
             wipRow.stage = stageName;
-            wipRow.count = `[${wipStage.wips}](./wip-${cardType}-${stageName}/cards.md)`;
+            // data folder is part of the contract here.  make a lib function to create this path
+            wipRow.count = `[${wipStage.wips}](./data/wip-${cardType}-${stageName}/cards.md)`;
             wipRow.limit = wipStage.limit > 0 ? wipStage.limit.toString() : "";
             wipRow.flag = wipStage.flag ? "🥵": "";
             rows.push(wipRow);
