@@ -1,4 +1,4 @@
-import * as rptLib from '../reports/project-reports-lib'
+import * as rptLib from '../project-reports-lib'
 
 import {IssueCard} from '../interfaces';
 

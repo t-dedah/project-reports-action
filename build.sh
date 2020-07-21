@@ -1,17 +1,27 @@
 #!/bin/bash
 
+set -e 
+
 echo 
 echo Building generator
 echo
 npx tsc 
 npx ncc build ./index.ts -o ./dist 
-cp ./interfaces.js ./dist
+# cp ./interfaces.js ./dist
 
 echo
 echo Building built-in reports
-echo
-# reports are loaded dynamically at runtime so we need to build each
-mkdir -p ./dist/reports
-npx ncc build ./reports/wip-limits.ts -o ./dist/reports/wip-limits 
-npx ncc build ./reports/echo-board.ts -o ./dist/reports/echo-board 
 
+# reports are loaded dynamically at runtime so we need to build each into dist
+mkdir -p ./dist/reports
+
+for filepath in ./reports/*.ts; do
+    filename=$(basename ${filepath})
+    report=${filename%.*}
+
+    cmd="ncc build ${filepath} -o ./dist/reports/${report}"
+    echo
+    echo $cmd
+    eval ${cmd}
+done
+ 

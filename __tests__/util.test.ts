@@ -2,8 +2,7 @@ import * as util from '../util'
 
 import {IssueCard, GeneratorConfiguration} from '../interfaces';
 
-let testData = require('./util.test.json');
-let card = testData["card"] as IssueCard;
+let doneCard = require('./util.test.done.json') as IssueCard;
 
 describe('util', () => {
 
@@ -28,6 +27,7 @@ describe('util', () => {
         "In-Progress": [
           "In Progress"
         ],
+        // intentionally commented core one out to show we're leaving this out and testing it resolves ("Done")
         // "Done": [
         //   "Complete"
         // ],
@@ -70,8 +70,17 @@ describe('util', () => {
         "Blocked": []
       };    
 
-    util.processCard(card, 4969651, config);
-    expect(card).toBeDefined();
-    expect(card.events[0].data.stage_name).toBe("Proposed");
+    util.processCard(doneCard, 4969651, config);
+    expect(doneCard).toBeDefined();
+    expect(doneCard.events[0].data.stage_name).toBe("Proposed");
+    expect(doneCard.stage).toBe("Done");
+    
+    expect(doneCard.added_at.toString()).toBe("2020-07-14T19:49:10.000Z");
+    expect(doneCard.accepted_at.toString()).toBe("2020-07-14T19:54:58.000Z");
+    expect(doneCard.in_progress_at.toString()).toBe("2020-07-14T19:59:45.000Z");
+    expect(doneCard.done_at.toString()).toBe("2020-07-14T21:14:27.000Z");
+    expect(doneCard.proposed_at).toBeDefined();
+
+    // console.log(JSON.stringify(doneCard, null, 2));
   });
 });
