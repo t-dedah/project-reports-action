@@ -390,7 +390,7 @@ const os = __importStar(__webpack_require__(87));
  */
 function getDefaultConfiguration() {
     return {
-        // Epic for now.  Supports others soon. 
+        // Epic for now.  Supports others. 
         // Will appear on report in this casing but matches labels with lowercase version.
         "report-on": ['Epic'],
         "epic-proposed": 2,

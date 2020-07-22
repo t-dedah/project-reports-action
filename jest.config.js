@@ -1,4 +1,4 @@
-// For a detailed explanation regarding each configuration property, visit:
+// For a detailed explanation regarding each configuration property, visit this page:
 // https://jestjs.io/docs/en/configuration.html
 
 module.exports = {
