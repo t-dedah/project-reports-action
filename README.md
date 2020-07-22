@@ -2,7 +2,7 @@
   <img src="docs/gh-actions.png">
 </p>
 
-# Project Reports Action
+# :ballot_box_with_check: Project Reports Action
 
 <p align="left">
   <a href="https://github.com/bryanmacfarlane/project-reports/actions?query=workflow%3Abuild-test"><img alt="build-test status" src="https://github.com/bryanmacfarlane/project-reports/workflows/build-test/badge.svg"></a>
