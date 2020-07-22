@@ -1,0 +1,2 @@
+*.js -linguist-generated
+*.js.map -linguist-generated
