@@ -10,6 +10,7 @@ async function run() {
         await generate(token, configPath);
     }
     catch (err) {
+        console.error(err);
         core.setFailed(err.message)
     }
 }
