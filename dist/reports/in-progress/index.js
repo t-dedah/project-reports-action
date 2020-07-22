@@ -669,7 +669,8 @@ function getDefaultConfiguration() {
         "report-on": 'Epic',
         // TODO: implement getting a shapshot of data n days ago
         "daysAgo": 7,
-        "status-label-match": "(?<=status:).*"
+        "status-label-match": "(?<=status:).*",
+        "wip-label-match": "(\\d+)-wip"
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -686,6 +687,7 @@ function process(config, projData, drillIn) {
     // add status to each card from the status label
     cardsForType.map((card) => {
         card.status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"]));
+        card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
         return card;
     });
     progressData.cards = cardsForType;
@@ -700,8 +702,21 @@ function renderMarkdown(projData, processedData) {
     let rows = [];
     for (let card of processedData.cards) {
         let progressRow = {};
+        let statusEmoji = ":exclamation:";
+        switch (card.status.toLowerCase()) {
+            case "red":
+                statusEmoji = ":heart:";
+                break;
+            case "green":
+                statusEmoji = ":green-heart:";
+                break;
+            case "yellow":
+                statusEmoji = ":yellow-heart:";
+                break;
+        }
         progressRow.title = card.title;
-        progressRow.status = card.status;
+        progressRow.status = statusEmoji;
+        progressRow.wips = card.wips;
         rows.push(progressRow);
     }
     let table;

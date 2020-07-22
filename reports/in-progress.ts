@@ -15,17 +15,10 @@ export function getDefaultConfiguration(): any {
         "report-on": 'Epic',
         // TODO: implement getting a shapshot of data n days ago
         "daysAgo": 7,
-        "status-label-match": "(?<=status:).*"
+        "status-label-match": "(?<=status:).*",
+        "wip-label-match": "(\\d+)-wip"
     };
 }
-
-//
-// Builds a reporting structure of in-progress cards keyed by card type ('Epic', etc)
-//
-// <ProgressData>{
-//     "Epic": <IssueCardEx[]>[]
-//      ...
-//
 
 export type ProgressData = { 
     cardType: string,  
@@ -34,6 +27,7 @@ export type ProgressData = {
 
 export interface IssueCardEx extends IssueCard {
     status: string;
+    wips: number;
 }
 
 export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
@@ -53,6 +47,8 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
     // add status to each card from the status label
     cardsForType.map((card: IssueCardEx) => {
         card.status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"]));
+        card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
+        
         return card;
     });
 
@@ -63,7 +59,8 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
 
 interface ProgressRow {
     title: string,
-    status: string
+    status: string,
+    wips: number
 }
 
 export function renderMarkdown(projData: ProjectData, processedData: any): string {
@@ -74,11 +71,24 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
     lines.push(`## In Progress: ${progressData.cardType}  `);
     lines.push("  ");
 
+
     let rows: ProgressRow[] = [];
     for (let card of processedData.cards) {
         let progressRow = <ProgressRow>{};
+
+        let statusEmoji = ":exclamation:";
+        switch (card.status.toLowerCase()) {
+            case "red": 
+                statusEmoji = ":heart:"; break;
+            case "green":
+                statusEmoji = ":green-heart:"; break;
+            case "yellow":
+                statusEmoji = ":yellow-heart:"; break;
+        }
+
         progressRow.title = card.title;
-        progressRow.status = card.status;
+        progressRow.status = statusEmoji;
+        progressRow.wips = card.wips;
 
         rows.push(progressRow);
     }
