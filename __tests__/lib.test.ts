@@ -17,12 +17,12 @@ let testCards:IssueCard[] = [
     <IssueCard>{
         number: 3,
         title: 'other',
-        labels: ['two', '11-dev']
+        labels: ['two', '11-dev', 'foo:baz'] 
     },
     <IssueCard>{
         number: 4,
         title: 'more',
-        labels: ['five']
+        labels: ['five', 'foo: bar ']
     } 
 ]
 
@@ -69,5 +69,23 @@ describe('report-lib', () => {
     let sum = rptLib.sumCardProperty(testCards, "number");
 
     expect(sum).toBe(10);
-  });   
+  });
+
+  it('gets empty string value from label with no value', async () => {
+    let re = new RegExp("(?<=foo:).*");
+    let val = rptLib.getStringFromLabel(testCards[1], re);
+    expect(val).toBe('');
+  });
+
+  it('gets string value from label', async () => {
+    let re = new RegExp("(?<=foo:).*");
+    let val = rptLib.getStringFromLabel(testCards[2], re);
+    expect(val).toBe('baz');
+  });
+
+  it('gets string value from label with spaces', async () => {
+    let re = new RegExp("(?<=foo:).*");
+    let val = rptLib.getStringFromLabel(testCards[3], re);
+    expect(val).toBe('bar');
+  });  
 });

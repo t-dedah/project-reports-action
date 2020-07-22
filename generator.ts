@@ -8,7 +8,8 @@ import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
 import * as cp from 'child_process';
 
-let sanitize = require('sanitize-filename')
+let sanitize = require('sanitize-filename');
+let clone = require('clone');
 
 import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
 
@@ -103,7 +104,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
                 // overlay user settings over default settings 
                 let config = reportGenerator.getDefaultConfiguration();
-                for (let setting in reportSection.config) {
+                for (let setting in reportSection.config || {}) {
                     config[setting] = reportSection.config[setting];
                 }
 
@@ -118,7 +119,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                     })
                 }
 
-                let processed = reportGenerator.process(config, projectData, drillInCb);
+                let processed = reportGenerator.process(config, clone(projectData), drillInCb);
                 await writeSectionData(report, reportModule, config, processed);
 
                 if (report.kind === 'markdown') {
@@ -131,7 +132,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 for (let drillIn of drillIns) {
                     let drillInReport: string;
                     if (report.kind === 'markdown') {
-                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, drillIn.cards);
+                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
                     }
                     else {
                         throw new Error(`Report kind ${report.kind} not supported`);

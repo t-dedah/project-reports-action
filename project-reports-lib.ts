@@ -9,7 +9,7 @@ export function cardsWithLabel(cards: IssueCard[], label: string): IssueCard[] {
     // make all the labels lower case
     let filtered = cards.filter((card) => { 
         card.labels = card.labels.map((label) => { return label.toLowerCase()});
-        return card.labels.indexOf(label.toLocaleLowerCase()) >= 0;
+        return card.labels.indexOf(label.toLowerCase()) >= 0;
     }); 
 
     return filtered;
@@ -33,6 +33,26 @@ export function getCountFromLabel(card: IssueCard, re: RegExp): number {
         }
     }
     return num;
+}
+
+export function getStringFromLabel(card: IssueCard, re: RegExp): string {
+    let str = '';
+
+    for (let label of card.labels) {
+        let matches = label.match(re);
+        if (matches && matches.length > 0) {
+             str = matches[0];
+             if (str) {
+                 break;
+             }
+        }
+    }
+
+    if (str) {
+        str = str.trim();
+    }
+
+    return str;
 }
 
 export function sumCardProperty(cards: IssueCard[], prop: string): number {
