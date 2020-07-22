@@ -4,7 +4,10 @@ export interface ReportSection {
 }
 
 export interface ReportDetails {
-    time: string
+    time: string,
+    fullPath: string,
+    rootPath: string,
+    dataPath: string
 }
 
 export interface ReportConfig {
@@ -33,6 +36,7 @@ export interface ReportSnapshotData {
 export interface ReportSnapshot {
     datetime: Date,
     datetimeString: string, 
+    rootPath: string,
     config: GeneratorConfiguration
 }
 

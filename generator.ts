@@ -7,11 +7,11 @@ import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
 import * as cp from 'child_process';
-import * as shell from 'shelljs';
 
 let sanitize = require('sanitize-filename')
 
 import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
+
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -22,12 +22,27 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     let snapshot = <ReportSnapshot>{};
     snapshot.datetime = new Date();
     snapshot.config = config;
+    let d = snapshot.datetime;
+    let year = d.getUTCFullYear();
+    let month = (d.getUTCMonth() + 1).toString().padStart(2, "0");
+    let day = d.getUTCDate().toString().padStart(2, "0");
+    let hour = d.getUTCHours().toString().padStart(2, "0");
+    let minute = d.getUTCMinutes().toString().padStart(2, "0");
+    let dt: string = `${year}-${month}-${day}_${hour}-${minute}`;
+    snapshot.datetimeString = dt;  
+    
+    const workspacePath = process.env["GITHUB_WORKSPACE"];
+    if (!workspacePath) {
+        throw new Error("GITHUB_WORKSPACE not defined");
+    }    
+    snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
 
     // apply defaults
     snapshot.config.output = snapshot.config.output || "_reports";
 
     // load up the projects, their columns and all the issue cards + events.
     let projectsData: ProjectsData = await loadProjectsData(token, config);
+    console.log("loaded.");
 
     // update report config details
     for (const report of config.reports) {
@@ -36,6 +51,9 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         report.details = <ReportDetails>{
             time: util.getTimeForOffset(snapshot.datetime, report.timezoneOffset)
         }
+        report.details.rootPath = path.join(snapshot.rootPath, sanitize(report.name));
+        report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString);
+        report.details.dataPath = path.join(report.details.fullPath, 'data');
 
         report.title = mustache.render(report.title, {
             config: config,
@@ -43,7 +61,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         });
     }
 
-    let outPath = await writeSnapshot(snapshot);
+    await writeSnapshot(snapshot);
 
     // hand that full data set to each report to render
     for (const proj in projectsData) {
@@ -55,80 +73,75 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             output += getReportHeading(report);
             console.log();
             console.log(`Generating ${report.name} for ${proj} ...`);
-            let reportPath = await createReportPath(outPath, report, snapshot);
+            await createReportPath(report);
 
             for (const reportSection of report.sections) {
                 output += os.EOL;
 
                 let reportModule = `${reportSection.name}`;
-                try {
-                    // if it's a relative path, find in the workflow repo relative path.
-                    // this allows for consume of action to create their own report sections
-                    // else look for built-ins
-                    console.log(`Report module ${reportModule}`);
-                    let reportModulePath;
 
-                    if (reportModule.startsWith("./")) {
-                        reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
-                    }
-                    else {
-                        reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
-                    }
+                // if it's a relative path, find in the workflow repo relative path.
+                // this allows for consume of action to create their own report sections
+                // else look for built-ins
+                console.log(`Report module ${reportModule}`);
+                let reportModulePath;
 
-                    console.log(`Loading: ${reportModulePath}`);
+                if (reportModule.startsWith("./")) {
+                    reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+                }
+                else {
+                    reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
+                }
 
-                    if (!fs.existsSync(reportModulePath)) {
-                        throw new Error(`Report not found: ${reportSection.name}`);
-                    }
+                console.log(`Loading: ${reportModulePath}`);
 
-                    let reportGenerator = require(reportModulePath) as ProjectReportBuilder;
+                if (!fs.existsSync(reportModulePath)) {
+                    throw new Error(`Report not found: ${reportSection.name}`);
+                }
 
-                    // overlay user settings over default settings 
-                    let config = reportGenerator.getDefaultConfiguration();
-                    for (let setting in reportSection.config) {
-                        config[setting] = reportSection.config[setting];
-                    }
+                let reportGenerator = require(reportModulePath) as ProjectReportBuilder;
 
-                    console.log("Processing data ...")
+                // overlay user settings over default settings 
+                let config = reportGenerator.getDefaultConfiguration();
+                for (let setting in reportSection.config) {
+                    config[setting] = reportSection.config[setting];
+                }
 
-                    let drillIns = [];
-                    let drillInCb = (identifier: string, title: string, cards: IssueCard[]) => {
-                        drillIns.push({
-                            identifier: identifier,
-                            title: title,
-                            cards: cards
-                        })
-                    }
+                console.log("Processing data ...")
 
-                    let processed = reportGenerator.process(config, projectData, drillInCb);
-                    await writeSectionData(reportPath, reportModule, config, processed);
+                let drillIns = [];
+                let drillInCb = (identifier: string, title: string, cards: IssueCard[]) => {
+                    drillIns.push({
+                        identifier: identifier,
+                        title: title,
+                        cards: cards
+                    })
+                }
 
+                let processed = reportGenerator.process(config, projectData, drillInCb);
+                await writeSectionData(report, reportModule, config, processed);
+
+                if (report.kind === 'markdown') {
+                    output += reportGenerator.renderMarkdown(projectData, processed);
+                }
+                else {
+                    throw new Error(`Report kind ${report.kind} not supported`);
+                }
+
+                for (let drillIn of drillIns) {
+                    let drillInReport: string;
                     if (report.kind === 'markdown') {
-                        output += reportGenerator.renderMarkdown(projectData, processed);
+                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, drillIn.cards);
                     }
                     else {
                         throw new Error(`Report kind ${report.kind} not supported`);
                     }
 
-                    for (let drillIn of drillIns) {
-                        let drillInReport: string;
-                        if (report.kind === 'markdown') {
-                            drillInReport = drillInRpt.renderMarkdown(drillIn.title, drillIn.cards);
-                        }
-                        else {
-                            throw new Error(`Report kind ${report.kind} not supported`);
-                        }
-
-                        await writeDrillIn(reportPath, drillIn.identifier, drillIn.cards, drillInReport);
-                    }
-                }
-                catch (err) {
-                    console.error(err);
-                    throw new Error(`Failed generating report ${report.name}, section ${reportModule}`);
+                    await writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
                 }
             }
             console.log("Writing report");
-            writeReport(reportPath, report, projectData, output);
+            writeReport(report, projectData, output);
             console.log("Done.");
         }
         console.log();
@@ -150,35 +163,18 @@ function getReportHeading(report: ReportConfig) {
     
     return lines.join(os.EOL);
 }
-async function writeDrillIn(basePath: string, identifier: string, cards: IssueCard[], report: string) {
-    let drillPath = path.join(basePath, 'data', identifier); // don't sanitize - must be valid dirname since parent report expects
-    if (!fs.existsSync(drillPath)) {
-        fs.mkdirSync(drillPath, { recursive: true });
-    }
 
-    fs.writeFileSync(path.join(drillPath, "cards.json"), JSON.stringify(cards, null, 2));
-    fs.writeFileSync(path.join(drillPath, "cards.md"), report);
+async function writeDrillIn(report: ReportConfig, identifier: string, cards: IssueCard[], contents: string) {
+    console.log(`Writing drill-in data for ${identifier} ...`);
+    fs.writeFileSync(path.join(report.details.dataPath, `${identifier}.json`), JSON.stringify(cards, null, 2));
+    fs.writeFileSync(path.join(report.details.rootPath, `${identifier}.md`), contents);
+    fs.writeFileSync(path.join(report.details.fullPath, `${identifier}.md`), contents);
 }
 
 // creates directory structure for the reports and hands back the root path to write reports in
-async function writeSnapshot(snapshot: ReportSnapshot): Promise<string> {
-    const workspacePath = process.env["GITHUB_WORKSPACE"];
-    if (!workspacePath) {
-        throw new Error("GITHUB_WORKSPACE not defined");
-    }
-
-    let d = snapshot.datetime;
-    let year = d.getUTCFullYear();
-    let month = (d.getUTCMonth() + 1).toString().padStart(2, "0");
-    let day = d.getUTCDate().toString().padStart(2, "0");
-    let hour = d.getUTCHours().toString().padStart(2, "0");
-    let minute = d.getUTCMinutes().toString().padStart(2, "0");
-    let dt: string = `${year}-${month}-${day}_${hour}-${minute}`;
-
-    snapshot.datetimeString = dt;
-
-    const rootPath = path.join(workspacePath, snapshot.config.output);
-    const genPath = path.join(rootPath, ".gen");
+async function writeSnapshot(snapshot: ReportSnapshot) {
+    console.log("Writing snapshot data ...");
+    const genPath = path.join(snapshot.rootPath, ".gen");
     if (!fs.existsSync(genPath)) {
         fs.mkdirSync(genPath, { recursive: true });
     }
@@ -187,21 +183,22 @@ async function writeSnapshot(snapshot: ReportSnapshot): Promise<string> {
     console.log(`Writing to ${snapshotPath}`);
 
     fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
-    return rootPath;
 }
 
-async function createReportPath(basePath: string, report: ReportConfig, snapshot: ReportSnapshot): Promise<string> {
-    const reportPath = path.join(basePath, sanitize(report.name), snapshot.datetimeString);
-    console.log(`Creating report path: ${reportPath}`);
-    if (!fs.existsSync(reportPath)) {
-        fs.mkdirSync(reportPath, { recursive: true });
+async function createReportPath(report: ReportConfig) {
+    console.log(`Creating report path: ${report.details.fullPath}`);
+    if (!fs.existsSync(report.details.fullPath)) {
+        fs.mkdirSync(report.details.fullPath, { recursive: true });
     }
 
-    return reportPath;
+    if (!fs.existsSync(report.details.dataPath)) {
+        fs.mkdirSync(report.details.dataPath, { recursive: true });
+    }    
 }
 
-async function writeSectionData(reportPath: string, name: string, settings: any, processed: any) {
-    const sectionPath = path.join(reportPath, "data", sanitize(name));
+async function writeSectionData(report: ReportConfig, name: string, settings: any, processed: any) {
+    console.log(`Writing section data for ${name}...`);
+    const sectionPath = path.join(report.details.fullPath, "data", sanitize(name));
     if (!fs.existsSync(sectionPath)) {
         fs.mkdirSync(sectionPath, { recursive: true });
     }
@@ -210,17 +207,11 @@ async function writeSectionData(reportPath: string, name: string, settings: any,
     fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
 }
 
-async function writeReport(reportPath: string, report: ReportConfig, projectData: ProjectData, contents: string) {
-    fs.writeFileSync(path.join(reportPath, "report.md"), contents);
-    fs.writeFileSync(path.join(reportPath, "data.json"), JSON.stringify(projectData, null, 2));
-    let reportsRoot = path.join(reportPath, "..");
-    shell.pushd(reportsRoot);
-    let reportFolder = path.basename(reportPath);
-    console.log('current dir: ${process.cwd()}');
-    console.log(`creating symbolic link: ${reportFolder} "latest"`);
-    cp.exec(`unlink latest`);
-    cp.execSync(`ln -sf "${reportFolder}" latest`);
-    shell.popd();
+async function writeReport(report: ReportConfig, projectData: ProjectData, contents: string) {
+    console.log("Writing the report ...");
+    fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
+    fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
+    fs.writeFileSync(path.join(report.details.dataPath, "_project.json"), JSON.stringify(projectData, null, 2));
 }
 
 async function loadProjectsData(token: string, config: GeneratorConfiguration): Promise<ProjectsData> {
