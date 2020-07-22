@@ -10,7 +10,7 @@ import * as os from 'os';
  */
 export function getDefaultConfiguration(): any {
     return <any>{
-        // Epic for now.  Supports others. 
+        // Epic for now.  Supports others soon. 
         // Will appear on report in this casing but matches labels with lowercase version.
         "report-on": ['Epic'],
         "epic-proposed": 2,  
