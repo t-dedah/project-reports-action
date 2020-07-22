@@ -397,7 +397,7 @@ function getDefaultConfiguration() {
         "epic-accepted": 10,
         "epic-in-progress": 4,
         "epic-done": 25,
-        "label-match": "(\\d+)-wip"
+        "wip-label-match": "(\\d+)-wip"
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -414,7 +414,7 @@ function process(config, projData, drillIn) {
             drillIn(`wip-${cardType}-${stage}`, `Issues for ${stage} ${cardType}s`, cardsForType);
             // add wip number to each card from the wip label
             cardsForType.map((card) => {
-                card.wips = rptLib.getCountFromLabel(card, new RegExp(config["label-match"]));
+                card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"]));
                 return card;
             });
             stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
@@ -445,7 +445,7 @@ function renderMarkdown(projData, processedData) {
             // data folder is part of the contract here.  make a lib function to create this path
             wipRow.count = `[${wipStage.wips}](./wip-${cardType}-${stageName}.md)`;
             wipRow.limit = wipStage.limit > 0 ? wipStage.limit.toString() : "";
-            wipRow.flag = wipStage.flag ? "🥵" : "";
+            wipRow.status = wipStage.flag ? ":triangular_flag_on_post:" : "";
             rows.push(wipRow);
         }
         let table = tablemark(rows);

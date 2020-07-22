@@ -12,7 +12,7 @@ let config: any = {
     'epic-done': 100,
     'feature-accepted': 2,
     'feature-in-progress': 2,
-    'label-match': '(\\d+)-dev'
+    'wip-label-match': '(\\d+)-dev'
   };
 
 describe('report-lib', () => {
@@ -80,8 +80,8 @@ describe('report-lib', () => {
         let markdown = wipLimits.renderMarkdown(projectData, processed);
         expect(markdown).toBeDefined();
         expect(markdown).toContain("### Epic WIP limits");
-        expect(markdown).toContain("| In-Progress | [3](./wip-Epic-In-Progress.md) | 2     | 🥵    |");
+        expect(markdown).toContain("| In-Progress | [3](./wip-Epic-In-Progress.md) | 2     | :triangular_flag_on_post: |");
         expect(markdown).toContain("### Feature WIP limits");
-        expect(markdown).toContain("| Done        | [1](./wip-Feature-Done.md)        |       |       |");
+        expect(markdown).toContain("| Done        | [1](./wip-Feature-Done.md)        |       |        |");
     });    
 });
