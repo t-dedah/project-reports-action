@@ -5447,7 +5447,7 @@ exports.generate = generate;
 function getReportHeading(report) {
     let lines = [];
     if (report.kind === "markdown") {
-        lines.push(`# ${report.title}  `);
+        lines.push(`# :crystal_ball: ${report.title}  `);
         lines.push('  ');
         lines.push(`Generated with :heart: by [project-reports-action](https://github.com/bryanmacfarlane/project-reports-action)  `);
         lines.push(`<sub><sup>${report.details.time}</sup></sub>  `);
