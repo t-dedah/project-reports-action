@@ -12,7 +12,7 @@
 
 An action to generate reports like this ffor a GitHub project board.  Customizable and extensible.
 
-![sample](./docs/sample_report.png)
+![sample](./docs/sample.png)
 
 ## Use in workflow
 
