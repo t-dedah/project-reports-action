@@ -713,7 +713,7 @@ exports.process = process;
 function renderMarkdown(projData, processedData) {
     let progressData = processedData;
     let lines = [];
-    lines.push(`## In Progress: ${progressData.cardType}  `);
+    lines.push(`## In Progress ${progressData.cardType}s  `);
     lines.push("  ");
     let rows = [];
     for (let card of processedData.cards) {
