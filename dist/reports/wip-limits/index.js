@@ -186,7 +186,7 @@ module.exports = function (str, locale, replacement) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.getLastCommentPattern = exports.dataFromCard = void 0;
+exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.calculateCycleTime = exports.filterByLabel = exports.getLastCommentPattern = exports.dataFromCard = void 0;
 //import * as filters from './project-report-lib-filters';
 // TODO: separate npm module.  for now it's a file till we flush out
 function dataFromCard(card, filterBy, data) {
@@ -210,9 +210,43 @@ exports.getLastCommentPattern = getLastCommentPattern;
 // filter cards by label
 //
 function filterByLabel(cards, name) {
-    return cards.filter((card) => card.labels.findIndex(label => label.name === name) >= 0);
+    return cards.filter((card) => card.labels.findIndex(label => label.name.toLowerCase() === name.toLowerCase()) >= 0);
 }
 exports.filterByLabel = filterByLabel;
+//
+// Calculate cycle time for a card
+// The time, in days, a unit of work spends between the first day it is actively being worked on until the day it is closed.
+// In this case, since a project card has events, we look for the event that moved or added a card to the "Accepted" column
+// and subtract it from the time that the card moved to the `Done` column.
+//
+function calculateCycleTime(card) {
+    // console.log(`Calculating cycle time for [${card.title}]`);
+    // cycle time starts at Accepted, ends at Done.
+    let accepted_time = null;
+    let done_time = null;
+    card.events.forEach((event) => {
+        if (event.event == "added_to_project") {
+            if (event.project_card.stage_name == "Accepted") {
+                accepted_time = new Date(event.created_at);
+            }
+        }
+        else if (event.event == "moved_columns_in_project") {
+            if (event.project_card.stage_name == "Accepted") {
+                accepted_time = new Date(event.created_at);
+            }
+            else if (event.project_card.stage_name == "Done") {
+                done_time = new Date(event.created_at);
+            }
+        }
+    });
+    if (accepted_time == null || done_time == null) {
+        return 0;
+    }
+    const difference = done_time.getTime() - accepted_time.getTime();
+    const cycleTimeInDays = difference / (1000 * 60 * 60 * 24);
+    return cycleTimeInDays;
+}
+exports.calculateCycleTime = calculateCycleTime;
 //
 // Get number from a label by regex.  
 // e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
