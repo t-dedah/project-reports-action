@@ -85,9 +85,9 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
             case "red": 
                 statusEmoji = ":heart:"; break;
             case "green":
-                statusEmoji = ":green-heart:"; break;
+                statusEmoji = ":green_heart:"; break;
             case "yellow":
-                statusEmoji = ":yellow-heart:"; break;
+                statusEmoji = ":yellow_heart:"; break;
         }
 
         progressRow.title = card.title;

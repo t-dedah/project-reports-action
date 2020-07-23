@@ -724,10 +724,10 @@ function renderMarkdown(projData, processedData) {
                 statusEmoji = ":heart:";
                 break;
             case "green":
-                statusEmoji = ":green-heart:";
+                statusEmoji = ":green_heart:";
                 break;
             case "yellow":
-                statusEmoji = ":yellow-heart:";
+                statusEmoji = ":yellow_heart:";
                 break;
         }
         progressRow.title = card.title;
