@@ -180,32 +180,289 @@ module.exports = function (str, locale, replacement) {
 
 /***/ }),
 
+/***/ 263:
+/***/ (function(module) {
+
+var clone = (function() {
+'use strict';
+
+function _instanceof(obj, type) {
+  return type != null && obj instanceof type;
+}
+
+var nativeMap;
+try {
+  nativeMap = Map;
+} catch(_) {
+  // maybe a reference error because no `Map`. Give it a dummy value that no
+  // value will ever be an instanceof.
+  nativeMap = function() {};
+}
+
+var nativeSet;
+try {
+  nativeSet = Set;
+} catch(_) {
+  nativeSet = function() {};
+}
+
+var nativePromise;
+try {
+  nativePromise = Promise;
+} catch(_) {
+  nativePromise = function() {};
+}
+
+/**
+ * Clones (copies) an Object using deep copying.
+ *
+ * This function supports circular references by default, but if you are certain
+ * there are no circular references in your object, you can save some CPU time
+ * by calling clone(obj, false).
+ *
+ * Caution: if `circular` is false and `parent` contains circular references,
+ * your program may enter an infinite loop and crash.
+ *
+ * @param `parent` - the object to be cloned
+ * @param `circular` - set to true if the object to be cloned may contain
+ *    circular references. (optional - true by default)
+ * @param `depth` - set to a number if the object is only to be cloned to
+ *    a particular depth. (optional - defaults to Infinity)
+ * @param `prototype` - sets the prototype to be used when cloning an object.
+ *    (optional - defaults to parent prototype).
+ * @param `includeNonEnumerable` - set to true if the non-enumerable properties
+ *    should be cloned as well. Non-enumerable properties on the prototype
+ *    chain will be ignored. (optional - false by default)
+*/
+function clone(parent, circular, depth, prototype, includeNonEnumerable) {
+  if (typeof circular === 'object') {
+    depth = circular.depth;
+    prototype = circular.prototype;
+    includeNonEnumerable = circular.includeNonEnumerable;
+    circular = circular.circular;
+  }
+  // maintain two arrays for circular references, where corresponding parents
+  // and children have the same index
+  var allParents = [];
+  var allChildren = [];
+
+  var useBuffer = typeof Buffer != 'undefined';
+
+  if (typeof circular == 'undefined')
+    circular = true;
+
+  if (typeof depth == 'undefined')
+    depth = Infinity;
+
+  // recurse this function so we don't reset allParents and allChildren
+  function _clone(parent, depth) {
+    // cloning null always returns null
+    if (parent === null)
+      return null;
+
+    if (depth === 0)
+      return parent;
+
+    var child;
+    var proto;
+    if (typeof parent != 'object') {
+      return parent;
+    }
+
+    if (_instanceof(parent, nativeMap)) {
+      child = new nativeMap();
+    } else if (_instanceof(parent, nativeSet)) {
+      child = new nativeSet();
+    } else if (_instanceof(parent, nativePromise)) {
+      child = new nativePromise(function (resolve, reject) {
+        parent.then(function(value) {
+          resolve(_clone(value, depth - 1));
+        }, function(err) {
+          reject(_clone(err, depth - 1));
+        });
+      });
+    } else if (clone.__isArray(parent)) {
+      child = [];
+    } else if (clone.__isRegExp(parent)) {
+      child = new RegExp(parent.source, __getRegExpFlags(parent));
+      if (parent.lastIndex) child.lastIndex = parent.lastIndex;
+    } else if (clone.__isDate(parent)) {
+      child = new Date(parent.getTime());
+    } else if (useBuffer && Buffer.isBuffer(parent)) {
+      if (Buffer.allocUnsafe) {
+        // Node.js >= 4.5.0
+        child = Buffer.allocUnsafe(parent.length);
+      } else {
+        // Older Node.js versions
+        child = new Buffer(parent.length);
+      }
+      parent.copy(child);
+      return child;
+    } else if (_instanceof(parent, Error)) {
+      child = Object.create(parent);
+    } else {
+      if (typeof prototype == 'undefined') {
+        proto = Object.getPrototypeOf(parent);
+        child = Object.create(proto);
+      }
+      else {
+        child = Object.create(prototype);
+        proto = prototype;
+      }
+    }
+
+    if (circular) {
+      var index = allParents.indexOf(parent);
+
+      if (index != -1) {
+        return allChildren[index];
+      }
+      allParents.push(parent);
+      allChildren.push(child);
+    }
+
+    if (_instanceof(parent, nativeMap)) {
+      parent.forEach(function(value, key) {
+        var keyChild = _clone(key, depth - 1);
+        var valueChild = _clone(value, depth - 1);
+        child.set(keyChild, valueChild);
+      });
+    }
+    if (_instanceof(parent, nativeSet)) {
+      parent.forEach(function(value) {
+        var entryChild = _clone(value, depth - 1);
+        child.add(entryChild);
+      });
+    }
+
+    for (var i in parent) {
+      var attrs;
+      if (proto) {
+        attrs = Object.getOwnPropertyDescriptor(proto, i);
+      }
+
+      if (attrs && attrs.set == null) {
+        continue;
+      }
+      child[i] = _clone(parent[i], depth - 1);
+    }
+
+    if (Object.getOwnPropertySymbols) {
+      var symbols = Object.getOwnPropertySymbols(parent);
+      for (var i = 0; i < symbols.length; i++) {
+        // Don't need to worry about cloning a symbol because it is a primitive,
+        // like a number or string.
+        var symbol = symbols[i];
+        var descriptor = Object.getOwnPropertyDescriptor(parent, symbol);
+        if (descriptor && !descriptor.enumerable && !includeNonEnumerable) {
+          continue;
+        }
+        child[symbol] = _clone(parent[symbol], depth - 1);
+        if (!descriptor.enumerable) {
+          Object.defineProperty(child, symbol, {
+            enumerable: false
+          });
+        }
+      }
+    }
+
+    if (includeNonEnumerable) {
+      var allPropertyNames = Object.getOwnPropertyNames(parent);
+      for (var i = 0; i < allPropertyNames.length; i++) {
+        var propertyName = allPropertyNames[i];
+        var descriptor = Object.getOwnPropertyDescriptor(parent, propertyName);
+        if (descriptor && descriptor.enumerable) {
+          continue;
+        }
+        child[propertyName] = _clone(parent[propertyName], depth - 1);
+        Object.defineProperty(child, propertyName, {
+          enumerable: false
+        });
+      }
+    }
+
+    return child;
+  }
+
+  return _clone(parent, depth);
+}
+
+/**
+ * Simple flat clone using prototype, accepts only objects, usefull for property
+ * override on FLAT configuration object (no nested props).
+ *
+ * USE WITH CAUTION! This may not behave as you wish if you do not know how this
+ * works.
+ */
+clone.clonePrototype = function clonePrototype(parent) {
+  if (parent === null)
+    return null;
+
+  var c = function () {};
+  c.prototype = parent;
+  return new c();
+};
+
+// private utility functions
+
+function __objToStr(o) {
+  return Object.prototype.toString.call(o);
+}
+clone.__objToStr = __objToStr;
+
+function __isDate(o) {
+  return typeof o === 'object' && __objToStr(o) === '[object Date]';
+}
+clone.__isDate = __isDate;
+
+function __isArray(o) {
+  return typeof o === 'object' && __objToStr(o) === '[object Array]';
+}
+clone.__isArray = __isArray;
+
+function __isRegExp(o) {
+  return typeof o === 'object' && __objToStr(o) === '[object RegExp]';
+}
+clone.__isRegExp = __isRegExp;
+
+function __getRegExpFlags(re) {
+  var flags = '';
+  if (re.global) flags += 'g';
+  if (re.ignoreCase) flags += 'i';
+  if (re.multiline) flags += 'm';
+  return flags;
+}
+clone.__getRegExpFlags = __getRegExpFlags;
+
+return clone;
+})();
+
+if ( true && module.exports) {
+  module.exports = clone;
+}
+
+
+/***/ }),
+
 /***/ 369:
-/***/ (function(module, exports) {
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.getLastCommentPattern = exports.dataFromCard = void 0;
-//import * as filters from './project-report-lib-filters';
+exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = void 0;
 // TODO: separate npm module.  for now it's a file till we flush out
-function dataFromCard(card, filterBy, data) {
-    let fn = module.exports[`get${filterBy}`];
-    if (!fn) {
-        throw new Error(`Invalid filter: ${filterBy}`);
-    }
-    return fn(card, data);
-}
-exports.dataFromCard = dataFromCard;
-function getLastCommentPattern(card, pattern) {
-    if (!card.comments) {
-        return '';
-    }
-    let re = new RegExp(pattern);
-    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
-    return comment ? new Date(comment["updated_at"]).toDateString() : '';
-}
-exports.getLastCommentPattern = getLastCommentPattern;
+__exportStar(__webpack_require__(714), exports);
 //
 // filter cards by label
 //
@@ -576,6 +833,41 @@ module.exports = function (str, locale) {
 
 /***/ }),
 
+/***/ 714:
+/***/ (function(module, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.diffHours = exports.getLastCommentPattern = exports.dataFromCard = void 0;
+function dataFromCard(card, filterBy, data) {
+    let fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
+}
+exports.dataFromCard = dataFromCard;
+//
+// returns hours since last comment with a body matching a pattern
+//
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    let re = new RegExp(pattern);
+    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
+    return comment ? diffHours(new Date(comment["updated_at"]), new Date()) : -1;
+}
+exports.getLastCommentPattern = getLastCommentPattern;
+function diffHours(date1, date2) {
+    return Math.abs(date1.getTime() - date2.getTime()) / (60 * 60 * 1000);
+}
+exports.diffHours = diffHours;
+//# sourceMappingURL=project-reports-schemes.js.map
+
+/***/ }),
+
 /***/ 736:
 /***/ (function(module) {
 
@@ -666,10 +958,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = void 0;
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = void 0;
 const rptLib = __importStar(__webpack_require__(369));
 const tablemark = __webpack_require__(611);
 const os = __importStar(__webpack_require__(87));
+let clone = __webpack_require__(263);
 /*
  * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
  * how focused the team is (e.g. how many efforts are going on)
@@ -689,6 +982,36 @@ function getDefaultConfiguration() {
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
+let statusLevels = {
+    "": 0,
+    "red": 1,
+    "yellow": 2,
+    "green": 3
+};
+// sort by status
+function sortCards(card1, card2) {
+    // Sort first on day
+    if (statusLevels[card1.status] > statusLevels[card2.status]) {
+        return 1;
+    }
+    else if (statusLevels[card1.status] < statusLevels[card2.status]) {
+        return -1;
+    }
+    else {
+        // if the status is the same
+        // subsort by hours in progress
+        if (card1.hoursInProgress < card2.hoursInProgress) {
+            return 1;
+        }
+        else if (card1.hoursInProgress > card2.hoursInProgress) {
+            return -1;
+        }
+        else {
+            return 0;
+        }
+    }
+}
+exports.sortCards = sortCards;
 function process(config, projData, drillIn) {
     let progressData = {};
     progressData.cardType = config["report-on"];
@@ -698,14 +1021,21 @@ function process(config, projData, drillIn) {
         // It would have to be a non existant column which is a config problem so fail.
         throw new Error("In-Progress column does not exist");
     }
-    let cardsForType = rptLib.filterByLabel(cards, progressData.cardType.toLowerCase());
+    let cardsForType = clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
     // add status to each card from the status label
     cardsForType.map((card) => {
-        card.status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"]));
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
-        card.lastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
+        card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
+        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated > config["daysAgo"] * 24;
+        let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
+        card.status = statusLevels[status] ? status : "";
+        card.hoursInProgress = -1;
+        if (card.project_in_progress_at) {
+            card.hoursInProgress = rptLib.diffHours(new Date(card.project_in_progress_at), new Date());
+        }
         return card;
     });
+    cardsForType.sort(sortCards);
     progressData.cards = cardsForType;
     return progressData;
 }
@@ -730,10 +1060,14 @@ function renderMarkdown(projData, processedData) {
                 statusEmoji = ":yellow_heart:";
                 break;
         }
-        progressRow.title = card.title;
+        progressRow.title = `[${card.title}](${card.html_url})`;
         progressRow.status = statusEmoji;
         progressRow.wips = card.wips;
-        progressRow.lastUpdated = card.lastUpdated;
+        progressRow.hoursLastUpdated = card.hoursLastUpdated > 0 ? card.hoursLastUpdated.toFixed(1) : '';
+        if (card.flagHoursLastUpdated) {
+            progressRow.hoursLastUpdated += ":triangular_flag_on_post:";
+        }
+        progressRow.hoursInProgress = card.hoursInProgress > 0 ? card.hoursInProgress.toFixed(1) : "";
         rows.push(progressRow);
     }
     let table;
