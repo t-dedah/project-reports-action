@@ -104,7 +104,8 @@ describe('report-lib', () => {
 
   it('gets last comment updated_at value', async () => {
     let d = rptLib.getLastCommentPattern(card, "^(#){1,4} update");
-    expect(d).toBe('Wed Jul 22 2020');
+    expect(d).toContain('Jul');
+    expect(d).toContain('2020');
   });  
 
   it('does not gets last comment for no match', async () => {
