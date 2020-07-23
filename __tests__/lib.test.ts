@@ -104,23 +104,21 @@ describe('report-lib', () => {
 
   it('gets last comment updated_at value', async () => {
     let d = rptLib.getLastCommentPattern(card, "^(#){1,4} update");
-    expect(d).toContain('Jul');
-    expect(d).toContain('2020');
+    expect(d).toBeGreaterThan(10.0);
   });  
 
   it('does not gets last comment for no match', async () => {
     let d = rptLib.getLastCommentPattern(card, "^(#){1,4} none match");
-    expect(d).toBe('');
+    expect(d).toBe(-1);
   });
 
   it('does not gets last comment if no comments', async () => {
     let d = rptLib.getLastCommentPattern(<IssueCard>{comments:[]}, "^(#){1,4} update");
-    expect(d).toBe('');
+    expect(d).toBe(-1);
   });  
 
   it('gets last comment updated_at value from dataFromCard', async () => {
     let d = rptLib.dataFromCard(card, "LastCommentPattern", "^(#){1,4} update");
-    expect(d).toContain('Jul');
-    expect(d).toContain('2020');
+    expect(d).toBeGreaterThan(10.0);
   });  
 });
