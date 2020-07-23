@@ -181,25 +181,38 @@ module.exports = function (str, locale, replacement) {
 /***/ }),
 
 /***/ 369:
-/***/ (function(__unusedmodule, exports) {
+/***/ (function(module, exports) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.cardsWithLabel = void 0;
+exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.getLastCommentPattern = exports.dataFromCard = void 0;
+//import * as filters from './project-report-lib-filters';
 // TODO: separate npm module.  for now it's a file till we flush out
-//
-// filter cards by label case insensitive
-//
-function cardsWithLabel(cards, label) {
-    // make all the labels lower case
-    let filtered = cards.filter((card) => {
-        card.labels = card.labels.map((label) => { return label.toLowerCase(); });
-        return card.labels.indexOf(label.toLowerCase()) >= 0;
-    });
-    return filtered;
+function dataFromCard(card, filterBy, data) {
+    let fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
 }
-exports.cardsWithLabel = cardsWithLabel;
+exports.dataFromCard = dataFromCard;
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    let re = new RegExp(pattern);
+    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
+    return comment ? new Date(comment["updated_at"]).toDateString() : '';
+}
+exports.getLastCommentPattern = getLastCommentPattern;
+//
+// filter cards by label
+//
+function filterByLabel(cards, name) {
+    return cards.filter((card) => card.labels.findIndex(label => label.name === name) >= 0);
+}
+exports.filterByLabel = filterByLabel;
 //
 // Get number from a label by regex.  
 // e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
@@ -208,7 +221,7 @@ exports.cardsWithLabel = cardsWithLabel;
 function getCountFromLabel(card, re) {
     let num = NaN;
     for (let label of card.labels) {
-        let matches = label.match(re);
+        let matches = label.name.match(re);
         if (matches && matches.length > 0) {
             num = parseInt(matches[1]);
             if (num) {
@@ -222,7 +235,7 @@ exports.getCountFromLabel = getCountFromLabel;
 function getStringFromLabel(card, re) {
     let str = '';
     for (let label of card.labels) {
-        let matches = label.match(re);
+        let matches = label.name.match(re);
         if (matches && matches.length > 0) {
             str = matches[0];
             if (str) {
@@ -410,7 +423,7 @@ function process(config, projData, drillIn) {
         for (let stage in projData.stages) {
             let stageData = {};
             let cards = projData.stages[stage];
-            let cardsForType = rptLib.cardsWithLabel(cards, cardType);
+            let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
             drillIn(`wip-${cardType}-${stage}`, `Issues for ${stage} ${cardType}s`, cardsForType);
             // add wip number to each card from the wip label
             cardsForType.map((card) => {

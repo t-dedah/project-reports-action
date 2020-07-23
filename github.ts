@@ -1,7 +1,7 @@
 const { Octokit } = require('@octokit/rest');
 import * as cache from './cache'
 import * as url from 'url' 
-import {ProjectsData, ProjectData, IssueCard, IssueCardEvent, IssueUser} from './interfaces'
+import {ProjectsData, ProjectData, IssueCard, IssueCardEvent, IssueUser, IssueComment} from './interfaces'
 
 function getCacheKey(srcurl: string) {
     let purl = new url.URL(srcurl)
@@ -31,7 +31,7 @@ export async function getProject(token: string, projectHtmlUrl: string): Promise
 
     let projUrl = new url.URL(projectHtmlUrl);
     let projParts = projUrl.pathname.split("/").filter(e => e);
-    console.log(projParts)
+
     if (projParts.length !== 4) {
         throw new Error(`Invalid project url: ${projectHtmlUrl}`);
     }
@@ -117,6 +117,22 @@ function DateOrNull(date: string): Date {
     return date ? new Date(date) : null;
 }
 
+async function getIssueComments(token: string, owner: string, repo: string, issue_number: string): Promise<IssueComment[]> {
+    // 
+    const octokit = new Octokit({
+        auth: token, 
+        previews: ['squirrel-girl-preview']
+    });
+
+    let res = await octokit.issues.listComments({
+        owner,
+        repo,
+        issue_number,
+      });
+
+    return res.data;
+}
+
 // returns null if not an issue
 export async function getIssueCard(token: string, card:any, projectId: number): Promise<IssueCard> {
     if (!card.content_url) {
@@ -152,6 +168,7 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
     });
     let issue = res.data;
 
+    issueCard.number = issue.number;
     issueCard.title =  issue.title;
     issueCard.number = issue.number;
     issueCard.html_url = issue.html_url;
@@ -169,12 +186,14 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
         }
     }
 
-    issueCard.labels = [];
-    for (const label of issue.labels) {
-        issueCard.labels.push(label.name);
-    }
+    issueCard.labels = issue.labels;
 
-    // TODO: paginate
+    issueCard.comments = [];
+    if (issue.comments > 0) {
+        issueCard.comments = await getIssueComments(token, owner, repo, issue_number);
+    }
+    
+    // TODO: paginate?
     res = await octokit.issues.listEvents({
         owner: owner,
         repo: repo,
@@ -182,71 +201,7 @@ export async function getIssueCard(token: string, card:any, projectId: number): 
         per_page: 100
     });
 
-    issueCard.events = [];
-    // console.log(res.data);
-    for (const cardEvent of res.data) {
-        let newEvent = <IssueCardEvent>{
-            event: cardEvent.event,
-            created: new Date(cardEvent.created_at)
-        };
-
-        // "event": "added_to_project",
-        // "created_at": "2020-07-08T16:51:02Z",
-        // "project_card": {
-        //   "project_id": 3125939,
-        //   "column_name": "..."        
-        if ((cardEvent.event === "added_to_project" || 
-             cardEvent.event === "converted_note_to_issue" ||
-             cardEvent.event === "moved_columns_in_project")) {
-
-            newEvent.data = {
-                column_name: cardEvent.project_card.column_name,
-
-                // Watch out!
-                // since an issue can belong to multiple boards and issues are cached, we have to add this project_id.
-                // when the projectData structure is build, it will conveniently strip out column events that aren't part of the project being processed
-                project_id: cardEvent.project_card.project_id
-            }
-
-            if (cardEvent.project_card.previous_column_name) {
-                newEvent.data.previous_column_name = cardEvent.project_card.previous_column_name;
-            }
-
-            issueCard.events.push(newEvent);
-        }      
-        // "event": "assigned",
-        // "created_at": "2020-07-08T16:51:02Z",
-        // "assignee": {
-        //   "login": "bob",
-        //   "html_url": "https://github.com/bob",            
-        else if (cardEvent.event === "assigned") {
-            newEvent.data = {
-                login: cardEvent.assignee.login,
-                html_url: cardEvent.assignee.html_url
-            }
-            issueCard.events.push(newEvent);
-        }
-        // "event": "labeled",
-        // "created_at": "2020-07-07T18:30:36Z",
-        // "label": {
-        //   "name": "needs-triage",
-        else if (cardEvent.event === "labeled") {
-            newEvent.data = {
-                name: cardEvent.label.name
-            }
-            issueCard.events.push(newEvent);
-        }
-        else if (cardEvent.event === "unlabeled") {
-            newEvent.data = {
-                name: cardEvent.label.name
-            }
-            issueCard.events.push(newEvent);
-        }
-        else {
-            newEvent.data = {}
-            issueCard.events.push(newEvent);
-        }                        
-    }
+    issueCard.events = res.data as IssueCardEvent[];
 
     //TODO: sort ascending by date so it's a good historical view
 

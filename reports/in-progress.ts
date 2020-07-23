@@ -16,7 +16,9 @@ export function getDefaultConfiguration(): any {
         // TODO: implement getting a shapshot of data n days ago
         "daysAgo": 7,
         "status-label-match": "(?<=status:).*",
-        "wip-label-match": "(\\d+)-wip"
+        "wip-label-match": "(\\d+)-wip",
+        "last-updated-filter": "LastCommentPattern", 
+        "last-updated-data": "^(#){1,4} update",       
     };
 }
 
@@ -28,6 +30,7 @@ export type ProgressData = {
 export interface IssueCardEx extends IssueCard {
     status: string;
     wips: number;
+    lastUpdated: string;
 }
 
 export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
@@ -42,13 +45,13 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
         throw new Error("In-Progress column does not exist");
     }
 
-    let cardsForType = rptLib.cardsWithLabel(cards, progressData.cardType) as IssueCardEx[];
+    let cardsForType = rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()) as IssueCardEx[];
 
     // add status to each card from the status label
     cardsForType.map((card: IssueCardEx) => {
         card.status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"]));
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
-        
+        card.lastUpdated = rptLib.dataFromCard(card, config["last-updated-filter"], config["last-updated-data"]);
         return card;
     });
 
@@ -60,7 +63,8 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
 interface ProgressRow {
     title: string,
     status: string,
-    wips: number
+    wips: number,
+    lastUpdated: string,
 }
 
 export function renderMarkdown(projData: ProjectData, processedData: any): string {
@@ -89,6 +93,7 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
         progressRow.title = card.title;
         progressRow.status = statusEmoji;
         progressRow.wips = card.wips;
+        progressRow.lastUpdated = card.lastUpdated;
 
         rows.push(progressRow);
     }

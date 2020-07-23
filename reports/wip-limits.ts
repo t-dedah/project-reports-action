@@ -58,7 +58,7 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
             let stageData = <WipStageData>{};
 
             let cards = projData.stages[stage];
-            let cardsForType = rptLib.cardsWithLabel(cards, cardType);
+            let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
 
             drillIn(`wip-${cardType}-${stage}`, `Issues for ${stage} ${cardType}s`, cardsForType);
 

@@ -58,11 +58,11 @@ let stageLevel = {
 // keep in order indexed by level above
 let stageAtNames = [
     'none',
-    'proposed_at',
-    'accepted_at',
-    'in_progress_at',
-    'blocked_at',
-    'done_at'
+    'project_proposed_at',
+    'project_accepted_at',
+    'project_in_progress_at',
+    'project_blocked_at',
+    'project_done_at'
 ]
 
 // process a card in context of the project it's being added to
@@ -81,13 +81,14 @@ export function processCard(card: IssueCard, projectId: number, config: Generato
         for (let event of card.events) {
             // since we're adding this card to a projects / stage, let's filter out
             // events for other project ids since an issue can be part of multiple boards
-            if (event.data["project_id"] && event.data["project_id"] !== projectId) {
+            
+            if (event.project_card && event.project_card.project_id !== projectId) {
                 continue;
             }
             
             let eventDateTime: Date;
-            if (event.created) {
-                eventDateTime = event.created;
+            if (event.created_at) {
+                eventDateTime = event.created_at;
             }
 
             // TODO: should I clear all the stage_at datetimes if I see
@@ -98,18 +99,18 @@ export function processCard(card: IssueCard, projectId: number, config: Generato
             let fromStage: string;
             let fromLevel: number = 0;
 
-            if (event.data["column_name"]) {
+            if (event.project_card && event.project_card.column_name) {
                 if (!addedTime) {
                     addedTime = eventDateTime;
                 }
 
-                toStage = event.data["stage_name"] = getStageFromColumn(event.data["column_name"], config);
+                toStage = event.project_card.stage_name = getStageFromColumn(event.project_card.column_name, config);
                 toLevel = stageLevel[toStage];
                 currentStage = toStage;
             }
     
-            if (event.data["previous_column_name"]) {
-                fromStage = event.data["previous_stage_name"] = getStageFromColumn(event.data["previous_column_name"], config);
+            if (event.project_card && event.project_card.previous_column_name) {
+                fromStage = event.project_card.previous_stage_name = getStageFromColumn(event.project_card.previous_column_name, config);
                 fromLevel = stageLevel[fromStage];
             }
 
@@ -136,18 +137,18 @@ export function processCard(card: IssueCard, projectId: number, config: Generato
 
         // done_at and blocked_at is only set if it's currently at that stage
         if (currentStage === 'Done') {
-            card.done_at = doneTime;
+            card.project_done_at = doneTime;
         }
 
-        if (currentStage === 'Bloced') {
-            card.blocked_at = blockedTime
+        if (currentStage === 'Blocked') {
+            card.project_blocked_at = blockedTime
         }
 
         if (addedTime) {
-            card.added_at = addedTime;
+            card.project_added_at = addedTime;
         }
 
-        card.stage = currentStage;
+        card.project_stage = currentStage;
     }
 }
 
