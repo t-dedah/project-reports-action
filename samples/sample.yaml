@@ -1,13 +1,13 @@
 name: "TODO"
 columnMap:
-  Proposed: ["Tracking and Legend"]                  # Drafts author is working on.  Has a chance of moving soon
-  Accepted: ["To do"]                    # Ready for review
-  In-Progress: ["In progress"]          # Work is underway
-  Done: ["Done"]                    # Celebrate
-  Blocked: ["Waiting for SHA sync"]                           # Blocked, e.g. waiting on external etc.
+  Proposed: ["In Box"]                  # Drafts author is working on.  Has a chance of moving soon
+  Accepted: ["Next"]                    # Ready for review
+  In-Progress: ["In Progress"]          # Work is underway
+  Done: ["Complete"]                    # Celebrate
+  Blocked: []                           # Blocked, e.g. waiting on external etc.
 
 projects: 
-  - https://github.com/orgs/github/projects/1276
+  - https://github.com/users/bryanmacfarlane/projects/1
 
 output: "_reports"
 
@@ -29,8 +29,10 @@ reports:
           wip-label-match: "(\\d+)-dev"
       - name: "issue-count-cycle-time"
         config:
-          ghes-cycletime-limit: 200
-          testing-cycletime-limit: 200
-          report-on: ["GHES", "Testing", "Beta" ]
+          feature-cycletime-limit: 200
+          epic-cycletime-limit: 200
+          documentation-cycletime-limit: 200
+          report-on: ["feature", "epic", "documentation" ]
           wip-label-match: "(\\d+)-dev"
-      - name: "echo-board"
+      - name: "echo-board"          
+      - name: "echo-board"       

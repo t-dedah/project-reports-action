@@ -25,6 +25,10 @@ export interface IssueCardCycleTime extends IssueCard {
   cycletime: number
 }
 
+export function getDefaultConfiguration(): any {
+    return <any>{};
+}
+
 export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
   let cycleTimeData = <CycleTimeData>{};
   for (let cardType of config["report-on"]) {

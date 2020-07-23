@@ -604,10 +604,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderMarkdown = exports.process = void 0;
+exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = void 0;
 const rptLib = __importStar(__webpack_require__(369));
 const tablemark = __webpack_require__(611);
 const os = __importStar(__webpack_require__(87));
+function getDefaultConfiguration() {
+    return {};
+}
+exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(config, projData, drillIn) {
     let cycleTimeData = {};
     for (let cardType of config["report-on"]) {
