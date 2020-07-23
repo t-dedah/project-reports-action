@@ -8,9 +8,11 @@
   <a href="https://github.com/bryanmacfarlane/project-reports/actions?query=workflow%3Abuild-test"><img alt="build-test status" src="https://github.com/bryanmacfarlane/project-reports/workflows/build-test/badge.svg"></a>
 </p>
 
-An action to generate reports for a GitHub project board.
+> Early personal experiment.  Do not rely on this.  Changing rapidly.
 
-Early personal experiment.  Do not rely on this.  Changing.
+An action to generate reports like this ffor a GitHub project board.  Customizable and extensible.
+
+![sample](./docs/sample_report.png)
 
 ## Use in workflow
 
