@@ -1,28 +1,8 @@
 import {IssueCard} from './interfaces';
-//import * as filters from './project-report-lib-filters';
 
 // TODO: separate npm module.  for now it's a file till we flush out
 
-export function dataFromCard(card: IssueCard, filterBy: string, data: string) {
-    
-    let fn = module.exports[`get${filterBy}`];
-    if (!fn) { 
-        throw new Error(`Invalid filter: ${filterBy}`); 
-    }
-
-    return fn(card, data);
-}
-
-export function getLastCommentPattern(card: IssueCard, pattern: string): string {
-    if (!card.comments) {
-        return '';
-    }
-
-    let re = new RegExp(pattern);
-    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
-    
-    return comment ? new Date(comment["updated_at"]).toDateString() : '';
-}
+export * from './project-reports-schemes';
 
 //
 // filter cards by label

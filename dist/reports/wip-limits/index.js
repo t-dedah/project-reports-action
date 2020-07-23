@@ -181,31 +181,24 @@ module.exports = function (str, locale, replacement) {
 /***/ }),
 
 /***/ 369:
-/***/ (function(module, exports) {
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.getLastCommentPattern = exports.dataFromCard = void 0;
-//import * as filters from './project-report-lib-filters';
+exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = void 0;
 // TODO: separate npm module.  for now it's a file till we flush out
-function dataFromCard(card, filterBy, data) {
-    let fn = module.exports[`get${filterBy}`];
-    if (!fn) {
-        throw new Error(`Invalid filter: ${filterBy}`);
-    }
-    return fn(card, data);
-}
-exports.dataFromCard = dataFromCard;
-function getLastCommentPattern(card, pattern) {
-    if (!card.comments) {
-        return '';
-    }
-    let re = new RegExp(pattern);
-    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
-    return comment ? new Date(comment["updated_at"]).toDateString() : '';
-}
-exports.getLastCommentPattern = getLastCommentPattern;
+__exportStar(__webpack_require__(714), exports);
 //
 // filter cards by label
 //
@@ -679,6 +672,41 @@ module.exports = function (str, locale) {
   return upperCase(str.charAt(0), locale) + str.substr(1)
 }
 
+
+/***/ }),
+
+/***/ 714:
+/***/ (function(module, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.diffHours = exports.getLastCommentPattern = exports.dataFromCard = void 0;
+function dataFromCard(card, filterBy, data) {
+    let fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
+}
+exports.dataFromCard = dataFromCard;
+//
+// returns hours since last comment with a body matching a pattern
+//
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    let re = new RegExp(pattern);
+    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
+    return comment ? diffHours(new Date(comment["updated_at"]), new Date()) : -1;
+}
+exports.getLastCommentPattern = getLastCommentPattern;
+function diffHours(date1, date2) {
+    return Math.abs(date1.getTime() - date2.getTime()) / (60 * 60 * 1000);
+}
+exports.diffHours = diffHours;
+//# sourceMappingURL=project-reports-schemes.js.map
 
 /***/ }),
 
