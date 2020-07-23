@@ -98,10 +98,11 @@ function renderMarkdown(heading, cards) {
         lines.push(`### ${assigneeHtml} [${card.title}](${card.html_url})  `);
         let assigneeLink = card.assignee ? `[@${card.assignee.login}](${card.assignee.html_url})  ` : "not assigned  ";
         lines.push(`> ${assigneeLink}`);
-        card.labels = card.labels.map((label) => {
-            return { name: `\`${label.name}\`` };
-        });
-        lines.push(`  ${card.labels.join(" ")}`);
+        let labels = [];
+        for (let label of card.labels) {
+            labels.push(`\`${label.name}\``);
+        }
+        lines.push(`  ${labels.join(" ")}`);
     }
     return lines.join(os.EOL);
 }

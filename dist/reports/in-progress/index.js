@@ -684,8 +684,8 @@ function getDefaultConfiguration() {
         "daysAgo": 7,
         "status-label-match": "(?<=status:).*",
         "wip-label-match": "(\\d+)-wip",
-        "last-updated-filter": "LastCommentPattern",
-        "last-updated-data": "^(#){1,4} update",
+        "last-updated-scheme": "LastCommentPattern",
+        "last-updated-scheme-data": "^(#){1,4} update",
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -703,7 +703,7 @@ function process(config, projData, drillIn) {
     cardsForType.map((card) => {
         card.status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"]));
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
-        card.lastUpdated = rptLib.dataFromCard(card, config["last-updated-filter"], config["last-updated-data"]);
+        card.lastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
         return card;
     });
     progressData.cards = cardsForType;
