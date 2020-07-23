@@ -699,7 +699,7 @@ function renderMarkdown(heading, cards) {
         let assigneeLink = card.assignee ? `[@${card.assignee.login}](${card.assignee.html_url})  ` : "not assigned  ";
         lines.push(`> ${assigneeLink}`);
         card.labels = card.labels.map((label) => {
-            return `\`${label}\``;
+            return { name: `\`${label.name}\`` };
         });
         lines.push(`  ${card.labels.join(" ")}`);
     }
@@ -1322,7 +1322,6 @@ function getProject(token, projectHtmlUrl) {
         });
         let projUrl = new url.URL(projectHtmlUrl);
         let projParts = projUrl.pathname.split("/").filter(e => e);
-        console.log(projParts);
         if (projParts.length !== 4) {
             throw new Error(`Invalid project url: ${projectHtmlUrl}`);
         }
@@ -1402,6 +1401,21 @@ exports.getCardsForColumns = getCardsForColumns;
 function DateOrNull(date) {
     return date ? new Date(date) : null;
 }
+function getIssueComments(token, owner, repo, issue_number) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // 
+        const octokit = new Octokit({
+            auth: token,
+            previews: ['squirrel-girl-preview']
+        });
+        let res = yield octokit.issues.listComments({
+            owner,
+            repo,
+            issue_number,
+        });
+        return res.data;
+    });
+}
 // returns null if not an issue
 function getIssueCard(token, card, projectId) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -1430,6 +1444,7 @@ function getIssueCard(token, card, projectId) {
             issue_number: issue_number
         });
         let issue = res.data;
+        issueCard.number = issue.number;
         issueCard.title = issue.title;
         issueCard.number = issue.number;
         issueCard.html_url = issue.html_url;
@@ -1445,77 +1460,19 @@ function getIssueCard(token, card, projectId) {
                 html_url: issue.assignee.html_url
             };
         }
-        issueCard.labels = [];
-        for (const label of issue.labels) {
-            issueCard.labels.push(label.name);
+        issueCard.labels = issue.labels;
+        issueCard.comments = [];
+        if (issue.comments > 0) {
+            issueCard.comments = yield getIssueComments(token, owner, repo, issue_number);
         }
-        // TODO: paginate
+        // TODO: paginate?
         res = yield octokit.issues.listEvents({
             owner: owner,
             repo: repo,
             issue_number: issue_number,
             per_page: 100
         });
-        issueCard.events = [];
-        // console.log(res.data);
-        for (const cardEvent of res.data) {
-            let newEvent = {
-                event: cardEvent.event,
-                created: new Date(cardEvent.created_at)
-            };
-            // "event": "added_to_project",
-            // "created_at": "2020-07-08T16:51:02Z",
-            // "project_card": {
-            //   "project_id": 3125939,
-            //   "column_name": "..."        
-            if ((cardEvent.event === "added_to_project" ||
-                cardEvent.event === "converted_note_to_issue" ||
-                cardEvent.event === "moved_columns_in_project")) {
-                newEvent.data = {
-                    column_name: cardEvent.project_card.column_name,
-                    // Watch out!
-                    // since an issue can belong to multiple boards and issues are cached, we have to add this project_id.
-                    // when the projectData structure is build, it will conveniently strip out column events that aren't part of the project being processed
-                    project_id: cardEvent.project_card.project_id
-                };
-                if (cardEvent.project_card.previous_column_name) {
-                    newEvent.data.previous_column_name = cardEvent.project_card.previous_column_name;
-                }
-                issueCard.events.push(newEvent);
-            }
-            // "event": "assigned",
-            // "created_at": "2020-07-08T16:51:02Z",
-            // "assignee": {
-            //   "login": "bob",
-            //   "html_url": "https://github.com/bob",            
-            else if (cardEvent.event === "assigned") {
-                newEvent.data = {
-                    login: cardEvent.assignee.login,
-                    html_url: cardEvent.assignee.html_url
-                };
-                issueCard.events.push(newEvent);
-            }
-            // "event": "labeled",
-            // "created_at": "2020-07-07T18:30:36Z",
-            // "label": {
-            //   "name": "needs-triage",
-            else if (cardEvent.event === "labeled") {
-                newEvent.data = {
-                    name: cardEvent.label.name
-                };
-                issueCard.events.push(newEvent);
-            }
-            else if (cardEvent.event === "unlabeled") {
-                newEvent.data = {
-                    name: cardEvent.label.name
-                };
-                issueCard.events.push(newEvent);
-            }
-            else {
-                newEvent.data = {};
-                issueCard.events.push(newEvent);
-            }
-        }
+        issueCard.events = res.data;
         //TODO: sort ascending by date so it's a good historical view
         cache.write(getCacheKey(card.content_url), issueCard);
         return issueCard;
@@ -12456,11 +12413,11 @@ let stageLevel = {
 // keep in order indexed by level above
 let stageAtNames = [
     'none',
-    'proposed_at',
-    'accepted_at',
-    'in_progress_at',
-    'blocked_at',
-    'done_at'
+    'project_proposed_at',
+    'project_accepted_at',
+    'project_in_progress_at',
+    'project_blocked_at',
+    'project_done_at'
 ];
 // process a card in context of the project it's being added to
 // filter column events to the project being processed only since. this makes it easier on the report author
@@ -12476,12 +12433,12 @@ function processCard(card, projectId, config) {
         for (let event of card.events) {
             // since we're adding this card to a projects / stage, let's filter out
             // events for other project ids since an issue can be part of multiple boards
-            if (event.data["project_id"] && event.data["project_id"] !== projectId) {
+            if (event.project_card && event.project_card.project_id !== projectId) {
                 continue;
             }
             let eventDateTime;
-            if (event.created) {
-                eventDateTime = event.created;
+            if (event.created_at) {
+                eventDateTime = event.created_at;
             }
             // TODO: should I clear all the stage_at datetimes if I see
             //       removed_from_project event?
@@ -12489,16 +12446,16 @@ function processCard(card, projectId, config) {
             let toLevel;
             let fromStage;
             let fromLevel = 0;
-            if (event.data["column_name"]) {
+            if (event.project_card && event.project_card.column_name) {
                 if (!addedTime) {
                     addedTime = eventDateTime;
                 }
-                toStage = event.data["stage_name"] = getStageFromColumn(event.data["column_name"], config);
+                toStage = event.project_card.stage_name = getStageFromColumn(event.project_card.column_name, config);
                 toLevel = stageLevel[toStage];
                 currentStage = toStage;
             }
-            if (event.data["previous_column_name"]) {
-                fromStage = event.data["previous_stage_name"] = getStageFromColumn(event.data["previous_column_name"], config);
+            if (event.project_card && event.project_card.previous_column_name) {
+                fromStage = event.project_card.previous_stage_name = getStageFromColumn(event.project_card.previous_column_name, config);
                 fromLevel = stageLevel[fromStage];
             }
             // last occurence of moving to these columns from a lesser or no column
@@ -12520,15 +12477,15 @@ function processCard(card, projectId, config) {
         card.events = filteredEvents;
         // done_at and blocked_at is only set if it's currently at that stage
         if (currentStage === 'Done') {
-            card.done_at = doneTime;
+            card.project_done_at = doneTime;
         }
-        if (currentStage === 'Bloced') {
-            card.blocked_at = blockedTime;
+        if (currentStage === 'Blocked') {
+            card.project_blocked_at = blockedTime;
         }
         if (addedTime) {
-            card.added_at = addedTime;
+            card.project_added_at = addedTime;
         }
-        card.stage = currentStage;
+        card.project_stage = currentStage;
     }
 }
 exports.processCard = processCard;

@@ -1,18 +1,34 @@
 import {IssueCard} from './interfaces';
+//import * as filters from './project-report-lib-filters';
 
 // TODO: separate npm module.  for now it's a file till we flush out
 
-//
-// filter cards by label case insensitive
-//
-export function cardsWithLabel(cards: IssueCard[], label: string): IssueCard[] {
-    // make all the labels lower case
-    let filtered = cards.filter((card) => { 
-        card.labels = card.labels.map((label) => { return label.toLowerCase()});
-        return card.labels.indexOf(label.toLowerCase()) >= 0;
-    }); 
+export function dataFromCard(card: IssueCard, filterBy: string, data: string) {
+    
+    let fn = module.exports[`get${filterBy}`];
+    if (!fn) { 
+        throw new Error(`Invalid filter: ${filterBy}`); 
+    }
 
-    return filtered;
+    return fn(card, data);
+}
+
+export function getLastCommentPattern(card: IssueCard, pattern: string): string {
+    if (!card.comments) {
+        return '';
+    }
+
+    let re = new RegExp(pattern);
+    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
+    
+    return comment ? new Date(comment["updated_at"]).toDateString() : '';
+}
+
+//
+// filter cards by label
+//
+export function filterByLabel(cards: IssueCard[], name: string): IssueCard[] {
+    return cards.filter((card) => card.labels.findIndex(label => label.name === name) >= 0);
 }
 
 //
@@ -24,7 +40,7 @@ export function getCountFromLabel(card: IssueCard, re: RegExp): number {
     let num = NaN;
 
     for (let label of card.labels) {
-        let matches = label.match(re);
+        let matches = label.name.match(re);
         if (matches && matches.length > 0) {
              num = parseInt(matches[1])
              if (num) {
@@ -39,7 +55,7 @@ export function getStringFromLabel(card: IssueCard, re: RegExp): string {
     let str = '';
 
     for (let label of card.labels) {
-        let matches = label.match(re);
+        let matches = label.name.match(re);
         if (matches && matches.length > 0) {
              str = matches[0];
              if (str) {

@@ -52,10 +52,25 @@ export interface ProjectsData {
     projects: { [key: string]: ProjectData }
 }
 
+export interface IssueCardLabel {
+    name: string
+}
+
+export interface IssueCardEventProject {
+    project_id: number,
+    column_name: string,
+    previous_column_name: string,
+    stage_name: string,
+    previous_stage_name: string
+}
+
 export interface IssueCardEvent {
-    created: Date,
+    created_at: Date,
     event: string,
-    data: any
+    assignee: IssueUser,
+    label: IssueCardLabel,
+    project_card: IssueCardEventProject,
+    //data: any
 }
 
 export interface IssueUser {
@@ -66,34 +81,56 @@ export interface IssueUser {
     html_url: string
 }
 
+export interface IssueMilestone {
+    title: string,
+    description: string,
+    due_on: Date
+}
+
+export interface IssueComment {
+    body: string,
+    user: IssueUser
+    created_at: Date,
+    updated_at: Date
+}
+
 export interface IssueCard {
     title: string,
     number: number;
     html_url: string,
-    labels: string[],
+    labels: IssueCardLabel[],
     assignee: IssueUser,
+    assignees: IssueUser[],
+    user: IssueUser,
+    milestone: IssueMilestone,
     closed_at: Date,
     created_at: Date,
-    updated_at: Date,  
+    updated_at: Date,
+
+    comments: IssueComment[],  
     
+    //
+    // project stage fields we decorate on issues
+    //
+
     // first added to the board on any column (no "from" column)
-    added_at: Date,
+    project_added_at: Date,
     
     // last occurence of moving to these columns from a lesser or no column
     // example. if moved to accepted from proposed (or less), 
     //      then in-progress (greater) and then back to accepted, first wins
-    proposed_at: Date,        
-    accepted_at: Date,
-    in_progress_at: Date,
+    project_proposed_at: Date,        
+    project_accepted_at: Date,
+    project_in_progress_at: Date,
 
     // cleared if not currently blocked
-    blocked_at: Date,
+    project_blocked_at: Date,
 
     // cleared if it moves out of done.  e.g. current state has to be done for this to be set
-    done_at: Date,
+    project_done_at: Date,
 
     // current stage of this card on the board
-    stage: string,
+    project_stage: string,
     
     events: IssueCardEvent[]
 }

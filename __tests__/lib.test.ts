@@ -6,23 +6,23 @@ let testCards:IssueCard[] = [
     <IssueCard>{
         number: 1,
         title: 'one',
-        labels: ['One'],
+        labels: [{ name: 'One'}],
         
     },
     <IssueCard>{
         number: 2,
         title: 'twothree',
-        labels: ['Two', 'three']
+        labels: [{ name: 'two'}, { name: 'three'}]
     },
     <IssueCard>{
         number: 3,
         title: 'other',
-        labels: ['two', '11-dev', 'foo:baz'] 
+        labels: [{ name: 'two'}, { name: '11-dev'}, { name: 'foo:baz'}] 
     },
     <IssueCard>{
         number: 4,
         title: 'more',
-        labels: ['five', 'foo: bar ']
+        labels: [{ name: 'five'}, { name: 'foo: bar '}]
     } 
 ]
 
@@ -38,7 +38,7 @@ describe('report-lib', () => {
   afterAll(async () => {}, 100000);
 
   it('finds cards by label', async () => {
-    let filtered = rptLib.cardsWithLabel(testCards, 'two')
+    let filtered = rptLib.filterByLabel(testCards, 'two')
     expect(filtered).toBeDefined();
     expect(filtered.length).toBe(2);
     expect(filtered[0].title).toBe('twothree');
@@ -46,7 +46,7 @@ describe('report-lib', () => {
   });
 
   it('does not find cards by non-existant label', async () => {
-    let filtered = rptLib.cardsWithLabel(testCards, 'non-existant')
+    let filtered = rptLib.filterByLabel(testCards, 'non-existant')
     expect(filtered).toBeDefined();
     expect(filtered.length).toBe(0);
   });
@@ -87,5 +87,38 @@ describe('report-lib', () => {
     let re = new RegExp("(?<=foo:).*");
     let val = rptLib.getStringFromLabel(testCards[3], re);
     expect(val).toBe('bar');
+  });
+  
+  let card = <IssueCard>{
+    comments: [{
+        body: "## update 2",
+        updated_at: new Date('2020-07-23T03:28:28.950Z')
+    },{
+        body: "foo",
+        updated_at: new Date('2020-07-23T03:29:07.282Z')
+    },{
+        body: "## update 3",
+        updated_at: new Date('2020-07-23T03:31:35.918Z')
+    }]
+  }
+
+  it('gets last comment updated_at value', async () => {
+    let d = rptLib.getLastCommentPattern(card, "^(#){1,4} update");
+    expect(d).toBe('Wed Jul 22 2020');
+  });  
+
+  it('does not gets last comment for no match', async () => {
+    let d = rptLib.getLastCommentPattern(card, "^(#){1,4} none match");
+    expect(d).toBe('');
+  });
+
+  it('does not gets last comment if no comments', async () => {
+    let d = rptLib.getLastCommentPattern(<IssueCard>{comments:[]}, "^(#){1,4} update");
+    expect(d).toBe('');
+  });  
+
+  it('gets last comment updated_at value from dataFromCard', async () => {
+    let d = rptLib.dataFromCard(card, "LastCommentPattern", "^(#){1,4} update");
+    expect(d).toBe('Wed Jul 22 2020');
   });  
 });

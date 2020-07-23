@@ -72,14 +72,14 @@ describe('util', () => {
 
     util.processCard(doneCard, 4969651, config);
     expect(doneCard).toBeDefined();
-    expect(doneCard.events[0].data.stage_name).toBe("Proposed");
-    expect(doneCard.stage).toBe("Done");
+    expect(doneCard.events[0].project_card.stage_name).toBe("Proposed");
+    expect(doneCard.project_stage).toBe("Done");
     
-    expect(doneCard.added_at.toString()).toBe("2020-07-14T19:49:10.000Z");
-    expect(doneCard.accepted_at.toString()).toBe("2020-07-14T19:54:58.000Z");
-    expect(doneCard.in_progress_at.toString()).toBe("2020-07-14T19:59:45.000Z");
-    expect(doneCard.done_at.toString()).toBe("2020-07-14T21:14:27.000Z");
-    expect(doneCard.proposed_at).toBeDefined();
+    expect(doneCard.project_added_at.toString()).toBe("2020-07-14T19:49:10Z");
+    expect(doneCard.project_accepted_at.toString()).toBe("2020-07-14T19:54:58Z");
+    expect(doneCard.project_in_progress_at.toString()).toBe("2020-07-14T19:59:45Z");
+    expect(doneCard.project_done_at.toString()).toBe("2020-07-14T21:14:27Z");
+    expect(doneCard.project_proposed_at).toBeDefined();
 
     // console.log(JSON.stringify(doneCard, null, 2));
   });
