@@ -94,12 +94,9 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
     let wipData = processedData as WipData;
     let lines: string[] = [];
 
-    // console.log(JSON.stringify(processedData, null, 2));
-    // console.log(`Creating Wip-Limits for ${projData.name}`);
-    lines.push(`## Wip Limits`)
     // create a report for each type.  e.g. "Epic"
     for (let cardType in wipData) {
-        lines.push(`### ${cardType} WIP limits`);
+        lines.push(`## ${cardType} WIP Limits`);
 
         let rows: WipRow[] = [];
         for (let stageName in wipData[cardType]) {

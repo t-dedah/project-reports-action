@@ -72,7 +72,7 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
     
     let lines: string[] = [];
 
-    lines.push(`## In Progress: ${progressData.cardType}  `);
+    lines.push(`## In Progress ${progressData.cardType}s  `);
     lines.push("  ");
 
 
