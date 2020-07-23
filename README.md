@@ -16,7 +16,7 @@ An action to generate reports like this ffor a GitHub project board.  Customizab
 
 ## Use in workflow
 
-1. Create a yaml config file.  See [samples/sample.yaml](.samples/sample.yaml) 
+1. Create a yaml config file.  See [samples/sample.yaml](./samples/sample.yaml) 
 2. Create secret named `PROJECT_TOKEN` in your repo settings.  This token needs to be able to read the project board and reference issue.
 3. Add this step to your workflow
 
