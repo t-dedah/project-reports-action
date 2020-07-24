@@ -278,6 +278,138 @@ module.exports = new Schema({
 
 /***/ }),
 
+/***/ 28:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.wrap = exports.FileSystemStore = void 0;
+const mustache = __importStar(__webpack_require__(174));
+const fs = __importStar(__webpack_require__(747));
+const path = __importStar(__webpack_require__(622));
+class FileSystemStore {
+    constructor(path) {
+        this._path = path;
+    }
+    getCachePath(options) {
+        let urlFormat = options.url.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
+        // console.log(urlFormat);
+        let urlPath = mustache.render(urlFormat, options);
+        // console.log(`${urlPath}`);
+        let cachePath = path.join(this._path, urlPath);
+        console.log(`cachePath: ${cachePath}`);
+        return cachePath;
+    }
+    check(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let cachePath = this.getCachePath(options);
+            let etagPath = path.join(cachePath, "etag");
+            let exists = fs.existsSync(path.join(cachePath, "res.json")) &&
+                fs.existsSync(path.join(cachePath, "etag"));
+            let etag;
+            if (exists) {
+                etag = fs.readFileSync(etagPath).toString();
+            }
+            return etag;
+        });
+    }
+    read(response, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let cachePath = this.getCachePath(options);
+            console.log(`reading ${cachePath} ...`);
+            // TODO: async
+            let contents = fs.readFileSync(path.join(cachePath, "res.json")).toString();
+            return JSON.parse(contents);
+        });
+    }
+    write(response, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let cachePath = this.getCachePath(options);
+            // TODO: async
+            fs.mkdirSync(cachePath, { recursive: true });
+            // TODO: always overwrite
+            fs.writeFileSync(path.join(cachePath, "res.json"), JSON.stringify(response, null, 2));
+            fs.writeFileSync(path.join(cachePath, "etag"), response.headers.etag);
+            return;
+        });
+    }
+}
+exports.FileSystemStore = FileSystemStore;
+function wrap(store) {
+    return (request, options) => __awaiter(this, void 0, void 0, function* () {
+        console.log("\nWrap");
+        // only cache GET requests
+        if (options.method !== 'GET') {
+            return request;
+        }
+        let res;
+        let etag = yield store.check(options);
+        //-H'If-None-Match: "d8bc8195c7b6cf52f49f20e1cfd473dc"'
+        if (etag) {
+            console.log("cache hit!");
+            options.headers["If-None-Match"] = etag;
+        }
+        // make the request.
+        let response;
+        let fromCache = false;
+        try {
+            response = yield request(options);
+        }
+        catch (err) {
+            if (err.status === 304 && etag) {
+                console.log("content hasn't changed. return from cache");
+                response = yield store.read(request, options);
+                fromCache = true;
+            }
+            else {
+                throw err;
+            }
+        }
+        // if etag and 304 Not Modified, read from disk
+        if (!fromCache) {
+            yield store.write(response, options);
+            console.log(`Written to cache`);
+        }
+        console.log(`rate limit     : ${response.headers["x-ratelimit-limit"]}`);
+        console.log(`rate remaining : ${response.headers["x-ratelimit-remaining"]}`);
+        return response;
+    });
+}
+exports.wrap = wrap;
+;
+//# sourceMappingURL=index.js.map
+
+/***/ }),
+
 /***/ 39:
 /***/ (function(module) {
 
@@ -1295,191 +1427,347 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getIssueCard = exports.getCardsForColumns = exports.getColumnsForProject = exports.getProject = void 0;
+exports.GitHubClient = void 0;
 const { Octokit } = __webpack_require__(889);
 const cache = __importStar(__webpack_require__(224));
 const url = __importStar(__webpack_require__(835));
-function getCacheKey(srcurl) {
-    let purl = new url.URL(srcurl);
-    return purl.pathname.replace(/\//g, '_');
+const restCache = __importStar(__webpack_require__(28));
+// function getCacheKey(srcurl: string) {
+//     let purl = new url.URL(srcurl)
+//     return purl.pathname.replace(/\//g, '_');    
+// }
+function DateOrNull(date) {
+    return date ? new Date(date) : null;
 }
+class GitHubClient {
+    constructor(token, cacheDir) {
+        this.octokit = new Octokit({
+            auth: token,
+            previews: [
+                'squirrel-girl-preview',
+                'inertia-preview',
+                'starfox-preview',
+                'mockingbird-preview',
+                'sailor-v-preview'
+            ]
+        });
+        let diskCache = new restCache.FileSystemStore(cacheDir);
+        this.octokit.hook.wrap("request", restCache.wrap(diskCache));
+    }
+    getProject(projectHtmlUrl) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Finding project for ${projectHtmlUrl}`);
+            let proj = null;
+            let projUrl = new url.URL(projectHtmlUrl);
+            let projParts = projUrl.pathname.split("/").filter(e => e);
+            if (projParts.length !== 4) {
+                throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+            }
+            let projKind = projParts[0]; // orgs or users
+            let projOwner = projParts[1]; // orgname or username
+            let projId = projParts[3]; // html id
+            let count = 0;
+            let page = 0;
+            do {
+                ++page;
+                console.log(`page: ${page}`);
+                let res;
+                if (projKind === 'orgs') {
+                    res = yield this.octokit.projects.listForOrg({
+                        org: projOwner,
+                        state: "open",
+                        per_page: 100,
+                        page: page
+                    });
+                }
+                else if (projKind === 'users') {
+                    console.log(`listForUser ${projOwner}`);
+                    res = yield this.octokit.projects.listForUser({
+                        username: projOwner,
+                        state: "open",
+                        per_page: 100,
+                        page: page
+                    });
+                }
+                else {
+                    throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+                }
+                let projects = res.data;
+                count = projects.length;
+                for (const project of projects) {
+                    if (projectHtmlUrl.indexOf(project.html_url) > -1) {
+                        proj = {
+                            id: project.id,
+                            html_url: project.html_url,
+                            name: project.name
+                        };
+                        console.log(`Found ${project.name}`);
+                        break;
+                    }
+                }
+            } while (count == 100);
+            return proj;
+        });
+    }
+    getColumnsForProject(project) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Getting columns for ${project.id}`);
+            let cols = yield this.octokit.projects.listColumns({ project_id: project.id });
+            return cols.data;
+        });
+    }
+    getCardsForColumns(colId, colName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let cards = yield this.octokit.projects.listCards({ column_id: colId });
+            cache.write("cards-" + colName, cards);
+            return cards.data;
+        });
+    }
+    getIssueComments(owner, repo, issue_number) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let res = yield this.octokit.issues.listComments({
+                owner,
+                repo,
+                issue_number,
+            });
+            return res.data;
+        });
+    }
+    // returns null if not an issue
+    getIssueForCard(card, projectId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!card.content_url) {
+                return null;
+            }
+            let cardUrl = new url.URL(card.content_url);
+            let cardParts = cardUrl.pathname.split('/').filter(e => e);
+            // /repos/:owner/:repo/issues/events/:event_id
+            // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
+            let owner = cardParts[1];
+            let repo = cardParts[2];
+            let issue_number = cardParts[4];
+            let issueCard = {};
+            console.log(`Getting ${issue_number}`);
+            let res = yield this.octokit.issues.get({
+                owner: owner,
+                repo: repo,
+                issue_number: issue_number
+            });
+            //console.log(JSON.stringify(res, null, 2));
+            let issue = res.data;
+            issueCard.number = issue.number;
+            issueCard.title = issue.title;
+            issueCard.number = issue.number;
+            issueCard.html_url = issue.html_url;
+            issueCard.closed_at = DateOrNull(issue.closed_at);
+            issueCard.created_at = DateOrNull(issue.created_at);
+            issueCard.updated_at = DateOrNull(issue.updated_at);
+            if (issue.assignee) {
+                issueCard.assignee = {
+                    login: issue.assignee.login,
+                    id: issue.assignee.id,
+                    avatar_url: issue.assignee.avatar_url,
+                    url: issue.assignee.url,
+                    html_url: issue.assignee.html_url
+                };
+            }
+            issueCard.labels = issue.labels;
+            issueCard.comments = [];
+            if (issue.comments > 0) {
+                issueCard.comments = yield this.getIssueComments(owner, repo, issue_number);
+            }
+            // TODO: paginate?
+            res = yield this.octokit.issues.listEvents({
+                owner: owner,
+                repo: repo,
+                issue_number: issue_number,
+                per_page: 100
+            });
+            issueCard.events = res.data;
+            //TODO: sort ascending by date so it's a good historical view
+            // cache.write(getCacheKey(card.content_url), issueCard);
+            return issueCard;
+        });
+    }
+}
+exports.GitHubClient = GitHubClient;
 //
 // Issue: We have to go through 6 pages of 100 to get to one github org 
 // No way to get project by friendly html url
 // e.g. github/900 is actually id 3114877
 // cache this so we take a friendly input but do it once.  would be nice to cache for 24 hrs.
 //
-function getProject(token, projectHtmlUrl) {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log(`Finding project for ${projectHtmlUrl}`);
-        let cached = cache.read(getCacheKey(projectHtmlUrl));
-        if (cached) {
-            return cached;
-        }
-        let proj = null;
-        const octokit = new Octokit({
-            auth: token,
-            previews: ['inertia-preview', 'starfox-preview', 'mockingbird-preview']
-        });
-        let projUrl = new url.URL(projectHtmlUrl);
-        let projParts = projUrl.pathname.split("/").filter(e => e);
-        if (projParts.length !== 4) {
-            throw new Error(`Invalid project url: ${projectHtmlUrl}`);
-        }
-        let projKind = projParts[0]; // orgs or users
-        let projOwner = projParts[1]; // orgname or username
-        let projId = projParts[3]; // html id
-        let count = 0;
-        let page = 0;
-        do {
-            ++page;
-            console.log(`page: ${page}`);
-            let res;
-            if (projKind === 'orgs') {
-                res = yield octokit.projects.listForOrg({
-                    org: projOwner,
-                    state: "open",
-                    per_page: 100,
-                    page: page
-                });
-            }
-            else if (projKind === 'users') {
-                console.log(`listForUser ${projOwner}`);
-                res = yield octokit.projects.listForUser({
-                    username: projOwner,
-                    state: "open",
-                    per_page: 100,
-                    page: page
-                });
-            }
-            else {
-                throw new Error(`Invalid project url: ${projectHtmlUrl}`);
-            }
-            let projects = res.data;
-            count = projects.length;
-            for (const project of projects) {
-                if (projectHtmlUrl.indexOf(project.html_url) > -1) {
-                    proj = {
-                        id: project.id,
-                        html_url: project.html_url,
-                        name: project.name
-                    };
-                    cache.write(getCacheKey(project.html_url), proj);
-                    console.log(`Found ${project.name}`);
-                    break;
-                }
-            }
-        } while (count == 100);
-        return proj;
-        //octokit.search.issuesAndPullRequests("org:github+type:issue+state:open+project:github/900")
-    });
-}
-exports.getProject = getProject;
-function getColumnsForProject(token, project) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const octokit = new Octokit({
-            auth: token,
-            previews: ['inertia-preview']
-        });
-        console.log(`Getting columns for ${project.id}`);
-        let cols = yield octokit.projects.listColumns({ project_id: project.id });
-        return cols.data;
-    });
-}
-exports.getColumnsForProject = getColumnsForProject;
-function getCardsForColumns(token, colId, colName) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const octokit = new Octokit({
-            auth: token,
-            previews: ['inertia-preview']
-        });
-        let cards = yield octokit.projects.listCards({ column_id: colId });
-        cache.write("cards-" + colName, cards);
-        return cards.data;
-    });
-}
-exports.getCardsForColumns = getCardsForColumns;
-function DateOrNull(date) {
-    return date ? new Date(date) : null;
-}
-function getIssueComments(token, owner, repo, issue_number) {
-    return __awaiter(this, void 0, void 0, function* () {
-        // 
-        const octokit = new Octokit({
-            auth: token,
-            previews: ['squirrel-girl-preview']
-        });
-        let res = yield octokit.issues.listComments({
-            owner,
-            repo,
-            issue_number,
-        });
-        return res.data;
-    });
-}
-// returns null if not an issue
-function getIssueCard(token, card, projectId) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!card.content_url) {
-            return null;
-        }
-        let cached = cache.read(getCacheKey(card.content_url));
-        if (cached) {
-            return cached;
-        }
-        let cardUrl = new url.URL(card.content_url);
-        let cardParts = cardUrl.pathname.split('/').filter(e => e);
-        const octokit = new Octokit({
-            auth: token,
-            previews: ['starfox-preview', 'sailor-v-preview']
-        });
-        // /repos/:owner/:repo/issues/events/:event_id
-        // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
-        let owner = cardParts[1];
-        let repo = cardParts[2];
-        let issue_number = cardParts[4];
-        let issueCard = {};
-        let res = yield octokit.issues.get({
-            owner: owner,
-            repo: repo,
-            issue_number: issue_number
-        });
-        let issue = res.data;
-        issueCard.number = issue.number;
-        issueCard.title = issue.title;
-        issueCard.number = issue.number;
-        issueCard.html_url = issue.html_url;
-        issueCard.closed_at = DateOrNull(issue.closed_at);
-        issueCard.created_at = DateOrNull(issue.created_at);
-        issueCard.updated_at = DateOrNull(issue.updated_at);
-        if (issue.assignee) {
-            issueCard.assignee = {
-                login: issue.assignee.login,
-                id: issue.assignee.id,
-                avatar_url: issue.assignee.avatar_url,
-                url: issue.assignee.url,
-                html_url: issue.assignee.html_url
-            };
-        }
-        issueCard.labels = issue.labels;
-        issueCard.comments = [];
-        if (issue.comments > 0) {
-            issueCard.comments = yield getIssueComments(token, owner, repo, issue_number);
-        }
-        // TODO: paginate?
-        res = yield octokit.issues.listEvents({
-            owner: owner,
-            repo: repo,
-            issue_number: issue_number,
-            per_page: 100
-        });
-        issueCard.events = res.data;
-        //TODO: sort ascending by date so it's a good historical view
-        cache.write(getCacheKey(card.content_url), issueCard);
-        return issueCard;
-    });
-}
-exports.getIssueCard = getIssueCard;
+// export async function getProject(token: string, cacheDir:string, projectHtmlUrl: string): Promise<ProjectData> {
+//     console.log(`Finding project for ${projectHtmlUrl}`);
+//     // let cached = cache.read(getCacheKey(projectHtmlUrl))
+//     // if (cached) {
+//     //     return cached;
+//     // }
+//     let proj: ProjectData = null;
+//     const octokit = new Octokit({
+//         auth: token, 
+//         previews: ['inertia-preview', 'starfox-preview', 'mockingbird-preview']
+//     });
+//     let diskCache = new restCache.FileSystemStore(cacheDir);
+//     octokit.hook.wrap("request", restCache.wrap(diskCache));    
+//     let projUrl = new url.URL(projectHtmlUrl);
+//     let projParts = projUrl.pathname.split("/").filter(e => e);
+//     if (projParts.length !== 4) {
+//         throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+//     }
+//     let projKind = projParts[0];  // orgs or users
+//     let projOwner = projParts[1]; // orgname or username
+//     let projId = projParts[3];    // html id
+//     let count = 0;
+//     let page = 0;
+//     do {
+//         ++page;
+//         console.log(`page: ${page}`)
+//         let res;
+//         if (projKind === 'orgs') {
+//             res = await octokit.projects.listForOrg({
+//                 org: projOwner,
+//                 state: "open",
+//                 per_page: 100,
+//                 page: page
+//             })
+//         }
+//         else if (projKind === 'users') {
+//             console.log(`listForUser ${projOwner}`)
+//             res = await octokit.projects.listForUser({
+//                 username: projOwner,
+//                 state: "open",
+//                 per_page: 100,
+//                 page: page
+//             })            
+//         }
+//         else {
+//             throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+//         }
+//         let projects = res.data;
+//         count = projects.length;
+//         for (const project of projects) {
+//             if (projectHtmlUrl.indexOf(project.html_url) > -1) {
+//                 proj = <ProjectData>{
+//                     id: project.id,
+//                     html_url: project.html_url,
+//                     name: project.name
+//                 }
+//                 // cache.write(getCacheKey(project.html_url), proj);
+//                 console.log(`Found ${project.name}`);
+//                 break;
+//             }
+//         }
+//     } while (count == 100)
+//     return proj;
+//     //octokit.search.issuesAndPullRequests("org:github+type:issue+state:open+project:github/900")
+// }
+// export async function getColumnsForProject(token: string, cacheDir:string, project) {
+//     const octokit = new Octokit({
+//         auth: token, 
+//         previews: ['inertia-preview']
+//     });
+//     let diskCache = new restCache.FileSystemStore(cacheDir);
+//     octokit.hook.wrap("request", restCache.wrap(diskCache));
+//     console.log(`Getting columns for ${project.id}`);
+//     let cols = await octokit.projects.listColumns({project_id: project.id});
+//     return cols.data;
+// }
+// export async function getCardsForColumns(token: string, cacheDir:string, colId: number, colName: string) {
+//     const octokit = new Octokit({
+//         auth: token, 
+//         previews: ['inertia-preview']
+//     });
+//     let diskCache = new restCache.FileSystemStore(cacheDir);
+//     octokit.hook.wrap("request", restCache.wrap(diskCache));
+//     let cards = await octokit.projects.listCards({column_id: colId});
+//     cache.write("cards-" + colName, cards);
+//     return cards.data;
+// }
+// async function getIssueComments(token: string, cacheDir:string, owner: string, repo: string, issue_number: string): Promise<IssueComment[]> {
+//     // 
+//     const octokit = new Octokit({
+//         auth: token, 
+//         previews: ['squirrel-girl-preview']
+//     });
+//     let diskCache = new restCache.FileSystemStore(cacheDir);
+//     octokit.hook.wrap("request", restCache.wrap(diskCache));
+//     let res = await octokit.issues.listComments({
+//         owner,
+//         repo,
+//         issue_number,
+//       });
+//     return res.data;
+// }
+// // returns null if not an issue
+// export async function getIssueCard(token: string, cacheDir:string, card:any, projectId: number): Promise<IssueCard> {
+//     if (!card.content_url) {
+//         return null;
+//     }
+//     // let cached = cache.read(getCacheKey(card.content_url))
+//     // if (cached) {
+//     //     return cached;
+//     // }
+//     let cardUrl = new url.URL(card.content_url);
+//     let cardParts = cardUrl.pathname.split('/').filter(e => e);
+//     const octokit = new Octokit({
+//         auth: token, 
+//         previews: ['starfox-preview', 'sailor-v-preview']
+//     });
+//     // console.log("Requesting " + projectId);
+//     // octokit.hook.before("request", async(options) => {
+//     //     console.log("\nBefore");
+//     //     console.log(JSON.stringify(options, null, 2));
+//     // });
+//     // /repos/:owner/:repo/issues/events/:event_id
+//     // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
+//     let owner = cardParts[1];
+//     let repo = cardParts[2];
+//     let issue_number = cardParts[4];
+//     let diskCache = new restCache.FileSystemStore(cacheDir);
+//     octokit.hook.wrap("request", restCache.wrap(diskCache));    
+//     let issueCard = <IssueCard>{};
+//     console.log(`Getting ${issue_number}`);
+//     let res = await octokit.issues.get({
+//         owner: owner,
+//         repo: repo,
+//         issue_number: issue_number
+//     });
+//     //console.log(JSON.stringify(res, null, 2));
+//     let issue = res.data;
+//     issueCard.number = issue.number;
+//     issueCard.title =  issue.title;
+//     issueCard.number = issue.number;
+//     issueCard.html_url = issue.html_url;
+//     issueCard.closed_at = DateOrNull(issue.closed_at);
+//     issueCard.created_at = DateOrNull(issue.created_at);
+//     issueCard.updated_at = DateOrNull(issue.updated_at);
+//     if (issue.assignee) {
+//         issueCard.assignee = <IssueUser>{
+//             login: issue.assignee.login,
+//             id: issue.assignee.id,
+//             avatar_url: issue.assignee.avatar_url,
+//             url: issue.assignee.url,
+//             html_url: issue.assignee.html_url        
+//         }
+//     }
+//     issueCard.labels = issue.labels;
+//     issueCard.comments = [];
+//     if (issue.comments > 0) {
+//         issueCard.comments = await getIssueComments(token, cacheDir, owner, repo, issue_number);
+//     }
+//     // TODO: paginate?
+//     res = await octokit.issues.listEvents({
+//         owner: owner,
+//         repo: repo,
+//         issue_number: issue_number,
+//         per_page: 100
+//     });
+//     issueCard.events = res.data as IssueCardEvent[];
+//     //TODO: sort ascending by date so it's a good historical view
+//     // cache.write(getCacheKey(card.content_url), issueCard);
+//     return issueCard;
+// }
 //# sourceMappingURL=github.js.map
 
 /***/ }),
@@ -5549,7 +5837,7 @@ const path = __importStar(__webpack_require__(622));
 const fs = __importStar(__webpack_require__(747));
 const util = __importStar(__webpack_require__(702));
 const yaml = __importStar(__webpack_require__(414));
-const github = __importStar(__webpack_require__(126));
+const github_1 = __webpack_require__(126);
 const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
 const drillInRpt = __importStar(__webpack_require__(67));
@@ -5579,7 +5867,7 @@ function generate(token, configYaml) {
         // apply defaults
         snapshot.config.output = snapshot.config.output || "_reports";
         // load up the projects, their columns and all the issue cards + events.
-        let projectsData = yield loadProjectsData(token, config);
+        let projectsData = yield loadProjectsData(token, config, snapshot);
         console.log("loaded.");
         // update report config details
         for (const report of config.reports) {
@@ -5729,12 +6017,14 @@ function writeReport(report, projectData, contents) {
         fs.writeFileSync(path.join(report.details.dataPath, "_project.json"), JSON.stringify(projectData, null, 2));
     });
 }
-function loadProjectsData(token, config) {
+function loadProjectsData(token, config, snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Querying project data ...");
+        let cachePath = path.join(snapshot.rootPath, ".data");
+        let github = new github_1.GitHubClient(token, cachePath);
         let projMap = {};
         for (const projHtmlUrl of config.projects) {
-            let proj = yield github.getProject(token, projHtmlUrl);
+            let proj = yield github.getProject(projHtmlUrl);
             if (!proj) {
                 throw new Error(`Project not found: ${projHtmlUrl}`);
             }
@@ -5744,7 +6034,7 @@ function loadProjectsData(token, config) {
         for (const projectUrl of config.projects) {
             let project = projMap[projectUrl];
             project.columns = {};
-            let cols = yield github.getColumnsForProject(token, project);
+            let cols = yield github.getColumnsForProject(project);
             cols.forEach((col) => {
                 projMap[projectUrl].columns[col.name] = col.id;
             });
@@ -5754,11 +6044,11 @@ function loadProjectsData(token, config) {
                 let colNames = config.columnMap[key];
                 for (const colName of colNames) {
                     let colId = projMap[projectUrl].columns[colName];
-                    let cards = yield github.getCardsForColumns(token, colId, colName);
+                    let cards = yield github.getCardsForColumns(colId, colName);
                     for (const card of cards) {
                         // cached since real column could be mapped to two different mapped columns
                         // read and build the event list once
-                        let issueCard = yield github.getIssueCard(token, card, project.id);
+                        let issueCard = yield github.getIssueForCard(card, project.id);
                         if (issueCard) {
                             util.processCard(issueCard, project.id, config);
                             project.stages[key].push(issueCard);
