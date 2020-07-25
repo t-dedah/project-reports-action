@@ -2,7 +2,7 @@ import * as path from 'path'
 import * as fs from 'fs'
 import * as util from './util'
 import * as yaml from 'js-yaml'
-import * as github from './github'
+import {GitHubClient} from './github'
 import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
@@ -12,7 +12,6 @@ let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
 import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
-
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -42,7 +41,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     snapshot.config.output = snapshot.config.output || "_reports";
 
     // load up the projects, their columns and all the issue cards + events.
-    let projectsData: ProjectsData = await loadProjectsData(token, config);
+    let projectsData: ProjectsData = await loadProjectsData(token, config, snapshot);
     console.log("loaded.");
 
     // update report config details
@@ -175,7 +174,7 @@ async function writeDrillIn(report: ReportConfig, identifier: string, cards: Iss
 // creates directory structure for the reports and hands back the root path to write reports in
 async function writeSnapshot(snapshot: ReportSnapshot) {
     console.log("Writing snapshot data ...");
-    const genPath = path.join(snapshot.rootPath, ".gen");
+    const genPath = path.join(snapshot.rootPath, ".data");
     if (!fs.existsSync(genPath)) {
         fs.mkdirSync(genPath, { recursive: true });
     }
@@ -215,11 +214,15 @@ async function writeReport(report: ReportConfig, projectData: ProjectData, conte
     fs.writeFileSync(path.join(report.details.dataPath, "_project.json"), JSON.stringify(projectData, null, 2));
 }
 
-async function loadProjectsData(token: string, config: GeneratorConfiguration): Promise<ProjectsData> {
+async function loadProjectsData(token: string, config: GeneratorConfiguration, snapshot: ReportSnapshot): Promise<ProjectsData> {
     console.log("Querying project data ...")
+
+    let cachePath = path.join(snapshot.rootPath, ".data");
+    let github = new GitHubClient(token, cachePath);
+
     let projMap = <ProjectsData>{};
     for (const projHtmlUrl of config.projects) {
-        let proj = await github.getProject(token, projHtmlUrl);
+        let proj = await github.getProject(projHtmlUrl);
         if (!proj) {
             throw new Error(`Project not found: ${projHtmlUrl}`);
         }
@@ -227,13 +230,14 @@ async function loadProjectsData(token: string, config: GeneratorConfiguration): 
         projMap[projHtmlUrl] = proj;
     }
 
+    
     //console.log(JSON.stringify(projMap, null, 2));
 
     for (const projectUrl of config.projects) {
         let project: ProjectData = projMap[projectUrl];
 
         project.columns = {}
-        let cols = await github.getColumnsForProject(token, project);
+        let cols = await github.getColumnsForProject(project);
         cols.forEach((col) => {
             projMap[projectUrl].columns[col.name] = col.id;
         })
@@ -246,12 +250,12 @@ async function loadProjectsData(token: string, config: GeneratorConfiguration): 
             for (const colName of colNames) {
                 let colId = projMap[projectUrl].columns[colName];
 
-                let cards = await github.getCardsForColumns(token, colId, colName);
+                let cards = await github.getCardsForColumns(colId, colName);
 
                 for (const card of cards) {
                     // cached since real column could be mapped to two different mapped columns
                     // read and build the event list once
-                    let issueCard = await github.getIssueCard(token, card, project.id);
+                    let issueCard = await github.getIssueForCard(card, project.id);
                     if (issueCard) {
                         util.processCard(issueCard, project.id, config);
                         project.stages[key].push(issueCard);
