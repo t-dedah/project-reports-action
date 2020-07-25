@@ -20,4 +20,9 @@ export INPUT_TOKEN="${GHPAT}"
 echo "Running action"
 npm run build
 cp -R samples dist
-node ./dist/index.js
+
+# dev scenario of using charles proxy for https 
+# export https_proxy=http://localhost:8080
+# export NODE_TLS_REJECT_UNAUTHORIZED='0'
+
+ node ./dist/index.js

@@ -190,6 +190,13 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 16:
+/***/ (function(module) {
+
+module.exports = require("tls");
+
+/***/ }),
+
 /***/ 18:
 /***/ (function(module) {
 
@@ -283,25 +290,6 @@ module.exports = new Schema({
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -312,70 +300,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.wrap = exports.FileSystemStore = void 0;
-const mustache = __importStar(__webpack_require__(174));
-const fs = __importStar(__webpack_require__(747));
-const path = __importStar(__webpack_require__(622));
-class FileSystemStore {
-    constructor(path) {
-        this._path = path;
-    }
-    getCachePath(options) {
-        let urlFormat = options.url.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
-        // console.log(urlFormat);
-        let urlPath = mustache.render(urlFormat, options);
-        // console.log(`${urlPath}`);
-        let cachePath = path.join(this._path, urlPath);
-        console.log(`cachePath: ${cachePath}`);
-        return cachePath;
-    }
-    check(options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let cachePath = this.getCachePath(options);
-            let etagPath = path.join(cachePath, "etag");
-            let exists = fs.existsSync(path.join(cachePath, "res.json")) &&
-                fs.existsSync(path.join(cachePath, "etag"));
-            let etag;
-            if (exists) {
-                etag = fs.readFileSync(etagPath).toString();
-            }
-            return etag;
-        });
-    }
-    read(response, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let cachePath = this.getCachePath(options);
-            console.log(`reading ${cachePath} ...`);
-            // TODO: async
-            let contents = fs.readFileSync(path.join(cachePath, "res.json")).toString();
-            return JSON.parse(contents);
-        });
-    }
-    write(response, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let cachePath = this.getCachePath(options);
-            // TODO: async
-            fs.mkdirSync(cachePath, { recursive: true });
-            // TODO: always overwrite
-            fs.writeFileSync(path.join(cachePath, "res.json"), JSON.stringify(response, null, 2));
-            fs.writeFileSync(path.join(cachePath, "etag"), response.headers.etag);
-            return;
-        });
-    }
-}
-exports.FileSystemStore = FileSystemStore;
+exports.wrap = void 0;
+let HttpsProxyAgent = __webpack_require__(338);
+var store_1 = __webpack_require__(409);
+Object.defineProperty(exports, "FileSystemStore", { enumerable: true, get: function () { return store_1.FileSystemStore; } });
 function wrap(store) {
     return (request, options) => __awaiter(this, void 0, void 0, function* () {
-        console.log("\nWrap");
         // only cache GET requests
         if (options.method !== 'GET') {
             return request;
         }
-        let res;
+        if (process.env['https_proxy']) {
+            options.request = { agent: new HttpsProxyAgent(process.env['https_proxy']) };
+        }
+        //
+        // check whether in cache. if so, return the etag
+        //
         let etag = yield store.check(options);
-        //-H'If-None-Match: "d8bc8195c7b6cf52f49f20e1cfd473dc"'
         if (etag) {
-            console.log("cache hit!");
             options.headers["If-None-Match"] = etag;
         }
         // make the request.
@@ -383,10 +325,11 @@ function wrap(store) {
         let fromCache = false;
         try {
             response = yield request(options);
+            process.stdout.write(` [${response.status}]`);
         }
         catch (err) {
             if (err.status === 304 && etag) {
-                console.log("content hasn't changed. return from cache");
+                console.log(" [304, cache]");
                 response = yield store.read(request, options);
                 fromCache = true;
             }
@@ -394,13 +337,10 @@ function wrap(store) {
                 throw err;
             }
         }
-        // if etag and 304 Not Modified, read from disk
         if (!fromCache) {
+            console.log(`rate : ${response.headers["x-ratelimit-remaining"]}/${response.headers["x-ratelimit-limit"]}`);
             yield store.write(response, options);
-            console.log(`Written to cache`);
         }
-        console.log(`rate limit     : ${response.headers["x-ratelimit-limit"]}`);
-        console.log(`rate remaining : ${response.headers["x-ratelimit-remaining"]}`);
         return response;
     });
 }
@@ -428,6 +368,193 @@ module.exports = opts => {
 	return Object.keys(env).find(x => x.toUpperCase() === 'PATH') || 'Path';
 };
 
+
+/***/ }),
+
+/***/ 40:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const net_1 = __importDefault(__webpack_require__(631));
+const tls_1 = __importDefault(__webpack_require__(16));
+const url_1 = __importDefault(__webpack_require__(835));
+const assert_1 = __importDefault(__webpack_require__(357));
+const debug_1 = __importDefault(__webpack_require__(784));
+const agent_base_1 = __webpack_require__(443);
+const parse_proxy_response_1 = __importDefault(__webpack_require__(428));
+const debug = debug_1.default('https-proxy-agent:agent');
+/**
+ * The `HttpsProxyAgent` implements an HTTP Agent subclass that connects to
+ * the specified "HTTP(s) proxy server" in order to proxy HTTPS requests.
+ *
+ * Outgoing HTTP requests are first tunneled through the proxy server using the
+ * `CONNECT` HTTP request method to establish a connection to the proxy server,
+ * and then the proxy server connects to the destination target and issues the
+ * HTTP request from the proxy server.
+ *
+ * `https:` requests have their socket connection upgraded to TLS once
+ * the connection to the proxy server has been established.
+ *
+ * @api public
+ */
+class HttpsProxyAgent extends agent_base_1.Agent {
+    constructor(_opts) {
+        let opts;
+        if (typeof _opts === 'string') {
+            opts = url_1.default.parse(_opts);
+        }
+        else {
+            opts = _opts;
+        }
+        if (!opts) {
+            throw new Error('an HTTP(S) proxy server `host` and `port` must be specified!');
+        }
+        debug('creating new HttpsProxyAgent instance: %o', opts);
+        super(opts);
+        const proxy = Object.assign({}, opts);
+        // If `true`, then connect to the proxy server over TLS.
+        // Defaults to `false`.
+        this.secureProxy = opts.secureProxy || isHTTPS(proxy.protocol);
+        // Prefer `hostname` over `host`, and set the `port` if needed.
+        proxy.host = proxy.hostname || proxy.host;
+        if (typeof proxy.port === 'string') {
+            proxy.port = parseInt(proxy.port, 10);
+        }
+        if (!proxy.port && proxy.host) {
+            proxy.port = this.secureProxy ? 443 : 80;
+        }
+        // ALPN is supported by Node.js >= v5.
+        // attempt to negotiate http/1.1 for proxy servers that support http/2
+        if (this.secureProxy && !('ALPNProtocols' in proxy)) {
+            proxy.ALPNProtocols = ['http 1.1'];
+        }
+        if (proxy.host && proxy.path) {
+            // If both a `host` and `path` are specified then it's most likely
+            // the result of a `url.parse()` call... we need to remove the
+            // `path` portion so that `net.connect()` doesn't attempt to open
+            // that as a Unix socket file.
+            delete proxy.path;
+            delete proxy.pathname;
+        }
+        this.proxy = proxy;
+    }
+    /**
+     * Called when the node-core HTTP client library is creating a
+     * new HTTP request.
+     *
+     * @api protected
+     */
+    callback(req, opts) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { proxy, secureProxy } = this;
+            // Create a socket connection to the proxy server.
+            let socket;
+            if (secureProxy) {
+                debug('Creating `tls.Socket`: %o', proxy);
+                socket = tls_1.default.connect(proxy);
+            }
+            else {
+                debug('Creating `net.Socket`: %o', proxy);
+                socket = net_1.default.connect(proxy);
+            }
+            const headers = Object.assign({}, proxy.headers);
+            const hostname = `${opts.host}:${opts.port}`;
+            let payload = `CONNECT ${hostname} HTTP/1.1\r\n`;
+            // Inject the `Proxy-Authorization` header if necessary.
+            if (proxy.auth) {
+                headers['Proxy-Authorization'] = `Basic ${Buffer.from(proxy.auth).toString('base64')}`;
+            }
+            // The `Host` header should only include the port
+            // number when it is not the default port.
+            let { host, port, secureEndpoint } = opts;
+            if (!isDefaultPort(port, secureEndpoint)) {
+                host += `:${port}`;
+            }
+            headers.Host = host;
+            headers.Connection = 'close';
+            for (const name of Object.keys(headers)) {
+                payload += `${name}: ${headers[name]}\r\n`;
+            }
+            const proxyResponsePromise = parse_proxy_response_1.default(socket);
+            socket.write(`${payload}\r\n`);
+            const { statusCode, buffered } = yield proxyResponsePromise;
+            if (statusCode === 200) {
+                req.once('socket', resume);
+                if (opts.secureEndpoint) {
+                    const servername = opts.servername || opts.host;
+                    if (!servername) {
+                        throw new Error('Could not determine "servername"');
+                    }
+                    // The proxy is connecting to a TLS server, so upgrade
+                    // this socket connection to a TLS connection.
+                    debug('Upgrading socket connection to TLS');
+                    return tls_1.default.connect(Object.assign(Object.assign({}, omit(opts, 'host', 'hostname', 'path', 'port')), { socket,
+                        servername }));
+                }
+                return socket;
+            }
+            // Some other status code that's not 200... need to re-play the HTTP
+            // header "data" events onto the socket once the HTTP machinery is
+            // attached so that the node core `http` can parse and handle the
+            // error status code.
+            // Close the original socket, and a new "fake" socket is returned
+            // instead, so that the proxy doesn't get the HTTP request
+            // written to it (which may contain `Authorization` headers or other
+            // sensitive data).
+            //
+            // See: https://hackerone.com/reports/541502
+            socket.destroy();
+            const fakeSocket = new net_1.default.Socket();
+            fakeSocket.readable = true;
+            // Need to wait for the "socket" event to re-play the "data" events.
+            req.once('socket', (s) => {
+                debug('replaying proxy buffer for failed request');
+                assert_1.default(s.listenerCount('data') > 0);
+                // Replay the "buffered" Buffer onto the fake `socket`, since at
+                // this point the HTTP module machinery has been hooked up for
+                // the user.
+                s.push(buffered);
+                s.push(null);
+            });
+            return fakeSocket;
+        });
+    }
+}
+exports.default = HttpsProxyAgent;
+function resume(socket) {
+    socket.resume();
+}
+function isDefaultPort(port, secure) {
+    return Boolean((!secure && port === 80) || (secure && port === 443));
+}
+function isHTTPS(protocol) {
+    return typeof protocol === 'string' ? /^https:?$/i.test(protocol) : false;
+}
+function omit(obj, ...keys) {
+    const ret = {};
+    let key;
+    for (key in obj) {
+        if (!keys.includes(key)) {
+            ret[key] = obj[key];
+        }
+    }
+    return ret;
+}
+//# sourceMappingURL=agent.js.map
 
 /***/ }),
 
@@ -845,6 +972,270 @@ function renderHtml() {
 }
 exports.renderHtml = renderHtml;
 //# sourceMappingURL=drill-in.js.map
+
+/***/ }),
+
+/***/ 81:
+/***/ (function(module, exports, __webpack_require__) {
+
+/**
+ * Module dependencies.
+ */
+
+const tty = __webpack_require__(867);
+const util = __webpack_require__(669);
+
+/**
+ * This is the Node.js implementation of `debug()`.
+ */
+
+exports.init = init;
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+
+/**
+ * Colors.
+ */
+
+exports.colors = [6, 2, 3, 4, 5, 1];
+
+try {
+	// Optional dependency (as in, doesn't need to be installed, NOT like optionalDependencies in package.json)
+	// eslint-disable-next-line import/no-extraneous-dependencies
+	const supportsColor = __webpack_require__(247);
+
+	if (supportsColor && (supportsColor.stderr || supportsColor).level >= 2) {
+		exports.colors = [
+			20,
+			21,
+			26,
+			27,
+			32,
+			33,
+			38,
+			39,
+			40,
+			41,
+			42,
+			43,
+			44,
+			45,
+			56,
+			57,
+			62,
+			63,
+			68,
+			69,
+			74,
+			75,
+			76,
+			77,
+			78,
+			79,
+			80,
+			81,
+			92,
+			93,
+			98,
+			99,
+			112,
+			113,
+			128,
+			129,
+			134,
+			135,
+			148,
+			149,
+			160,
+			161,
+			162,
+			163,
+			164,
+			165,
+			166,
+			167,
+			168,
+			169,
+			170,
+			171,
+			172,
+			173,
+			178,
+			179,
+			184,
+			185,
+			196,
+			197,
+			198,
+			199,
+			200,
+			201,
+			202,
+			203,
+			204,
+			205,
+			206,
+			207,
+			208,
+			209,
+			214,
+			215,
+			220,
+			221
+		];
+	}
+} catch (error) {
+	// Swallow - we only care if `supports-color` is available; it doesn't have to be.
+}
+
+/**
+ * Build up the default `inspectOpts` object from the environment variables.
+ *
+ *   $ DEBUG_COLORS=no DEBUG_DEPTH=10 DEBUG_SHOW_HIDDEN=enabled node script.js
+ */
+
+exports.inspectOpts = Object.keys(process.env).filter(key => {
+	return /^debug_/i.test(key);
+}).reduce((obj, key) => {
+	// Camel-case
+	const prop = key
+		.substring(6)
+		.toLowerCase()
+		.replace(/_([a-z])/g, (_, k) => {
+			return k.toUpperCase();
+		});
+
+	// Coerce string value into JS value
+	let val = process.env[key];
+	if (/^(yes|on|true|enabled)$/i.test(val)) {
+		val = true;
+	} else if (/^(no|off|false|disabled)$/i.test(val)) {
+		val = false;
+	} else if (val === 'null') {
+		val = null;
+	} else {
+		val = Number(val);
+	}
+
+	obj[prop] = val;
+	return obj;
+}, {});
+
+/**
+ * Is stdout a TTY? Colored output is enabled when `true`.
+ */
+
+function useColors() {
+	return 'colors' in exports.inspectOpts ?
+		Boolean(exports.inspectOpts.colors) :
+		tty.isatty(process.stderr.fd);
+}
+
+/**
+ * Adds ANSI color escape codes if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs(args) {
+	const {namespace: name, useColors} = this;
+
+	if (useColors) {
+		const c = this.color;
+		const colorCode = '\u001B[3' + (c < 8 ? c : '8;5;' + c);
+		const prefix = `  ${colorCode};1m${name} \u001B[0m`;
+
+		args[0] = prefix + args[0].split('\n').join('\n' + prefix);
+		args.push(colorCode + 'm+' + module.exports.humanize(this.diff) + '\u001B[0m');
+	} else {
+		args[0] = getDate() + name + ' ' + args[0];
+	}
+}
+
+function getDate() {
+	if (exports.inspectOpts.hideDate) {
+		return '';
+	}
+	return new Date().toISOString() + ' ';
+}
+
+/**
+ * Invokes `util.format()` with the specified arguments and writes to stderr.
+ */
+
+function log(...args) {
+	return process.stderr.write(util.format(...args) + '\n');
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+function save(namespaces) {
+	if (namespaces) {
+		process.env.DEBUG = namespaces;
+	} else {
+		// If you set a process.env field to null or undefined, it gets cast to the
+		// string 'null' or 'undefined'. Just delete instead.
+		delete process.env.DEBUG;
+	}
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+
+function load() {
+	return process.env.DEBUG;
+}
+
+/**
+ * Init logic for `debug` instances.
+ *
+ * Create a new `inspectOpts` object in case `useColors` is set
+ * differently for a particular `debug` instance.
+ */
+
+function init(debug) {
+	debug.inspectOpts = {};
+
+	const keys = Object.keys(exports.inspectOpts);
+	for (let i = 0; i < keys.length; i++) {
+		debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+	}
+}
+
+module.exports = __webpack_require__(486)(exports);
+
+const {formatters} = module.exports;
+
+/**
+ * Map %o to `util.inspect()`, all on a single line.
+ */
+
+formatters.o = function (v) {
+	this.inspectOpts.colors = this.useColors;
+	return util.inspect(v, this.inspectOpts)
+		.replace(/\s*\n\s*/g, ' ');
+};
+
+/**
+ * Map %O to `util.inspect()`, allowing multiple lines if needed.
+ */
+
+formatters.O = function (v) {
+	this.inspectOpts.colors = this.useColors;
+	return util.inspect(v, this.inspectOpts);
+};
+
 
 /***/ }),
 
@@ -1390,385 +1781,6 @@ module.exports = macosRelease;
 // TODO: remove this in the next major version
 module.exports.default = macosRelease;
 
-
-/***/ }),
-
-/***/ 126:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.GitHubClient = void 0;
-const { Octokit } = __webpack_require__(889);
-const cache = __importStar(__webpack_require__(224));
-const url = __importStar(__webpack_require__(835));
-const restCache = __importStar(__webpack_require__(28));
-// function getCacheKey(srcurl: string) {
-//     let purl = new url.URL(srcurl)
-//     return purl.pathname.replace(/\//g, '_');    
-// }
-function DateOrNull(date) {
-    return date ? new Date(date) : null;
-}
-class GitHubClient {
-    constructor(token, cacheDir) {
-        this.octokit = new Octokit({
-            auth: token,
-            previews: [
-                'squirrel-girl-preview',
-                'inertia-preview',
-                'starfox-preview',
-                'mockingbird-preview',
-                'sailor-v-preview'
-            ]
-        });
-        let diskCache = new restCache.FileSystemStore(cacheDir);
-        this.octokit.hook.wrap("request", restCache.wrap(diskCache));
-    }
-    getProject(projectHtmlUrl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Finding project for ${projectHtmlUrl}`);
-            let proj = null;
-            let projUrl = new url.URL(projectHtmlUrl);
-            let projParts = projUrl.pathname.split("/").filter(e => e);
-            if (projParts.length !== 4) {
-                throw new Error(`Invalid project url: ${projectHtmlUrl}`);
-            }
-            let projKind = projParts[0]; // orgs or users
-            let projOwner = projParts[1]; // orgname or username
-            let projId = projParts[3]; // html id
-            let count = 0;
-            let page = 0;
-            do {
-                ++page;
-                console.log(`page: ${page}`);
-                let res;
-                if (projKind === 'orgs') {
-                    res = yield this.octokit.projects.listForOrg({
-                        org: projOwner,
-                        state: "open",
-                        per_page: 100,
-                        page: page
-                    });
-                }
-                else if (projKind === 'users') {
-                    console.log(`listForUser ${projOwner}`);
-                    res = yield this.octokit.projects.listForUser({
-                        username: projOwner,
-                        state: "open",
-                        per_page: 100,
-                        page: page
-                    });
-                }
-                else {
-                    throw new Error(`Invalid project url: ${projectHtmlUrl}`);
-                }
-                let projects = res.data;
-                count = projects.length;
-                for (const project of projects) {
-                    if (projectHtmlUrl.indexOf(project.html_url) > -1) {
-                        proj = {
-                            id: project.id,
-                            html_url: project.html_url,
-                            name: project.name
-                        };
-                        console.log(`Found ${project.name}`);
-                        break;
-                    }
-                }
-            } while (count == 100);
-            return proj;
-        });
-    }
-    getColumnsForProject(project) {
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Getting columns for ${project.id}`);
-            let cols = yield this.octokit.projects.listColumns({ project_id: project.id });
-            return cols.data;
-        });
-    }
-    getCardsForColumns(colId, colName) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let cards = yield this.octokit.projects.listCards({ column_id: colId });
-            cache.write("cards-" + colName, cards);
-            return cards.data;
-        });
-    }
-    getIssueComments(owner, repo, issue_number) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let res = yield this.octokit.issues.listComments({
-                owner,
-                repo,
-                issue_number,
-            });
-            return res.data;
-        });
-    }
-    // returns null if not an issue
-    getIssueForCard(card, projectId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!card.content_url) {
-                return null;
-            }
-            let cardUrl = new url.URL(card.content_url);
-            let cardParts = cardUrl.pathname.split('/').filter(e => e);
-            // /repos/:owner/:repo/issues/events/:event_id
-            // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
-            let owner = cardParts[1];
-            let repo = cardParts[2];
-            let issue_number = cardParts[4];
-            let issueCard = {};
-            console.log(`Getting ${issue_number}`);
-            let res = yield this.octokit.issues.get({
-                owner: owner,
-                repo: repo,
-                issue_number: issue_number
-            });
-            //console.log(JSON.stringify(res, null, 2));
-            let issue = res.data;
-            issueCard.number = issue.number;
-            issueCard.title = issue.title;
-            issueCard.number = issue.number;
-            issueCard.html_url = issue.html_url;
-            issueCard.closed_at = DateOrNull(issue.closed_at);
-            issueCard.created_at = DateOrNull(issue.created_at);
-            issueCard.updated_at = DateOrNull(issue.updated_at);
-            if (issue.assignee) {
-                issueCard.assignee = {
-                    login: issue.assignee.login,
-                    id: issue.assignee.id,
-                    avatar_url: issue.assignee.avatar_url,
-                    url: issue.assignee.url,
-                    html_url: issue.assignee.html_url
-                };
-            }
-            issueCard.labels = issue.labels;
-            issueCard.comments = [];
-            if (issue.comments > 0) {
-                issueCard.comments = yield this.getIssueComments(owner, repo, issue_number);
-            }
-            // TODO: paginate?
-            res = yield this.octokit.issues.listEvents({
-                owner: owner,
-                repo: repo,
-                issue_number: issue_number,
-                per_page: 100
-            });
-            issueCard.events = res.data;
-            //TODO: sort ascending by date so it's a good historical view
-            // cache.write(getCacheKey(card.content_url), issueCard);
-            return issueCard;
-        });
-    }
-}
-exports.GitHubClient = GitHubClient;
-//
-// Issue: We have to go through 6 pages of 100 to get to one github org 
-// No way to get project by friendly html url
-// e.g. github/900 is actually id 3114877
-// cache this so we take a friendly input but do it once.  would be nice to cache for 24 hrs.
-//
-// export async function getProject(token: string, cacheDir:string, projectHtmlUrl: string): Promise<ProjectData> {
-//     console.log(`Finding project for ${projectHtmlUrl}`);
-//     // let cached = cache.read(getCacheKey(projectHtmlUrl))
-//     // if (cached) {
-//     //     return cached;
-//     // }
-//     let proj: ProjectData = null;
-//     const octokit = new Octokit({
-//         auth: token, 
-//         previews: ['inertia-preview', 'starfox-preview', 'mockingbird-preview']
-//     });
-//     let diskCache = new restCache.FileSystemStore(cacheDir);
-//     octokit.hook.wrap("request", restCache.wrap(diskCache));    
-//     let projUrl = new url.URL(projectHtmlUrl);
-//     let projParts = projUrl.pathname.split("/").filter(e => e);
-//     if (projParts.length !== 4) {
-//         throw new Error(`Invalid project url: ${projectHtmlUrl}`);
-//     }
-//     let projKind = projParts[0];  // orgs or users
-//     let projOwner = projParts[1]; // orgname or username
-//     let projId = projParts[3];    // html id
-//     let count = 0;
-//     let page = 0;
-//     do {
-//         ++page;
-//         console.log(`page: ${page}`)
-//         let res;
-//         if (projKind === 'orgs') {
-//             res = await octokit.projects.listForOrg({
-//                 org: projOwner,
-//                 state: "open",
-//                 per_page: 100,
-//                 page: page
-//             })
-//         }
-//         else if (projKind === 'users') {
-//             console.log(`listForUser ${projOwner}`)
-//             res = await octokit.projects.listForUser({
-//                 username: projOwner,
-//                 state: "open",
-//                 per_page: 100,
-//                 page: page
-//             })            
-//         }
-//         else {
-//             throw new Error(`Invalid project url: ${projectHtmlUrl}`);
-//         }
-//         let projects = res.data;
-//         count = projects.length;
-//         for (const project of projects) {
-//             if (projectHtmlUrl.indexOf(project.html_url) > -1) {
-//                 proj = <ProjectData>{
-//                     id: project.id,
-//                     html_url: project.html_url,
-//                     name: project.name
-//                 }
-//                 // cache.write(getCacheKey(project.html_url), proj);
-//                 console.log(`Found ${project.name}`);
-//                 break;
-//             }
-//         }
-//     } while (count == 100)
-//     return proj;
-//     //octokit.search.issuesAndPullRequests("org:github+type:issue+state:open+project:github/900")
-// }
-// export async function getColumnsForProject(token: string, cacheDir:string, project) {
-//     const octokit = new Octokit({
-//         auth: token, 
-//         previews: ['inertia-preview']
-//     });
-//     let diskCache = new restCache.FileSystemStore(cacheDir);
-//     octokit.hook.wrap("request", restCache.wrap(diskCache));
-//     console.log(`Getting columns for ${project.id}`);
-//     let cols = await octokit.projects.listColumns({project_id: project.id});
-//     return cols.data;
-// }
-// export async function getCardsForColumns(token: string, cacheDir:string, colId: number, colName: string) {
-//     const octokit = new Octokit({
-//         auth: token, 
-//         previews: ['inertia-preview']
-//     });
-//     let diskCache = new restCache.FileSystemStore(cacheDir);
-//     octokit.hook.wrap("request", restCache.wrap(diskCache));
-//     let cards = await octokit.projects.listCards({column_id: colId});
-//     cache.write("cards-" + colName, cards);
-//     return cards.data;
-// }
-// async function getIssueComments(token: string, cacheDir:string, owner: string, repo: string, issue_number: string): Promise<IssueComment[]> {
-//     // 
-//     const octokit = new Octokit({
-//         auth: token, 
-//         previews: ['squirrel-girl-preview']
-//     });
-//     let diskCache = new restCache.FileSystemStore(cacheDir);
-//     octokit.hook.wrap("request", restCache.wrap(diskCache));
-//     let res = await octokit.issues.listComments({
-//         owner,
-//         repo,
-//         issue_number,
-//       });
-//     return res.data;
-// }
-// // returns null if not an issue
-// export async function getIssueCard(token: string, cacheDir:string, card:any, projectId: number): Promise<IssueCard> {
-//     if (!card.content_url) {
-//         return null;
-//     }
-//     // let cached = cache.read(getCacheKey(card.content_url))
-//     // if (cached) {
-//     //     return cached;
-//     // }
-//     let cardUrl = new url.URL(card.content_url);
-//     let cardParts = cardUrl.pathname.split('/').filter(e => e);
-//     const octokit = new Octokit({
-//         auth: token, 
-//         previews: ['starfox-preview', 'sailor-v-preview']
-//     });
-//     // console.log("Requesting " + projectId);
-//     // octokit.hook.before("request", async(options) => {
-//     //     console.log("\nBefore");
-//     //     console.log(JSON.stringify(options, null, 2));
-//     // });
-//     // /repos/:owner/:repo/issues/events/:event_id
-//     // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
-//     let owner = cardParts[1];
-//     let repo = cardParts[2];
-//     let issue_number = cardParts[4];
-//     let diskCache = new restCache.FileSystemStore(cacheDir);
-//     octokit.hook.wrap("request", restCache.wrap(diskCache));    
-//     let issueCard = <IssueCard>{};
-//     console.log(`Getting ${issue_number}`);
-//     let res = await octokit.issues.get({
-//         owner: owner,
-//         repo: repo,
-//         issue_number: issue_number
-//     });
-//     //console.log(JSON.stringify(res, null, 2));
-//     let issue = res.data;
-//     issueCard.number = issue.number;
-//     issueCard.title =  issue.title;
-//     issueCard.number = issue.number;
-//     issueCard.html_url = issue.html_url;
-//     issueCard.closed_at = DateOrNull(issue.closed_at);
-//     issueCard.created_at = DateOrNull(issue.created_at);
-//     issueCard.updated_at = DateOrNull(issue.updated_at);
-//     if (issue.assignee) {
-//         issueCard.assignee = <IssueUser>{
-//             login: issue.assignee.login,
-//             id: issue.assignee.id,
-//             avatar_url: issue.assignee.avatar_url,
-//             url: issue.assignee.url,
-//             html_url: issue.assignee.html_url        
-//         }
-//     }
-//     issueCard.labels = issue.labels;
-//     issueCard.comments = [];
-//     if (issue.comments > 0) {
-//         issueCard.comments = await getIssueComments(token, cacheDir, owner, repo, issue_number);
-//     }
-//     // TODO: paginate?
-//     res = await octokit.issues.listEvents({
-//         owner: owner,
-//         repo: repo,
-//         issue_number: issue_number,
-//         per_page: 100
-//     });
-//     issueCard.events = res.data as IssueCardEvent[];
-//     //TODO: sort ascending by date so it's a good historical view
-//     // cache.write(getCacheKey(card.content_url), issueCard);
-//     return issueCard;
-// }
-//# sourceMappingURL=github.js.map
 
 /***/ }),
 
@@ -2687,57 +2699,6 @@ module.exports = require("https");
 
 /***/ }),
 
-/***/ 224:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.read = exports.write = void 0;
-const fs = __importStar(__webpack_require__(747));
-const path = __importStar(__webpack_require__(622));
-// cleaned up by runner after each job
-const cacheDir = process.env['RUNNER_TEMP'];
-function write(name, item) {
-    if (cacheDir && fs.existsSync(cacheDir)) {
-        fs.writeFileSync(path.join(cacheDir, name + ".json"), JSON.stringify(item, null, 2));
-    }
-}
-exports.write = write;
-function read(name) {
-    let item = null;
-    if (cacheDir) {
-        let itemPath = path.join(cacheDir, name + ".json");
-        if (fs.existsSync(itemPath)) {
-            item = JSON.parse((fs.readFileSync(itemPath).toString()));
-        }
-    }
-    return item;
-}
-exports.read = read;
-//# sourceMappingURL=cache.js.map
-
-/***/ }),
-
 /***/ 228:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -2777,6 +2738,153 @@ module.exports = new Type('tag:yaml.org,2002:bool', {
   },
   defaultStyle: 'lowercase'
 });
+
+
+/***/ }),
+
+/***/ 247:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+const os = __webpack_require__(87);
+const tty = __webpack_require__(867);
+const hasFlag = __webpack_require__(364);
+
+const {env} = process;
+
+let forceColor;
+if (hasFlag('no-color') ||
+	hasFlag('no-colors') ||
+	hasFlag('color=false') ||
+	hasFlag('color=never')) {
+	forceColor = 0;
+} else if (hasFlag('color') ||
+	hasFlag('colors') ||
+	hasFlag('color=true') ||
+	hasFlag('color=always')) {
+	forceColor = 1;
+}
+
+if ('FORCE_COLOR' in env) {
+	if (env.FORCE_COLOR === 'true') {
+		forceColor = 1;
+	} else if (env.FORCE_COLOR === 'false') {
+		forceColor = 0;
+	} else {
+		forceColor = env.FORCE_COLOR.length === 0 ? 1 : Math.min(parseInt(env.FORCE_COLOR, 10), 3);
+	}
+}
+
+function translateLevel(level) {
+	if (level === 0) {
+		return false;
+	}
+
+	return {
+		level,
+		hasBasic: true,
+		has256: level >= 2,
+		has16m: level >= 3
+	};
+}
+
+function supportsColor(haveStream, streamIsTTY) {
+	if (forceColor === 0) {
+		return 0;
+	}
+
+	if (hasFlag('color=16m') ||
+		hasFlag('color=full') ||
+		hasFlag('color=truecolor')) {
+		return 3;
+	}
+
+	if (hasFlag('color=256')) {
+		return 2;
+	}
+
+	if (haveStream && !streamIsTTY && forceColor === undefined) {
+		return 0;
+	}
+
+	const min = forceColor || 0;
+
+	if (env.TERM === 'dumb') {
+		return min;
+	}
+
+	if (process.platform === 'win32') {
+		// Windows 10 build 10586 is the first Windows release that supports 256 colors.
+		// Windows 10 build 14931 is the first release that supports 16m/TrueColor.
+		const osRelease = os.release().split('.');
+		if (
+			Number(osRelease[0]) >= 10 &&
+			Number(osRelease[2]) >= 10586
+		) {
+			return Number(osRelease[2]) >= 14931 ? 3 : 2;
+		}
+
+		return 1;
+	}
+
+	if ('CI' in env) {
+		if (['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI'].some(sign => sign in env) || env.CI_NAME === 'codeship') {
+			return 1;
+		}
+
+		return min;
+	}
+
+	if ('TEAMCITY_VERSION' in env) {
+		return /^(9\.(0*[1-9]\d*)\.|\d{2,}\.)/.test(env.TEAMCITY_VERSION) ? 1 : 0;
+	}
+
+	if ('GITHUB_ACTIONS' in env) {
+		return 1;
+	}
+
+	if (env.COLORTERM === 'truecolor') {
+		return 3;
+	}
+
+	if ('TERM_PROGRAM' in env) {
+		const version = parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10);
+
+		switch (env.TERM_PROGRAM) {
+			case 'iTerm.app':
+				return version >= 3 ? 3 : 2;
+			case 'Apple_Terminal':
+				return 2;
+			// No default
+		}
+	}
+
+	if (/-256(color)?$/i.test(env.TERM)) {
+		return 2;
+	}
+
+	if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+		return 1;
+	}
+
+	if ('COLORTERM' in env) {
+		return 1;
+	}
+
+	return min;
+}
+
+function getSupportLevel(stream) {
+	const level = supportsColor(stream, stream && stream.isTTY);
+	return translateLevel(level);
+}
+
+module.exports = {
+	supportsColor: getSupportLevel,
+	stdout: translateLevel(supportsColor(true, tty.isatty(1))),
+	stderr: translateLevel(supportsColor(true, tty.isatty(2)))
+};
 
 
 /***/ }),
@@ -5769,6 +5877,175 @@ exports.paginateRest = paginateRest;
 
 /***/ }),
 
+/***/ 317:
+/***/ (function(module) {
+
+/**
+ * Helpers.
+ */
+
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var w = d * 7;
+var y = d * 365.25;
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} [options]
+ * @throws {Error} throw an error if val is not a non-empty string or a number
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function(val, options) {
+  options = options || {};
+  var type = typeof val;
+  if (type === 'string' && val.length > 0) {
+    return parse(val);
+  } else if (type === 'number' && isFinite(val)) {
+    return options.long ? fmtLong(val) : fmtShort(val);
+  }
+  throw new Error(
+    'val is not a non-empty string or a valid number. val=' +
+      JSON.stringify(val)
+  );
+};
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  str = String(str);
+  if (str.length > 100) {
+    return;
+  }
+  var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
+    str
+  );
+  if (!match) {
+    return;
+  }
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y;
+    case 'weeks':
+    case 'week':
+    case 'w':
+      return n * w;
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h;
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m;
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s;
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtShort(ms) {
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
+    return Math.round(ms / d) + 'd';
+  }
+  if (msAbs >= h) {
+    return Math.round(ms / h) + 'h';
+  }
+  if (msAbs >= m) {
+    return Math.round(ms / m) + 'm';
+  }
+  if (msAbs >= s) {
+    return Math.round(ms / s) + 's';
+  }
+  return ms + 'ms';
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function fmtLong(ms) {
+  var msAbs = Math.abs(ms);
+  if (msAbs >= d) {
+    return plural(ms, msAbs, d, 'day');
+  }
+  if (msAbs >= h) {
+    return plural(ms, msAbs, h, 'hour');
+  }
+  if (msAbs >= m) {
+    return plural(ms, msAbs, m, 'minute');
+  }
+  if (msAbs >= s) {
+    return plural(ms, msAbs, s, 'second');
+  }
+  return ms + ' ms';
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, msAbs, n, name) {
+  var isPlural = msAbs >= n * 1.5;
+  return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
+}
+
+
+/***/ }),
+
 /***/ 323:
 /***/ (function(module) {
 
@@ -5795,6 +6072,27 @@ isStream.transform = function (stream) {
 	return isStream.duplex(stream) && typeof stream._transform === 'function' && typeof stream._transformState === 'object';
 };
 
+
+/***/ }),
+
+/***/ 338:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+const agent_1 = __importDefault(__webpack_require__(40));
+function createHttpsProxyAgent(opts) {
+    return new agent_1.default(opts);
+}
+(function (createHttpsProxyAgent) {
+    createHttpsProxyAgent.HttpsProxyAgent = agent_1.default;
+    createHttpsProxyAgent.prototype = agent_1.default.prototype;
+})(createHttpsProxyAgent || (createHttpsProxyAgent = {}));
+module.exports = createHttpsProxyAgent;
+//# sourceMappingURL=index.js.map
 
 /***/ }),
 
@@ -5837,7 +6135,7 @@ const path = __importStar(__webpack_require__(622));
 const fs = __importStar(__webpack_require__(747));
 const util = __importStar(__webpack_require__(702));
 const yaml = __importStar(__webpack_require__(414));
-const github_1 = __webpack_require__(126);
+const github_1 = __webpack_require__(970);
 const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
 const drillInRpt = __importStar(__webpack_require__(67));
@@ -5978,7 +6276,7 @@ function writeDrillIn(report, identifier, cards, contents) {
 function writeSnapshot(snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Writing snapshot data ...");
-        const genPath = path.join(snapshot.rootPath, ".gen");
+        const genPath = path.join(snapshot.rootPath, ".data");
         if (!fs.existsSync(genPath)) {
             fs.mkdirSync(genPath, { recursive: true });
         }
@@ -6203,6 +6501,22 @@ function register (state, name, method, options) {
       }, method)()
     })
 }
+
+
+/***/ }),
+
+/***/ 364:
+/***/ (function(module) {
+
+"use strict";
+
+
+module.exports = (flag, argv = process.argv) => {
+	const prefix = flag.startsWith('-') ? '' : (flag.length === 1 ? '-' : '--');
+	const position = argv.indexOf(prefix + flag);
+	const terminatorPosition = argv.indexOf('--');
+	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
+};
 
 
 /***/ }),
@@ -6670,6 +6984,98 @@ module.exports = readShebang;
 
 /***/ }),
 
+/***/ 409:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FileSystemStore = void 0;
+const mustache = __importStar(__webpack_require__(174));
+const path = __importStar(__webpack_require__(622));
+const fs_1 = __webpack_require__(747);
+class FileSystemStore {
+    constructor(path) {
+        this._path = path;
+    }
+    getUrlPath(options) {
+        let urlFormat = options.url.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
+        let urlPath = mustache.render(urlFormat, options);
+        return urlPath;
+    }
+    check(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let urlPath = this.getUrlPath(options);
+            let cachePath = path.join(this._path, urlPath);
+            let etagPath = path.join(cachePath, "etag");
+            process.stdout.write(urlPath);
+            let exists = true;
+            try {
+                yield fs_1.promises.stat(path.join(cachePath, "res.json"));
+                yield fs_1.promises.stat(path.join(cachePath, "etag"));
+            }
+            catch (err) {
+                exists = false;
+            }
+            let etag;
+            if (exists) {
+                etag = (yield fs_1.promises.readFile(etagPath)).toString();
+            }
+            return etag;
+        });
+    }
+    read(response, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let urlPath = this.getUrlPath(options);
+            let cachePath = path.join(this._path, urlPath);
+            let contents = (yield fs_1.promises.readFile(path.join(cachePath, "res.json"))).toString();
+            return JSON.parse(contents);
+        });
+    }
+    write(response, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let urlPath = this.getUrlPath(options);
+            let cachePath = path.join(this._path, urlPath);
+            yield fs_1.promises.mkdir(cachePath, { recursive: true });
+            yield fs_1.promises.writeFile(path.join(cachePath, "res.json"), JSON.stringify(response, null, 2), 'utf8');
+            yield fs_1.promises.writeFile(path.join(cachePath, "etag"), response.headers.etag, 'utf8');
+            return;
+        });
+    }
+}
+exports.FileSystemStore = FileSystemStore;
+//# sourceMappingURL=store.js.map
+
+/***/ }),
+
 /***/ 413:
 /***/ (function(module) {
 
@@ -6914,6 +7320,79 @@ function errname(uv, code) {
 
 /***/ }),
 
+/***/ 428:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const debug_1 = __importDefault(__webpack_require__(784));
+const debug = debug_1.default('https-proxy-agent:parse-proxy-response');
+function parseProxyResponse(socket) {
+    return new Promise((resolve, reject) => {
+        // we need to buffer any HTTP traffic that happens with the proxy before we get
+        // the CONNECT response, so that if the response is anything other than an "200"
+        // response code, then we can re-play the "data" events on the socket once the
+        // HTTP parser is hooked up...
+        let buffersLength = 0;
+        const buffers = [];
+        function read() {
+            const b = socket.read();
+            if (b)
+                ondata(b);
+            else
+                socket.once('readable', read);
+        }
+        function cleanup() {
+            socket.removeListener('end', onend);
+            socket.removeListener('error', onerror);
+            socket.removeListener('close', onclose);
+            socket.removeListener('readable', read);
+        }
+        function onclose(err) {
+            debug('onclose had error %o', err);
+        }
+        function onend() {
+            debug('onend');
+        }
+        function onerror(err) {
+            cleanup();
+            debug('onerror %o', err);
+            reject(err);
+        }
+        function ondata(b) {
+            buffers.push(b);
+            buffersLength += b.length;
+            const buffered = Buffer.concat(buffers, buffersLength);
+            const endOfHeaders = buffered.indexOf('\r\n\r\n');
+            if (endOfHeaders === -1) {
+                // keep buffering
+                debug('have not received end of HTTP headers yet...');
+                read();
+                return;
+            }
+            const firstLine = buffered.toString('ascii', 0, buffered.indexOf('\r\n'));
+            const statusCode = +firstLine.split(' ')[1];
+            debug('got proxy server response: %o', firstLine);
+            resolve({
+                statusCode,
+                buffered
+            });
+        }
+        socket.on('error', onerror);
+        socket.on('close', onclose);
+        socket.on('end', onend);
+        read();
+    });
+}
+exports.default = parseProxyResponse;
+//# sourceMappingURL=parse-proxy-response.js.map
+
+/***/ }),
+
 /***/ 431:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -7010,6 +7489,214 @@ function escapeProperty(s) {
         .replace(/,/g, '%2C');
 }
 //# sourceMappingURL=command.js.map
+
+/***/ }),
+
+/***/ 443:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+const events_1 = __webpack_require__(614);
+const debug_1 = __importDefault(__webpack_require__(784));
+const promisify_1 = __importDefault(__webpack_require__(537));
+const debug = debug_1.default('agent-base');
+function isAgent(v) {
+    return Boolean(v) && typeof v.addRequest === 'function';
+}
+function isSecureEndpoint() {
+    const { stack } = new Error();
+    if (typeof stack !== 'string')
+        return false;
+    return stack.split('\n').some(l => l.indexOf('(https.js:') !== -1);
+}
+function createAgent(callback, opts) {
+    return new createAgent.Agent(callback, opts);
+}
+(function (createAgent) {
+    /**
+     * Base `http.Agent` implementation.
+     * No pooling/keep-alive is implemented by default.
+     *
+     * @param {Function} callback
+     * @api public
+     */
+    class Agent extends events_1.EventEmitter {
+        constructor(callback, _opts) {
+            super();
+            let opts = _opts;
+            if (typeof callback === 'function') {
+                this.callback = callback;
+            }
+            else if (callback) {
+                opts = callback;
+            }
+            // Timeout for the socket to be returned from the callback
+            this.timeout = null;
+            if (opts && typeof opts.timeout === 'number') {
+                this.timeout = opts.timeout;
+            }
+            // These aren't actually used by `agent-base`, but are required
+            // for the TypeScript definition files in `@types/node` :/
+            this.maxFreeSockets = 1;
+            this.maxSockets = 1;
+            this.sockets = {};
+            this.requests = {};
+            this.options = {};
+        }
+        get defaultPort() {
+            if (typeof this.explicitDefaultPort === 'number') {
+                return this.explicitDefaultPort;
+            }
+            return isSecureEndpoint() ? 443 : 80;
+        }
+        set defaultPort(v) {
+            this.explicitDefaultPort = v;
+        }
+        get protocol() {
+            if (typeof this.explicitProtocol === 'string') {
+                return this.explicitProtocol;
+            }
+            return isSecureEndpoint() ? 'https:' : 'http:';
+        }
+        set protocol(v) {
+            this.explicitProtocol = v;
+        }
+        callback(req, opts, fn) {
+            throw new Error('"agent-base" has no default implementation, you must subclass and override `callback()`');
+        }
+        /**
+         * Called by node-core's "_http_client.js" module when creating
+         * a new HTTP request with this Agent instance.
+         *
+         * @api public
+         */
+        addRequest(req, _opts) {
+            const opts = Object.assign({}, _opts);
+            if (typeof opts.secureEndpoint !== 'boolean') {
+                opts.secureEndpoint = isSecureEndpoint();
+            }
+            if (opts.host == null) {
+                opts.host = 'localhost';
+            }
+            if (opts.port == null) {
+                opts.port = opts.secureEndpoint ? 443 : 80;
+            }
+            if (opts.protocol == null) {
+                opts.protocol = opts.secureEndpoint ? 'https:' : 'http:';
+            }
+            if (opts.host && opts.path) {
+                // If both a `host` and `path` are specified then it's most
+                // likely the result of a `url.parse()` call... we need to
+                // remove the `path` portion so that `net.connect()` doesn't
+                // attempt to open that as a unix socket file.
+                delete opts.path;
+            }
+            delete opts.agent;
+            delete opts.hostname;
+            delete opts._defaultAgent;
+            delete opts.defaultPort;
+            delete opts.createConnection;
+            // Hint to use "Connection: close"
+            // XXX: non-documented `http` module API :(
+            req._last = true;
+            req.shouldKeepAlive = false;
+            let timedOut = false;
+            let timeoutId = null;
+            const timeoutMs = opts.timeout || this.timeout;
+            const onerror = (err) => {
+                if (req._hadError)
+                    return;
+                req.emit('error', err);
+                // For Safety. Some additional errors might fire later on
+                // and we need to make sure we don't double-fire the error event.
+                req._hadError = true;
+            };
+            const ontimeout = () => {
+                timeoutId = null;
+                timedOut = true;
+                const err = new Error(`A "socket" was not created for HTTP request before ${timeoutMs}ms`);
+                err.code = 'ETIMEOUT';
+                onerror(err);
+            };
+            const callbackError = (err) => {
+                if (timedOut)
+                    return;
+                if (timeoutId !== null) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                onerror(err);
+            };
+            const onsocket = (socket) => {
+                if (timedOut)
+                    return;
+                if (timeoutId != null) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                if (isAgent(socket)) {
+                    // `socket` is actually an `http.Agent` instance, so
+                    // relinquish responsibility for this `req` to the Agent
+                    // from here on
+                    debug('Callback returned another Agent instance %o', socket.constructor.name);
+                    socket.addRequest(req, opts);
+                    return;
+                }
+                if (socket) {
+                    socket.once('free', () => {
+                        this.freeSocket(socket, opts);
+                    });
+                    req.onSocket(socket);
+                    return;
+                }
+                const err = new Error(`no Duplex stream was returned to agent-base for \`${req.method} ${req.path}\``);
+                onerror(err);
+            };
+            if (typeof this.callback !== 'function') {
+                onerror(new Error('`callback` is not defined'));
+                return;
+            }
+            if (!this.promisifiedCallback) {
+                if (this.callback.length >= 3) {
+                    debug('Converting legacy callback function to promise');
+                    this.promisifiedCallback = promisify_1.default(this.callback);
+                }
+                else {
+                    this.promisifiedCallback = this.callback;
+                }
+            }
+            if (typeof timeoutMs === 'number' && timeoutMs > 0) {
+                timeoutId = setTimeout(ontimeout, timeoutMs);
+            }
+            if ('port' in opts && typeof opts.port !== 'number') {
+                opts.port = Number(opts.port);
+            }
+            try {
+                debug('Resolving socket for %o request: %o', opts.protocol, `${req.method} ${req.path}`);
+                Promise.resolve(this.promisifiedCallback(req, opts)).then(onsocket, callbackError);
+            }
+            catch (err) {
+                Promise.reject(err).catch(callbackError);
+            }
+        }
+        freeSocket(socket, opts) {
+            debug('Freeing socket %o %o', socket.constructor.name, opts);
+            socket.destroy();
+        }
+        destroy() {
+            debug('Destroying agent %o', this.constructor.name);
+        }
+    }
+    createAgent.Agent = Agent;
+    // So that `instanceof` works correctly
+    createAgent.prototype = createAgent.Agent.prototype;
+})(createAgent || (createAgent = {}));
+module.exports = createAgent;
+//# sourceMappingURL=index.js.map
 
 /***/ }),
 
@@ -10933,6 +11620,279 @@ exports.getState = getState;
 
 /***/ }),
 
+/***/ 486:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+
+/**
+ * This is the common logic for both the Node.js and web browser
+ * implementations of `debug()`.
+ */
+
+function setup(env) {
+	createDebug.debug = createDebug;
+	createDebug.default = createDebug;
+	createDebug.coerce = coerce;
+	createDebug.disable = disable;
+	createDebug.enable = enable;
+	createDebug.enabled = enabled;
+	createDebug.humanize = __webpack_require__(317);
+
+	Object.keys(env).forEach(key => {
+		createDebug[key] = env[key];
+	});
+
+	/**
+	* Active `debug` instances.
+	*/
+	createDebug.instances = [];
+
+	/**
+	* The currently active debug mode names, and names to skip.
+	*/
+
+	createDebug.names = [];
+	createDebug.skips = [];
+
+	/**
+	* Map of special "%n" handling functions, for the debug "format" argument.
+	*
+	* Valid key names are a single, lower or upper-case letter, i.e. "n" and "N".
+	*/
+	createDebug.formatters = {};
+
+	/**
+	* Selects a color for a debug namespace
+	* @param {String} namespace The namespace string for the for the debug instance to be colored
+	* @return {Number|String} An ANSI color code for the given namespace
+	* @api private
+	*/
+	function selectColor(namespace) {
+		let hash = 0;
+
+		for (let i = 0; i < namespace.length; i++) {
+			hash = ((hash << 5) - hash) + namespace.charCodeAt(i);
+			hash |= 0; // Convert to 32bit integer
+		}
+
+		return createDebug.colors[Math.abs(hash) % createDebug.colors.length];
+	}
+	createDebug.selectColor = selectColor;
+
+	/**
+	* Create a debugger with the given `namespace`.
+	*
+	* @param {String} namespace
+	* @return {Function}
+	* @api public
+	*/
+	function createDebug(namespace) {
+		let prevTime;
+
+		function debug(...args) {
+			// Disabled?
+			if (!debug.enabled) {
+				return;
+			}
+
+			const self = debug;
+
+			// Set `diff` timestamp
+			const curr = Number(new Date());
+			const ms = curr - (prevTime || curr);
+			self.diff = ms;
+			self.prev = prevTime;
+			self.curr = curr;
+			prevTime = curr;
+
+			args[0] = createDebug.coerce(args[0]);
+
+			if (typeof args[0] !== 'string') {
+				// Anything else let's inspect with %O
+				args.unshift('%O');
+			}
+
+			// Apply any `formatters` transformations
+			let index = 0;
+			args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
+				// If we encounter an escaped % then don't increase the array index
+				if (match === '%%') {
+					return match;
+				}
+				index++;
+				const formatter = createDebug.formatters[format];
+				if (typeof formatter === 'function') {
+					const val = args[index];
+					match = formatter.call(self, val);
+
+					// Now we need to remove `args[index]` since it's inlined in the `format`
+					args.splice(index, 1);
+					index--;
+				}
+				return match;
+			});
+
+			// Apply env-specific formatting (colors, etc.)
+			createDebug.formatArgs.call(self, args);
+
+			const logFn = self.log || createDebug.log;
+			logFn.apply(self, args);
+		}
+
+		debug.namespace = namespace;
+		debug.enabled = createDebug.enabled(namespace);
+		debug.useColors = createDebug.useColors();
+		debug.color = selectColor(namespace);
+		debug.destroy = destroy;
+		debug.extend = extend;
+		// Debug.formatArgs = formatArgs;
+		// debug.rawLog = rawLog;
+
+		// env-specific initialization logic for debug instances
+		if (typeof createDebug.init === 'function') {
+			createDebug.init(debug);
+		}
+
+		createDebug.instances.push(debug);
+
+		return debug;
+	}
+
+	function destroy() {
+		const index = createDebug.instances.indexOf(this);
+		if (index !== -1) {
+			createDebug.instances.splice(index, 1);
+			return true;
+		}
+		return false;
+	}
+
+	function extend(namespace, delimiter) {
+		const newDebug = createDebug(this.namespace + (typeof delimiter === 'undefined' ? ':' : delimiter) + namespace);
+		newDebug.log = this.log;
+		return newDebug;
+	}
+
+	/**
+	* Enables a debug mode by namespaces. This can include modes
+	* separated by a colon and wildcards.
+	*
+	* @param {String} namespaces
+	* @api public
+	*/
+	function enable(namespaces) {
+		createDebug.save(namespaces);
+
+		createDebug.names = [];
+		createDebug.skips = [];
+
+		let i;
+		const split = (typeof namespaces === 'string' ? namespaces : '').split(/[\s,]+/);
+		const len = split.length;
+
+		for (i = 0; i < len; i++) {
+			if (!split[i]) {
+				// ignore empty strings
+				continue;
+			}
+
+			namespaces = split[i].replace(/\*/g, '.*?');
+
+			if (namespaces[0] === '-') {
+				createDebug.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+			} else {
+				createDebug.names.push(new RegExp('^' + namespaces + '$'));
+			}
+		}
+
+		for (i = 0; i < createDebug.instances.length; i++) {
+			const instance = createDebug.instances[i];
+			instance.enabled = createDebug.enabled(instance.namespace);
+		}
+	}
+
+	/**
+	* Disable debug output.
+	*
+	* @return {String} namespaces
+	* @api public
+	*/
+	function disable() {
+		const namespaces = [
+			...createDebug.names.map(toNamespace),
+			...createDebug.skips.map(toNamespace).map(namespace => '-' + namespace)
+		].join(',');
+		createDebug.enable('');
+		return namespaces;
+	}
+
+	/**
+	* Returns true if the given mode name is enabled, false otherwise.
+	*
+	* @param {String} name
+	* @return {Boolean}
+	* @api public
+	*/
+	function enabled(name) {
+		if (name[name.length - 1] === '*') {
+			return true;
+		}
+
+		let i;
+		let len;
+
+		for (i = 0, len = createDebug.skips.length; i < len; i++) {
+			if (createDebug.skips[i].test(name)) {
+				return false;
+			}
+		}
+
+		for (i = 0, len = createDebug.names.length; i < len; i++) {
+			if (createDebug.names[i].test(name)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	* Convert regexp to namespace
+	*
+	* @param {RegExp} regxep
+	* @return {String} namespace
+	* @api private
+	*/
+	function toNamespace(regexp) {
+		return regexp.toString()
+			.substring(2, regexp.toString().length - 2)
+			.replace(/\.\*\?$/, '*');
+	}
+
+	/**
+	* Coerce `val`.
+	*
+	* @param {Mixed} val
+	* @return {Mixed}
+	* @api private
+	*/
+	function coerce(val) {
+		if (val instanceof Error) {
+			return val.stack || val.message;
+		}
+		return val;
+	}
+
+	createDebug.enable(createDebug.load());
+
+	return createDebug;
+}
+
+module.exports = setup;
+
+
+/***/ }),
+
 /***/ 489:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -11102,6 +12062,31 @@ module.exports.Hook = Hook
 module.exports.Singular = Hook.Singular
 module.exports.Collection = Hook.Collection
 
+
+/***/ }),
+
+/***/ 537:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+function promisify(fn) {
+    return function (req, opts) {
+        return new Promise((resolve, reject) => {
+            fn.call(this, req, opts, (err, rtn) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(rtn);
+                }
+            });
+        });
+    };
+}
+exports.default = promisify;
+//# sourceMappingURL=promisify.js.map
 
 /***/ }),
 
@@ -11590,6 +12575,13 @@ module.exports = new Type('tag:yaml.org,2002:js/regexp', {
   represent: representJavascriptRegExp
 });
 
+
+/***/ }),
+
+/***/ 631:
+/***/ (function(module) {
+
+module.exports = require("net");
 
 /***/ }),
 
@@ -13222,6 +14214,294 @@ module.exports = function (x) {
 
 /***/ }),
 
+/***/ 784:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+/**
+ * Detect Electron renderer / nwjs process, which is node, but we should
+ * treat as a browser.
+ */
+
+if (typeof process === 'undefined' || process.type === 'renderer' || process.browser === true || process.__nwjs) {
+	module.exports = __webpack_require__(794);
+} else {
+	module.exports = __webpack_require__(81);
+}
+
+
+/***/ }),
+
+/***/ 794:
+/***/ (function(module, exports, __webpack_require__) {
+
+/* eslint-env browser */
+
+/**
+ * This is the web browser implementation of `debug()`.
+ */
+
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+exports.storage = localstorage();
+
+/**
+ * Colors.
+ */
+
+exports.colors = [
+	'#0000CC',
+	'#0000FF',
+	'#0033CC',
+	'#0033FF',
+	'#0066CC',
+	'#0066FF',
+	'#0099CC',
+	'#0099FF',
+	'#00CC00',
+	'#00CC33',
+	'#00CC66',
+	'#00CC99',
+	'#00CCCC',
+	'#00CCFF',
+	'#3300CC',
+	'#3300FF',
+	'#3333CC',
+	'#3333FF',
+	'#3366CC',
+	'#3366FF',
+	'#3399CC',
+	'#3399FF',
+	'#33CC00',
+	'#33CC33',
+	'#33CC66',
+	'#33CC99',
+	'#33CCCC',
+	'#33CCFF',
+	'#6600CC',
+	'#6600FF',
+	'#6633CC',
+	'#6633FF',
+	'#66CC00',
+	'#66CC33',
+	'#9900CC',
+	'#9900FF',
+	'#9933CC',
+	'#9933FF',
+	'#99CC00',
+	'#99CC33',
+	'#CC0000',
+	'#CC0033',
+	'#CC0066',
+	'#CC0099',
+	'#CC00CC',
+	'#CC00FF',
+	'#CC3300',
+	'#CC3333',
+	'#CC3366',
+	'#CC3399',
+	'#CC33CC',
+	'#CC33FF',
+	'#CC6600',
+	'#CC6633',
+	'#CC9900',
+	'#CC9933',
+	'#CCCC00',
+	'#CCCC33',
+	'#FF0000',
+	'#FF0033',
+	'#FF0066',
+	'#FF0099',
+	'#FF00CC',
+	'#FF00FF',
+	'#FF3300',
+	'#FF3333',
+	'#FF3366',
+	'#FF3399',
+	'#FF33CC',
+	'#FF33FF',
+	'#FF6600',
+	'#FF6633',
+	'#FF9900',
+	'#FF9933',
+	'#FFCC00',
+	'#FFCC33'
+];
+
+/**
+ * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+ * and the Firebug extension (any Firefox version) are known
+ * to support "%c" CSS customizations.
+ *
+ * TODO: add a `localStorage` variable to explicitly enable/disable colors
+ */
+
+// eslint-disable-next-line complexity
+function useColors() {
+	// NB: In an Electron preload script, document will be defined but not fully
+	// initialized. Since we know we're in Chrome, we'll just detect this case
+	// explicitly
+	if (typeof window !== 'undefined' && window.process && (window.process.type === 'renderer' || window.process.__nwjs)) {
+		return true;
+	}
+
+	// Internet Explorer and Edge do not support colors.
+	if (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/(edge|trident)\/(\d+)/)) {
+		return false;
+	}
+
+	// Is webkit? http://stackoverflow.com/a/16459606/376773
+	// document is undefined in react-native: https://github.com/facebook/react-native/pull/1632
+	return (typeof document !== 'undefined' && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance) ||
+		// Is firebug? http://stackoverflow.com/a/398120/376773
+		(typeof window !== 'undefined' && window.console && (window.console.firebug || (window.console.exception && window.console.table))) ||
+		// Is firefox >= v31?
+		// https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+		(typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31) ||
+		// Double check webkit in userAgent just in case we are in a worker
+		(typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/));
+}
+
+/**
+ * Colorize log arguments if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs(args) {
+	args[0] = (this.useColors ? '%c' : '') +
+		this.namespace +
+		(this.useColors ? ' %c' : ' ') +
+		args[0] +
+		(this.useColors ? '%c ' : ' ') +
+		'+' + module.exports.humanize(this.diff);
+
+	if (!this.useColors) {
+		return;
+	}
+
+	const c = 'color: ' + this.color;
+	args.splice(1, 0, c, 'color: inherit');
+
+	// The final "%c" is somewhat tricky, because there could be other
+	// arguments passed either before or after the %c, so we need to
+	// figure out the correct index to insert the CSS into
+	let index = 0;
+	let lastC = 0;
+	args[0].replace(/%[a-zA-Z%]/g, match => {
+		if (match === '%%') {
+			return;
+		}
+		index++;
+		if (match === '%c') {
+			// We only are interested in the *last* %c
+			// (the user may have provided their own)
+			lastC = index;
+		}
+	});
+
+	args.splice(lastC, 0, c);
+}
+
+/**
+ * Invokes `console.log()` when available.
+ * No-op when `console.log` is not a "function".
+ *
+ * @api public
+ */
+function log(...args) {
+	// This hackery is required for IE8/9, where
+	// the `console.log` function doesn't have 'apply'
+	return typeof console === 'object' &&
+		console.log &&
+		console.log(...args);
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+function save(namespaces) {
+	try {
+		if (namespaces) {
+			exports.storage.setItem('debug', namespaces);
+		} else {
+			exports.storage.removeItem('debug');
+		}
+	} catch (error) {
+		// Swallow
+		// XXX (@Qix-) should we be logging these?
+	}
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+function load() {
+	let r;
+	try {
+		r = exports.storage.getItem('debug');
+	} catch (error) {
+		// Swallow
+		// XXX (@Qix-) should we be logging these?
+	}
+
+	// If debug isn't set in LS, and we're in Electron, try to load $DEBUG
+	if (!r && typeof process !== 'undefined' && 'env' in process) {
+		r = process.env.DEBUG;
+	}
+
+	return r;
+}
+
+/**
+ * Localstorage attempts to return the localstorage.
+ *
+ * This is necessary because safari throws
+ * when a user disables cookies/localstorage
+ * and you attempt to access it.
+ *
+ * @return {LocalStorage}
+ * @api private
+ */
+
+function localstorage() {
+	try {
+		// TVMLKit (Apple TV JS Runtime) does not have a window object, just localStorage in the global context
+		// The Browser also has localStorage in the global context.
+		return localStorage;
+	} catch (error) {
+		// Swallow
+		// XXX (@Qix-) should we be logging these?
+	}
+}
+
+module.exports = __webpack_require__(486)(exports);
+
+const {formatters} = module.exports;
+
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+formatters.j = function (v) {
+	try {
+		return JSON.stringify(v);
+	} catch (error) {
+		return '[UnexpectedJSONParseError]: ' + error.message;
+	}
+};
+
+
+/***/ }),
+
 /***/ 796:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -13702,6 +14982,13 @@ module.exports = function (str) {
 	);
 };
 
+
+/***/ }),
+
+/***/ 867:
+/***/ (function(module) {
+
+module.exports = require("tty");
 
 /***/ }),
 
@@ -14746,6 +16033,199 @@ function onceStrict (fn) {
   return f
 }
 
+
+/***/ }),
+
+/***/ 970:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.GitHubClient = void 0;
+const { Octokit } = __webpack_require__(889);
+const url = __importStar(__webpack_require__(835));
+const restCache = __importStar(__webpack_require__(28));
+function DateOrNull(date) {
+    return date ? new Date(date) : null;
+}
+class GitHubClient {
+    constructor(token, cacheDir) {
+        this.octokit = new Octokit({
+            auth: token,
+            previews: [
+                'squirrel-girl-preview',
+                'inertia-preview',
+                'starfox-preview',
+                'mockingbird-preview',
+                'sailor-v-preview'
+            ]
+        });
+        let diskCache = new restCache.FileSystemStore(cacheDir);
+        this.octokit.hook.wrap("request", restCache.wrap(diskCache));
+    }
+    getProject(projectHtmlUrl) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Finding project for ${projectHtmlUrl}`);
+            let proj = null;
+            let projUrl = new url.URL(projectHtmlUrl);
+            let projParts = projUrl.pathname.split("/").filter(e => e);
+            if (projParts.length !== 4) {
+                throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+            }
+            let projKind = projParts[0]; // orgs or users
+            let projOwner = projParts[1]; // orgname or username
+            // let projId = projParts[3];    // html id
+            let count = 0;
+            let page = 0;
+            do {
+                ++page;
+                console.log(`page: ${page}`);
+                let res;
+                if (projKind === 'orgs') {
+                    res = yield this.octokit.projects.listForOrg({
+                        org: projOwner,
+                        state: "open",
+                        per_page: 100,
+                        page: page
+                    });
+                }
+                else if (projKind === 'users') {
+                    console.log(`listForUser ${projOwner}`);
+                    res = yield this.octokit.projects.listForUser({
+                        username: projOwner,
+                        state: "open",
+                        per_page: 100,
+                        page: page
+                    });
+                }
+                else {
+                    throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+                }
+                let projects = res.data;
+                count = projects.length;
+                for (const project of projects) {
+                    if (projectHtmlUrl.indexOf(project.html_url) > -1) {
+                        proj = {
+                            id: project.id,
+                            html_url: project.html_url,
+                            name: project.name
+                        };
+                        console.log(`Found ${project.name}`);
+                        break;
+                    }
+                }
+            } while (count == 100);
+            return proj;
+        });
+    }
+    getColumnsForProject(project) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let cols = yield this.octokit.projects.listColumns({ project_id: project.id });
+            return cols.data;
+        });
+    }
+    getCardsForColumns(colId, colName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let cards = yield this.octokit.projects.listCards({ column_id: colId });
+            return cards.data;
+        });
+    }
+    getIssueComments(owner, repo, issue_number) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let res = yield this.octokit.issues.listComments({
+                owner,
+                repo,
+                issue_number,
+            });
+            return res.data;
+        });
+    }
+    // returns null if not an issue
+    getIssueForCard(card, projectId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!card.content_url) {
+                return null;
+            }
+            let cardUrl = new url.URL(card.content_url);
+            let cardParts = cardUrl.pathname.split('/').filter(e => e);
+            // /repos/:owner/:repo/issues/events/:event_id
+            // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
+            let owner = cardParts[1];
+            let repo = cardParts[2];
+            let issue_number = cardParts[4];
+            let issueCard = {};
+            let res = yield this.octokit.issues.get({
+                owner: owner,
+                repo: repo,
+                issue_number: issue_number
+            });
+            //console.log(JSON.stringify(res, null, 2));
+            let issue = res.data;
+            issueCard.number = issue.number;
+            issueCard.title = issue.title;
+            issueCard.number = issue.number;
+            issueCard.html_url = issue.html_url;
+            issueCard.closed_at = DateOrNull(issue.closed_at);
+            issueCard.created_at = DateOrNull(issue.created_at);
+            issueCard.updated_at = DateOrNull(issue.updated_at);
+            if (issue.assignee) {
+                issueCard.assignee = {
+                    login: issue.assignee.login,
+                    id: issue.assignee.id,
+                    avatar_url: issue.assignee.avatar_url,
+                    url: issue.assignee.url,
+                    html_url: issue.assignee.html_url
+                };
+            }
+            issueCard.labels = issue.labels;
+            issueCard.comments = [];
+            if (issue.comments > 0) {
+                issueCard.comments = yield this.getIssueComments(owner, repo, issue_number);
+            }
+            // TODO: paginate?
+            res = yield this.octokit.issues.listEvents({
+                owner: owner,
+                repo: repo,
+                issue_number: issue_number,
+                per_page: 100
+            });
+            issueCard.events = res.data;
+            //TODO: sort ascending by date so it's a good historical view
+            return issueCard;
+        });
+    }
+}
+exports.GitHubClient = GitHubClient;
+//# sourceMappingURL=index.js.map
 
 /***/ }),
 

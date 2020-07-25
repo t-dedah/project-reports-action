@@ -174,7 +174,7 @@ async function writeDrillIn(report: ReportConfig, identifier: string, cards: Iss
 // creates directory structure for the reports and hands back the root path to write reports in
 async function writeSnapshot(snapshot: ReportSnapshot) {
     console.log("Writing snapshot data ...");
-    const genPath = path.join(snapshot.rootPath, ".gen");
+    const genPath = path.join(snapshot.rootPath, ".data");
     if (!fs.existsSync(genPath)) {
         fs.mkdirSync(genPath, { recursive: true });
     }

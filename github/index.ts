@@ -39,7 +39,7 @@ export class GitHubClient {
     
         let projKind = projParts[0];  // orgs or users
         let projOwner = projParts[1]; // orgname or username
-        let projId = projParts[3];    // html id
+        // let projId = projParts[3];    // html id
         
         let count = 0;
         let page = 0;
@@ -90,8 +90,7 @@ export class GitHubClient {
         return proj;
     }
 
-    public async getColumnsForProject(project): Promise<any> {    
-        console.log(`Getting columns for ${project.id}`);
+    public async getColumnsForProject(project): Promise<any> { 
         let cols = await this.octokit.projects.listColumns({project_id: project.id});
         return cols.data;
     }
@@ -129,7 +128,6 @@ export class GitHubClient {
 
         let issueCard = <IssueCard>{};
 
-        console.log(`Getting ${issue_number}`);
         let res = await this.octokit.issues.get({
             owner: owner,
             repo: repo,
