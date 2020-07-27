@@ -447,8 +447,10 @@ function renderMarkdown(projData, processedData) {
             wipRow.stage = stageName;
             // data folder is part of the contract here.  make a lib function to create this path
             wipRow.count = `[${wipStage.wips}](./wip-${cardType}-${stageName}.md)`;
-            wipRow.limit = wipStage.limit > 0 ? wipStage.limit.toString() : "";
-            wipRow.status = wipStage.flag ? ":triangular_flag_on_post:" : ":green_heart:";
+            if (wipStage.flag) {
+                wipRow.count += "  :triangular_flag_on_post:";
+            }
+            wipRow.limit = wipStage.limit >= 0 ? wipStage.limit.toString() : "";
             rows.push(wipRow);
         }
         let table = tablemark(rows);
