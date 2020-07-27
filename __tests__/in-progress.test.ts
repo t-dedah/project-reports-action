@@ -74,7 +74,7 @@ describe('report-lib', () => {
         let markdown = inProgress.renderMarkdown(projectData, processed);
         expect(markdown).toBeDefined();
         // console.log(markdown);
-        expect(markdown).toContain("## In Progress Epics");
+        expect(markdown).toContain("## :hourglass_flowing_sand: In Progress Epics");
         expect(markdown).toContain("gRPC generation](https://github.com/bryanmacfarlane/quotes-feed/issues/16)  | :exclamation: | 0     |  :triangular_flag_on_post:");
         expect(markdown).toContain("| [Initial Frontend](https://github.com/bryanmacfarlane/quotes-feed/issues/14) | :green_heart: | 2     |");
     });    

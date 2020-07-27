@@ -79,9 +79,9 @@ describe('report-lib', () => {
 
         let markdown = wipLimits.renderMarkdown(projectData, processed);
         expect(markdown).toBeDefined();
-        expect(markdown).toContain("## Epic WIP limits");
+        expect(markdown).toContain("## :ship: Epic WIP limits");
         expect(markdown).toContain("| In-Progress | [5](./wip-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |");
-        expect(markdown).toContain("## Feature WIP limits");
+        expect(markdown).toContain("## :ship: Feature WIP limits");
         expect(markdown).toContain("| Done        | [1](./wip-Feature-Done.md)  :triangular_flag_on_post:     | 0     |");
     });    
 });

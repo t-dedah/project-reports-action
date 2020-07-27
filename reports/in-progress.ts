@@ -116,7 +116,8 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
     
     let lines: string[] = [];
 
-    lines.push(`## In Progress ${progressData.cardType}s  `);
+    lines.push(`## :hourglass_flowing_sand: In Progress ${progressData.cardType}s  `);
+    lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `);
     lines.push("  ");
 
 

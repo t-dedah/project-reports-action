@@ -6192,7 +6192,7 @@ function generate(token, configYaml) {
                 console.log(`Generating ${report.name} for ${proj} ...`);
                 yield createReportPath(report);
                 for (const reportSection of report.sections) {
-                    output += os.EOL;
+                    output += `&nbsp;${os.EOL}`;
                     let reportModule = `${reportSection.name}`;
                     // if it's a relative path, find in the workflow repo relative path.
                     // this allows for consume of action to create their own report sections
@@ -6228,6 +6228,7 @@ function generate(token, configYaml) {
                     yield writeSectionData(report, reportModule, config, processed);
                     if (report.kind === 'markdown') {
                         output += reportGenerator.renderMarkdown(projectData, processed);
+                        // output += `&nbsp;${os.EOL}`;
                     }
                     else {
                         throw new Error(`Report kind ${report.kind} not supported`);
