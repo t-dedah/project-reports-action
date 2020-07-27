@@ -1060,14 +1060,15 @@ function renderMarkdown(projData, processedData) {
                 statusEmoji = ":yellow_heart:";
                 break;
         }
+        progressRow.assigned = card.assignee ? `<img height="20" width="20" alt="@${card.assignee.login}" src="${card.assignee.avatar_url}"/> <a href="${card.assignee.html_url}">${card.assignee.login}</a>` : "  ";
         progressRow.title = `[${card.title}](${card.html_url})`;
         progressRow.status = statusEmoji;
         progressRow.wips = card.wips;
-        progressRow.hoursLastUpdated = card.hoursLastUpdated > 0 ? card.hoursLastUpdated.toFixed(1) : '';
+        progressRow.daysLastUpdated = card.hoursLastUpdated > 0 ? (card.hoursLastUpdated / 24).toFixed(1) : '';
         if (card.flagHoursLastUpdated) {
-            progressRow.hoursLastUpdated += " :triangular_flag_on_post:";
+            progressRow.daysLastUpdated += " :triangular_flag_on_post:";
         }
-        progressRow.hoursInProgress = card.hoursInProgress > 0 ? card.hoursInProgress.toFixed(1) : "";
+        progressRow.daysInProgress = card.hoursInProgress > 0 ? (card.hoursInProgress / 24).toFixed(1) : "";
         rows.push(progressRow);
     }
     let table;
