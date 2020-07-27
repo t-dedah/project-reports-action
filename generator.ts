@@ -76,7 +76,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             await createReportPath(report);
 
             for (const reportSection of report.sections) {
-                output += os.EOL;
+                output += `&nbsp;${os.EOL}`;
 
                 let reportModule = `${reportSection.name}`;
 
@@ -123,6 +123,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
                 if (report.kind === 'markdown') {
                     output += reportGenerator.renderMarkdown(projectData, processed);
+                    // output += `&nbsp;${os.EOL}`;
                 }
                 else {
                     throw new Error(`Report kind ${report.kind} not supported`);

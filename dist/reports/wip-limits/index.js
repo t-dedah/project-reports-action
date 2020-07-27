@@ -439,7 +439,7 @@ function renderMarkdown(projData, processedData) {
     let lines = [];
     // create a report for each type.  e.g. "Epic"
     for (let cardType in wipData) {
-        lines.push(`## ${cardType} WIP limits  `);
+        lines.push(`## :ship: ${cardType} WIP limits  `);
         let rows = [];
         for (let stageName in wipData[cardType]) {
             let wipStage = wipData[cardType][stageName];

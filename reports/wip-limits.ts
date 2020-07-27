@@ -95,7 +95,7 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
 
     // create a report for each type.  e.g. "Epic"
     for (let cardType in wipData) {
-        lines.push(`## ${cardType} WIP limits  `);
+        lines.push(`## :ship: ${cardType} WIP limits  `);
 
         let rows: WipRow[] = [];
         for (let stageName in wipData[cardType]) {

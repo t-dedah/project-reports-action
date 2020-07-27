@@ -1044,7 +1044,8 @@ exports.process = process;
 function renderMarkdown(projData, processedData) {
     let progressData = processedData;
     let lines = [];
-    lines.push(`## In Progress ${progressData.cardType}s  `);
+    lines.push(`## :hourglass_flowing_sand: In Progress ${progressData.cardType}s  `);
+    lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `);
     lines.push("  ");
     let rows = [];
     for (let card of processedData.cards) {
