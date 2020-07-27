@@ -137,7 +137,7 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
         progressRow.wips = card.wips;
         progressRow.hoursLastUpdated = card.hoursLastUpdated > 0 ? card.hoursLastUpdated.toFixed(1) : '';
         if (card.flagHoursLastUpdated) {
-            progressRow.hoursLastUpdated += ":triangular_flag_on_post:";
+            progressRow.hoursLastUpdated += " :triangular_flag_on_post:";
         }
         
         progressRow.hoursInProgress = card.hoursInProgress > 0 ? card.hoursInProgress.toFixed(1) : "";

@@ -58,7 +58,7 @@ describe('report-lib', () => {
         expect(processed["Feature"]["Proposed"]).toBeDefined();
         expect(processed["Feature"]["Proposed"].wips).toBe(1);
         expect(processed["Feature"]["Proposed"].limit).toBe(0);
-        expect(processed["Feature"]["Proposed"].flag).toBe(false);
+        expect(processed["Feature"]["Proposed"].flag).toBe(true);
         expect(processed["Feature"]["In-Progress"]).toBeDefined();
         expect(processed["Feature"]["In-Progress"].wips).toBe(1);
         expect(processed["Feature"]["In-Progress"].limit).toBe(2);
@@ -82,6 +82,6 @@ describe('report-lib', () => {
         expect(markdown).toContain("## Epic WIP limits");
         expect(markdown).toContain("| In-Progress | [3](./wip-Epic-In-Progress.md) | 2     | :triangular_flag_on_post: |");
         expect(markdown).toContain("## Feature WIP limits");
-        expect(markdown).toContain("| Done        | [1](./wip-Feature-Done.md)        |       |        |");
+        expect(markdown).toContain("| Done        | [1](./wip-Feature-Done.md)        |       | :triangular_flag_on_post: |");
     });    
 });

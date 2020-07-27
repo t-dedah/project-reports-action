@@ -13,10 +13,10 @@ export function getDefaultConfiguration(): any {
         // Epic for now.  Supports others. 
         // Will appear on report in this casing but matches labels with lowercase version.
         "report-on": ['Epic'],
-        "epic-proposed": 2,  
-        "epic-accepted": 10,
+        "epic-proposed": 0,  
+        "epic-accepted": 0,
         "epic-in-progress": 4,
-        "epic-done": 25,
+        "epic-done": 0,
         "wip-label-match": "(\\d+)-wip"
     };
 }
@@ -72,7 +72,7 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
 
             let limitKey = `${cardType.toLocaleLowerCase()}-${stage.toLocaleLowerCase()}`;
             stageData.limit = config[limitKey] || 0;
-            stageData.flag = stageData.limit > 0 && stageData.wips > stageData.limit;
+            stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
 
             wipStage[stage] = stageData;    
         }
@@ -106,7 +106,7 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
             // data folder is part of the contract here.  make a lib function to create this path
             wipRow.count = `[${wipStage.wips}](./wip-${cardType}-${stageName}.md)`;
             wipRow.limit = wipStage.limit > 0 ? wipStage.limit.toString() : "";
-            wipRow.status = wipStage.flag ? ":triangular_flag_on_post:": "";
+            wipRow.status = wipStage.flag ? ":triangular_flag_on_post:": "green_heart";
             rows.push(wipRow);
         }
 
