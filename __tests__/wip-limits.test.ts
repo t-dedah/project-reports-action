@@ -2,7 +2,7 @@ import {ProjectData, IssueCard} from '../interfaces';
 import * as wipLimits from '../reports/wip-limits';
 import {WipData} from '../reports/wip-limits';
 
-let projectData: ProjectData = require('./wip-limits.test.json');
+let projectData: ProjectData = require('./project-data.test.json');
 
 let config: any = {
     'report-on': [ 'Epic', 'Feature' ],
@@ -49,7 +49,7 @@ describe('report-lib', () => {
         expect(processed["Epic"]["Proposed"].limit).toBe(2);
         expect(processed["Epic"]["Proposed"].flag).toBe(false);
         expect(processed["Epic"]["In-Progress"]).toBeDefined();
-        expect(processed["Epic"]["In-Progress"].wips).toBe(3);
+        expect(processed["Epic"]["In-Progress"].wips).toBe(5);
         expect(processed["Epic"]["In-Progress"].limit).toBe(2);
         expect(processed["Epic"]["In-Progress"].flag).toBe(true);
         expect(processed["Epic"]["Accepted"]).toBeDefined();
@@ -80,7 +80,7 @@ describe('report-lib', () => {
         let markdown = wipLimits.renderMarkdown(projectData, processed);
         expect(markdown).toBeDefined();
         expect(markdown).toContain("## Epic WIP limits");
-        expect(markdown).toContain("| In-Progress | [3](./wip-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |");
+        expect(markdown).toContain("| In-Progress | [5](./wip-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |");
         expect(markdown).toContain("## Feature WIP limits");
         expect(markdown).toContain("| Done        | [1](./wip-Feature-Done.md)  :triangular_flag_on_post:     | 0     |");
     });    
