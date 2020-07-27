@@ -84,7 +84,7 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
     cardsForType.map((card: IssueCardEx) => {
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
         card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
-        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 7 > config["last-updated-days-flag"];
+        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
         card.status = statusLevels[status] ? status : "";
         card.hoursInProgress = -1; 
