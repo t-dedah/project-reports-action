@@ -19,6 +19,7 @@ export function getDefaultConfiguration(): any {
         "daysAgo": 7,
         "status-label-match": "(?<=status:).*",
         "wip-label-match": "(\\d+)-wip",
+        "last-updated-days-flag": 3.0,
         "last-updated-scheme": "LastCommentPattern", 
         "last-updated-scheme-data": "^(#){1,4} update",       
     };
@@ -83,7 +84,7 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
     cardsForType.map((card: IssueCardEx) => {
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
         card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
-        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated > config["daysAgo"] * 24;
+        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 7 > config["last-updated-days-flag"];
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
         card.status = statusLevels[status] ? status : "";
         card.hoursInProgress = -1; 
