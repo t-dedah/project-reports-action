@@ -448,7 +448,7 @@ function renderMarkdown(projData, processedData) {
             // data folder is part of the contract here.  make a lib function to create this path
             wipRow.count = `[${wipStage.wips}](./wip-${cardType}-${stageName}.md)`;
             wipRow.limit = wipStage.limit > 0 ? wipStage.limit.toString() : "";
-            wipRow.status = wipStage.flag ? ":triangular_flag_on_post:" : "green_heart";
+            wipRow.status = wipStage.flag ? ":triangular_flag_on_post:" : ":green_heart:";
             rows.push(wipRow);
         }
         let table = tablemark(rows);
