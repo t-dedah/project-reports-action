@@ -105,6 +105,7 @@ export class GitHubClient {
             owner,
             repo,
             issue_number,
+            per_page: 100
           });
     
         return res.data;
@@ -131,7 +132,8 @@ export class GitHubClient {
         let res = await this.octokit.issues.get({
             owner: owner,
             repo: repo,
-            issue_number: issue_number
+            issue_number: issue_number,
+            per_page: 100
         });
 
         //console.log(JSON.stringify(res, null, 2));

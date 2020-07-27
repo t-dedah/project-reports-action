@@ -76,7 +76,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             await createReportPath(report);
 
             for (const reportSection of report.sections) {
-                output += `&nbsp;${os.EOL}`;
+                output += `&nbsp;  ${os.EOL}`;
 
                 let reportModule = `${reportSection.name}`;
 

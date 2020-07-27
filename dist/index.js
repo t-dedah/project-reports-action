@@ -6192,7 +6192,7 @@ function generate(token, configYaml) {
                 console.log(`Generating ${report.name} for ${proj} ...`);
                 yield createReportPath(report);
                 for (const reportSection of report.sections) {
-                    output += `&nbsp;${os.EOL}`;
+                    output += `&nbsp;  ${os.EOL}`;
                     let reportModule = `${reportSection.name}`;
                     // if it's a relative path, find in the workflow repo relative path.
                     // this allows for consume of action to create their own report sections
@@ -16166,6 +16166,7 @@ class GitHubClient {
                 owner,
                 repo,
                 issue_number,
+                per_page: 100
             });
             return res.data;
         });
@@ -16187,7 +16188,8 @@ class GitHubClient {
             let res = yield this.octokit.issues.get({
                 owner: owner,
                 repo: repo,
-                issue_number: issue_number
+                issue_number: issue_number,
+                per_page: 100
             });
             //console.log(JSON.stringify(res, null, 2));
             let issue = res.data;
