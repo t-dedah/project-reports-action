@@ -2,8 +2,8 @@ name: "TODO"
 columnMap:
   Proposed: ["In Box"]           # Drafts author is working on.  Has a chance of moving soon
   Accepted: [
-    "Up Next",                   # Ready for review
-    "Next"]                      # Previous name of column       
+    "Up Next"]                   # Ready for review
+    #"Next"]                      # Previous name of column       
   In-Progress: ["In Progress"]   # Work is underway
   Done: ["Complete"]             # Celebrate
   Blocked: []                    # Blocked, e.g. waiting on external etc.

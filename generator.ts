@@ -298,6 +298,7 @@ async function loadProjectsData(token: string, config: GeneratorConfiguration, s
         if (seenUnmappedColumns.length > 0) {
             console.log();
             console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
+            seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`);
             console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
             console.log();
         }
