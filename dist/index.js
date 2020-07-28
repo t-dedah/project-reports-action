@@ -6343,6 +6343,9 @@ function loadProjectsData(token, config, snapshot) {
                 let colNames = config.columnMap[key];
                 for (const colName of colNames) {
                     let colId = projMap[projectUrl].columns[colName];
+                    if (!colId) {
+                        continue;
+                    }
                     let cards = yield github.getCardsForColumns(colId, colName);
                     for (const card of cards) {
                         // cached since real column could be mapped to two different mapped columns
