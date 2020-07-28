@@ -135,7 +135,12 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
                 statusEmoji = ":yellow_heart:"; break;
         }
 
-        progressRow.assigned = card.assignee ? `<img height="20" width="20" alt="@${card.assignee.login}" src="${card.assignee.avatar_url}"/> <a href="${card.assignee.html_url}">${card.assignee.login}</a>` : "  ";
+        let assigned= card.assignee;
+        if (!assigned && card.assignees && card.assignees.length > 0) {
+            assigned = card.assignees[0];
+        }
+
+        progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
         progressRow.title = `[${card.title}](${card.html_url})`;
         progressRow.status = statusEmoji;
         progressRow.wips = card.wips;

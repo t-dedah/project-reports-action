@@ -6338,13 +6338,19 @@ function loadProjectsData(token, config, snapshot) {
                 projMap[projectUrl].columns[col.name] = col.id;
             });
             let mappedColumns = [];
+            for (const key in config.columnMap) {
+                let colNames = config.columnMap[key];
+                if (!colNames || !Array.isArray) {
+                    throw new Error(`Invalid config. column map for ${key} is not an array`);
+                }
+                mappedColumns = mappedColumns.concat(colNames);
+            }
             let seenUnmappedColumns = [];
             project.stages = {};
             for (const key in config.columnMap) {
                 project.stages[key] = [];
                 console.log(`Processing stage ${key}`);
                 let colNames = config.columnMap[key];
-                mappedColumns = mappedColumns.concat(colNames);
                 for (const colName of colNames) {
                     let colId = projMap[projectUrl].columns[colName];
                     // it's possible the column name is a previous column name
