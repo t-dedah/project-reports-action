@@ -16239,15 +16239,8 @@ class GitHubClient {
             issueCard.closed_at = DateOrNull(issue.closed_at);
             issueCard.created_at = DateOrNull(issue.created_at);
             issueCard.updated_at = DateOrNull(issue.updated_at);
-            if (issue.assignee) {
-                issueCard.assignee = {
-                    login: issue.assignee.login,
-                    id: issue.assignee.id,
-                    avatar_url: issue.assignee.avatar_url,
-                    url: issue.assignee.url,
-                    html_url: issue.assignee.html_url
-                };
-            }
+            issueCard.assignee = issue.assignee;
+            issueCard.assignees = issue.assignees;
             issueCard.labels = issue.labels;
             issueCard.comments = [];
             if (issue.comments > 0) {
