@@ -251,6 +251,11 @@ async function loadProjectsData(token: string, config: GeneratorConfiguration, s
             for (const colName of colNames) {
                 let colId = projMap[projectUrl].columns[colName];
 
+                // it's possible the column name is a previous column name
+                if (!colId) {
+                    continue;
+                }
+
                 let cards = await github.getCardsForColumns(colId, colName);
 
                 for (const card of cards) {
