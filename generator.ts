@@ -245,6 +245,15 @@ async function loadProjectsData(token: string, config: GeneratorConfiguration, s
 
         
         let mappedColumns = [];
+        for (const key in config.columnMap) {
+            let colNames = config.columnMap[key];
+            if (!colNames || !Array.isArray) {
+                throw new Error(`Invalid config. column map for ${key} is not an array`);
+            }
+
+            mappedColumns = mappedColumns.concat(colNames);
+        }
+
         let seenUnmappedColumns: string[] = [];
         project.stages = {}
         for (const key in config.columnMap) {
@@ -252,7 +261,6 @@ async function loadProjectsData(token: string, config: GeneratorConfiguration, s
 
             console.log(`Processing stage ${key}`);
             let colNames = config.columnMap[key];
-            mappedColumns = mappedColumns.concat(colNames);
 
             for (const colName of colNames) {
                 let colId = projMap[projectUrl].columns[colName];
