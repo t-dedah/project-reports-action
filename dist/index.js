@@ -6337,26 +6337,54 @@ function loadProjectsData(token, config, snapshot) {
             cols.forEach((col) => {
                 projMap[projectUrl].columns[col.name] = col.id;
             });
+            let mappedColumns = [];
+            let seenUnmappedColumns = [];
             project.stages = {};
             for (const key in config.columnMap) {
                 project.stages[key] = [];
+                console.log(`Processing stage ${key}`);
                 let colNames = config.columnMap[key];
+                mappedColumns = mappedColumns.concat(colNames);
                 for (const colName of colNames) {
                     let colId = projMap[projectUrl].columns[colName];
+                    // it's possible the column name is a previous column name
                     if (!colId) {
                         continue;
                     }
                     let cards = yield github.getCardsForColumns(colId, colName);
                     for (const card of cards) {
+                        // called as each event is processed 
+                        // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
+                        // this will help diagnose a potential config issue much faster
+                        let eventCallback = (event) => {
+                            let mentioned;
+                            if (event.project_card && event.project_card.column_name) {
+                                mentioned = event.project_card.column_name;
+                            }
+                            if (event.project_card && event.project_card.column_name) {
+                                mentioned = event.project_card.previous_column_name;
+                            }
+                            if (mentioned && mappedColumns.indexOf(mentioned) === -1 && seenUnmappedColumns.indexOf(mentioned) === -1) {
+                                seenUnmappedColumns.push(mentioned);
+                            }
+                        };
                         // cached since real column could be mapped to two different mapped columns
                         // read and build the event list once
                         let issueCard = yield github.getIssueForCard(card, project.id);
                         if (issueCard) {
-                            util.processCard(issueCard, project.id, config);
+                            util.processCard(issueCard, project.id, config, eventCallback);
                             project.stages[key].push(issueCard);
                         }
                     }
                 }
+            }
+            console.log("Done processing.");
+            console.log();
+            if (seenUnmappedColumns.length > 0) {
+                console.log();
+                console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
+                console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
+                console.log();
             }
         }
         return projMap;
@@ -13709,7 +13737,7 @@ let stageAtNames = [
 // process a card in context of the project it's being added to
 // filter column events to the project being processed only since. this makes it easier on the report author
 // add stage name to column move events so report authors don't have to repeatedly to that
-function processCard(card, projectId, config) {
+function processCard(card, projectId, config, eventCallback) {
     let filteredEvents = [];
     // card events should be in order chronologically
     let currentStage;
@@ -13723,6 +13751,7 @@ function processCard(card, projectId, config) {
             if (event.project_card && event.project_card.project_id !== projectId) {
                 continue;
             }
+            eventCallback(event);
             let eventDateTime;
             if (event.created_at) {
                 eventDateTime = event.created_at;
