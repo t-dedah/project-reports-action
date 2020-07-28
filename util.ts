@@ -1,4 +1,4 @@
-import {GeneratorConfiguration, IssueCard, ProjectData} from './interfaces'
+import {GeneratorConfiguration, IssueCard, IssueCardEvent} from './interfaces'
 
 export function getTimeForOffset(date: Date, offset: number) {
     var utc = date.getTime() + (date.getTimezoneOffset() * 60000);
@@ -68,7 +68,7 @@ let stageAtNames = [
 // process a card in context of the project it's being added to
 // filter column events to the project being processed only since. this makes it easier on the report author
 // add stage name to column move events so report authors don't have to repeatedly to that
-export function processCard(card: IssueCard, projectId: number, config: GeneratorConfiguration) {
+export function processCard(card: IssueCard, projectId: number, config: GeneratorConfiguration, eventCallback: (event: IssueCardEvent) => void) {
     let filteredEvents = [];
 
     // card events should be in order chronologically
@@ -85,6 +85,8 @@ export function processCard(card: IssueCard, projectId: number, config: Generato
             if (event.project_card && event.project_card.project_id !== projectId) {
                 continue;
             }
+
+            eventCallback(event);
             
             let eventDateTime: Date;
             if (event.created_at) {

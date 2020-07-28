@@ -1,6 +1,6 @@
 import * as util from '../util'
 
-import {IssueCard, GeneratorConfiguration} from '../interfaces';
+import {IssueCard, IssueCardEvent, GeneratorConfiguration} from '../interfaces';
 
 let doneCard = require('./util.test.done.json') as IssueCard;
 
@@ -70,7 +70,7 @@ describe('util', () => {
         "Blocked": []
       };    
 
-    util.processCard(doneCard, 4969651, config);
+    util.processCard(doneCard, 4969651, config, (event: IssueCardEvent):void => {});
     expect(doneCard).toBeDefined();
     expect(doneCard.events[0].project_card.stage_name).toBe("Proposed");
     expect(doneCard.project_stage).toBe("Done");
