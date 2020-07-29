@@ -69,12 +69,12 @@ export class GitHubClient {
             }
             else {
                 // if it's not an org or user project, must be a repo
-                projOwner = projParts[0]; 
+                let owner = projParts[0]; 
                 let repo = projParts[1];
-                console.log(`querying for owner:'${projOwner}', repo:'${repo}'`);
+                console.log(`querying for owner:'${owner}', repo:'${repo}'`);
                 res = await this.octokit.projects.listForRepo({
-                    projOwner,
-                    repo,
+                    owner: owner,
+                    repo: repo,
                     state: "open",
                     per_page: 100,
                     page: page  
