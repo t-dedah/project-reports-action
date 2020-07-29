@@ -50,7 +50,7 @@ export class GitHubClient {
             let res;
     
             if (projKind === 'orgs') {
-                console.log(`project: ${projKind}, ${projOwner}`);
+                console.log(`querying: ${projKind}, ${projOwner}`);
                 res = await this.octokit.projects.listForOrg({
                     org: projOwner,
                     state: "open",
@@ -59,7 +59,7 @@ export class GitHubClient {
                 })
             }
             else if (projKind === 'users') {
-                console.log(`project: ${projKind}, ${projOwner}`);
+                console.log(`querying: ${projKind}, ${projOwner}`);
                 res = await this.octokit.projects.listForUser({
                     username: projOwner,
                     state: "open",
@@ -68,13 +68,16 @@ export class GitHubClient {
                 })            
             }
             else {
-                  // orgs or users
+                // if it's not an org or user project, must be a repo
                 projOwner = projParts[0]; 
                 let repo = projParts[1];
-                console.log(`project: ${projOwner}, ${repo}`);
+                console.log(`querying for owner:'${projOwner}', repo:'${repo}'`);
                 res = await this.octokit.projects.listForRepo({
                     projOwner,
                     repo,
+                    state: "open",
+                    per_page: 100,
+                    page: page  
                   });
             }
     
