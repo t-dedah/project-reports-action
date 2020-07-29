@@ -3,6 +3,8 @@ import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
 
+let clone = require('clone');
+
 /*
  * Gives visibility into whether the team has untriaged debt, an approval bottleneck and 
  * how focused the team is (e.g. how many efforts are going on)
@@ -50,7 +52,9 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
     let wipData = <WipData>{};
 
     // epic, etc..
-    for (let cardType of config["report-on"]) { 
+    for (let cardType of config["report-on"]) {
+        let reportsOn = config["report-on"];        
+
         let wipStage = <WipStage>{};
 
         // proposed, in-progress, etc...
@@ -58,7 +62,7 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
             let stageData = <WipStageData>{};
 
             let cards = projData.stages[stage];
-            let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
+            let cardsForType = cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, cardType.toLowerCase()) as IssueCardEx[]);
 
             drillIn(`wip-${cardType}-${stage}`, `Issues for ${stage} ${cardType}s`, cardsForType);
 
@@ -95,7 +99,8 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
 
     // create a report for each type.  e.g. "Epic"
     for (let cardType in wipData) {
-        lines.push(`## :ship: ${cardType} WIP limits  `);
+        let typeLabel = cardType === '*'? "": cardType;
+        lines.push(`## :ship: ${typeLabel} WIP limits  `);
 
         let rows: WipRow[] = [];
         for (let stageName in wipData[cardType]) {

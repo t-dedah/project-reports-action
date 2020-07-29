@@ -987,7 +987,8 @@ let statusLevels = {
     "": 0,
     "red": 1,
     "yellow": 2,
-    "green": 3
+    "blocked": 3,
+    "green": 4
 };
 // sort by status
 function sortCards(card1, card2) {
@@ -1022,7 +1023,8 @@ function process(config, projData, drillIn) {
         // It would have to be a non existant column which is a config problem so fail.
         throw new Error("In-Progress column does not exist");
     }
-    let cardsForType = clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
+    console.log(`Getting cards for ${progressData.cardType}`);
+    let cardsForType = progressData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
     // add status to each card from the status label
     cardsForType.map((card) => {
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
@@ -1044,7 +1046,8 @@ exports.process = process;
 function renderMarkdown(projData, processedData) {
     let progressData = processedData;
     let lines = [];
-    lines.push(`## :hourglass_flowing_sand: In Progress ${progressData.cardType}s  `);
+    let typeLabel = processedData.cardType === '*' ? "" : `${progressData.cardType}s`;
+    lines.push(`## :hourglass_flowing_sand: In Progress ${typeLabel}  `);
     lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `);
     lines.push("  ");
     let rows = [];

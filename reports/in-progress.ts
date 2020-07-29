@@ -42,7 +42,8 @@ let statusLevels = {
     "": 0,  // no status
     "red": 1,
     "yellow": 2,
-    "green": 3
+    "blocked": 3,
+    "green": 4
 }
 
 // sort by status
@@ -69,6 +70,7 @@ export function sortCards(card1: IssueCardEx, card2: IssueCardEx) {
 export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
 
     let progressData = <ProgressData>{};
+
     progressData.cardType = config["report-on"];
 
     let cards = projData.stages["In-Progress"];
@@ -78,7 +80,8 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
         throw new Error("In-Progress column does not exist");
     }
 
-    let cardsForType = clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()) as IssueCardEx[]);
+    console.log(`Getting cards for ${progressData.cardType}`);
+    let cardsForType = progressData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()) as IssueCardEx[]);
 
     // add status to each card from the status label
     cardsForType.map((card: IssueCardEx) => {
@@ -115,8 +118,9 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
     let progressData = processedData as ProgressData;
     
     let lines: string[] = [];
+    let typeLabel = processedData.cardType === '*' ? "" : `${progressData.cardType}s`;
 
-    lines.push(`## :hourglass_flowing_sand: In Progress ${progressData.cardType}s  `);
+    lines.push(`## :hourglass_flowing_sand: In Progress ${typeLabel}  `);
     lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `);
     lines.push("  ");
 
