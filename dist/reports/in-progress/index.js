@@ -467,7 +467,7 @@ __exportStar(__webpack_require__(714), exports);
 // filter cards by label
 //
 function filterByLabel(cards, name) {
-    return cards.filter((card) => card.labels.findIndex(label => label.name === name) >= 0);
+    return cards.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
 }
 exports.filterByLabel = filterByLabel;
 //
@@ -1015,6 +1015,7 @@ function sortCards(card1, card2) {
 }
 exports.sortCards = sortCards;
 function process(config, projData, drillIn) {
+    console.log("> in-progress::process");
     let progressData = {};
     progressData.cardType = config["report-on"];
     let cards = projData.stages["In-Progress"];
@@ -1027,10 +1028,14 @@ function process(config, projData, drillIn) {
     let cardsForType = progressData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
     // add status to each card from the status label
     cardsForType.map((card) => {
+        console.log(`issue: ${card.html_url}`);
+        let labels = card.labels.map(label => label.name);
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
+        console.log(`wips: '${card.wips}' - '${config["wip-label-match"]}':${JSON.stringify(labels)}`);
         card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
         card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
+        console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
         card.status = statusLevels[status] ? status : "";
         card.hoursInProgress = -1;
         if (card.project_in_progress_at) {
@@ -1044,6 +1049,7 @@ function process(config, projData, drillIn) {
 }
 exports.process = process;
 function renderMarkdown(projData, processedData) {
+    console.log("> in-progress::renderMarkdown");
     let progressData = processedData;
     let lines = [];
     let typeLabel = processedData.cardType === '*' ? "" : `${progressData.cardType}s`;

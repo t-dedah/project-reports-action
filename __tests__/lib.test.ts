@@ -12,7 +12,7 @@ let testCards:IssueCard[] = [
     <IssueCard>{
         number: 2,
         title: 'twothree',
-        labels: [{ name: 'two'}, { name: 'three'}]
+        labels: [{ name: 'Two'}, { name: 'three'}]
     },
     <IssueCard>{
         number: 3,
@@ -22,7 +22,7 @@ let testCards:IssueCard[] = [
     <IssueCard>{
         number: 4,
         title: 'more',
-        labels: [{ name: 'five'}, { name: 'foo: bar '}]
+        labels: [{ name: 'five'}, { name: '13-DEV'}, { name: 'Foo: bar '}]
     } 
 ]
 
@@ -58,6 +58,13 @@ describe('report-lib', () => {
     expect(count).toBe(11);
   });
 
+  it('can get count from an upper label', async () => {
+    let re = new RegExp("(\\d+)-DEV");
+    let count = rptLib.getCountFromLabel(testCards[3], re);
+
+    expect(count).toBe(13);
+  });  
+
   it('gets NaN count from card without that label', async () => {
     let re = new RegExp("(\\d+)-dev");
     let count = rptLib.getCountFromLabel(testCards[1], re);
@@ -83,8 +90,8 @@ describe('report-lib', () => {
     expect(val).toBe('baz');
   });
 
-  it('gets string value from label with spaces', async () => {
-    let re = new RegExp("(?<=foo:).*");
+  it('gets string value from label with casing and spaces', async () => {
+    let re = new RegExp("(?<=Foo:).*");
     let val = rptLib.getStringFromLabel(testCards[3], re);
     expect(val).toBe('bar');
   });

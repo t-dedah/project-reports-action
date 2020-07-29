@@ -68,7 +68,7 @@ export function sortCards(card1: IssueCardEx, card2: IssueCardEx) {
 } 
 
 export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
-
+    console.log("> in-progress::process");
     let progressData = <ProgressData>{};
 
     progressData.cardType = config["report-on"];
@@ -85,10 +85,14 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
 
     // add status to each card from the status label
     cardsForType.map((card: IssueCardEx) => {
+        console.log(`issue: ${card.html_url}`);
+        let labels = card.labels.map(label => label.name);
         card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
+        console.log(`wips: '${card.wips}' - '${config["wip-label-match"]}':${JSON.stringify(labels)}`);
         card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
         card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
+        console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
         card.status = statusLevels[status] ? status : "";
         card.hoursInProgress = -1; 
         if (card.project_in_progress_at) {
@@ -115,6 +119,7 @@ interface ProgressRow {
 }
 
 export function renderMarkdown(projData: ProjectData, processedData: any): string {
+    console.log("> in-progress::renderMarkdown");
     let progressData = processedData as ProgressData;
     
     let lines: string[] = [];

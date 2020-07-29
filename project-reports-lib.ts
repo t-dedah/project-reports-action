@@ -8,7 +8,7 @@ export * from './project-reports-schemes';
 // filter cards by label
 //
 export function filterByLabel(cards: IssueCard[], name: string): IssueCard[] {
-    return cards.filter((card) => card.labels.findIndex(label => label.name === name) >= 0);
+    return cards.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
 }
 
 //
