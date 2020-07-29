@@ -70,7 +70,7 @@ export class GitHubClient {
             else {
                   // orgs or users
                 projOwner = projParts[0]; 
-                let repo = projParts[0];
+                let repo = projParts[1];
                 console.log(`project: ${projOwner}, ${repo}`);
                 res = await this.octokit.projects.listForRepo({
                     projOwner,
