@@ -676,7 +676,6 @@ function process(config, projData, drillIn) {
     let wipData = {};
     // epic, etc..
     for (let cardType of config["report-on"]) {
-        let reportsOn = config["report-on"];
         let wipStage = {};
         // proposed, in-progress, etc...
         for (let stage in projData.stages) {
@@ -690,7 +689,8 @@ function process(config, projData, drillIn) {
                 return card;
             });
             stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
-            let limitKey = `${cardType.toLocaleLowerCase()}-${stage.toLocaleLowerCase()}`;
+            let scope = cardType === '*' ? "" : `${cardType.toLocaleLowerCase()}-`;
+            let limitKey = `${scope}${stage.toLocaleLowerCase()}`;
             stageData.limit = config[limitKey] || 0;
             stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
             wipStage[stage] = stageData;
