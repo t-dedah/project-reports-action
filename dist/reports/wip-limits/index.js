@@ -467,7 +467,7 @@ __exportStar(__webpack_require__(714), exports);
 // filter cards by label
 //
 function filterByLabel(cards, name) {
-    return cards.filter((card) => card.labels.findIndex(label => label.name === name) >= 0);
+    return cards.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
 }
 exports.filterByLabel = filterByLabel;
 //
