@@ -16151,6 +16151,7 @@ class GitHubClient {
                 console.log(`page: ${page}`);
                 let res;
                 if (projKind === 'orgs') {
+                    console.log(`project: ${projKind}, ${projOwner}`);
                     res = yield this.octokit.projects.listForOrg({
                         org: projOwner,
                         state: "open",
@@ -16159,7 +16160,7 @@ class GitHubClient {
                     });
                 }
                 else if (projKind === 'users') {
-                    console.log(`listForUser ${projOwner}`);
+                    console.log(`project: ${projKind}, ${projOwner}`);
                     res = yield this.octokit.projects.listForUser({
                         username: projOwner,
                         state: "open",
@@ -16168,7 +16169,14 @@ class GitHubClient {
                     });
                 }
                 else {
-                    throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+                    // orgs or users
+                    projOwner = projParts[0];
+                    let repo = projParts[0];
+                    console.log(`project: ${projOwner}, ${repo}`);
+                    res = yield this.octokit.projects.listForRepo({
+                        projOwner,
+                        repo,
+                    });
                 }
                 let projects = res.data;
                 count = projects.length;
