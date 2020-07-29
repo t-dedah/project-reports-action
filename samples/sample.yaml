@@ -21,12 +21,16 @@ reports:
     sections:
       - name: "wip-limits"
         config: 
-          report-on: ['Epic']
+          report-on: ["*", "Epic"]
           epic-accepted: 2
           epic-in-progress: 2
           wip-label-match: "(\\d+)-dev"
       - name: "in-progress"
         config:
-          report-on: "Epic"
-          wip-label-match: "(\\d+)-dev"   
+          report-on: '*'
+          wip-label-match: "(\\d+)-dev"
+      - name: "in-progress"
+        config:
+          report-on: 'Epic'
+          wip-label-match: "(\\d+)-dev"             
       - name: "echo-board"       
