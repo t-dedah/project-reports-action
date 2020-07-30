@@ -27,7 +27,8 @@ export function getDefaultConfiguration(): any {
 // Builds a reporting structure of type with stages:
 //
 // <WipData>{
-//     "epic": <WipStage>{
+//      cardType: 'Epic'    
+//      data: <WipStage>{
 //         "Proposed" : <WipStageData>{
 //             flag: true,
 //             items: <IssueCardEx[]>[]
@@ -52,6 +53,9 @@ export interface IssueCardEx extends IssueCard {
     wips: number;
 }
 
+function getDrillName(cardType: string, stage: string): string {
+    return `limits-${cardType}-${stage}`.replace(" ", "-");
+}
 export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
     let wipData = <WipData>{};
     wipData.data = {};
@@ -66,7 +70,7 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
         let cards = projData.stages[stage];
         let cardsForType = wipData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()) as IssueCardEx[]);
 
-        drillIn(`limits-${wipData.cardType}-${stage}`, `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
+        drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
 
         // add wip number to each card from the wip label
         cardsForType.map((card: IssueCardEx) => {
@@ -108,7 +112,7 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
         let wipRow = <WipRow>{};
         wipRow.stage = stageName;
         // data folder is part of the contract here.  make a lib function to create this path
-        wipRow.count = `[${wipStage.wips}](./limits-${wipData.cardType}-${stageName}.md)`;
+        wipRow.count = `[${wipStage.wips}](./${getDrillName(wipData.cardType, stageName)}.md)`;
         if (wipStage.flag) {
             wipRow.count += "  :triangular_flag_on_post:";
         }

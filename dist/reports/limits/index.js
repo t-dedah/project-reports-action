@@ -492,6 +492,9 @@ function getDefaultConfiguration() {
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
+function getDrillName(cardType, stage) {
+    return `limits-${cardType}-${stage}`.replace(" ", "-");
+}
 function process(config, projData, drillIn) {
     let wipData = {};
     wipData.data = {};
@@ -502,7 +505,7 @@ function process(config, projData, drillIn) {
         let stageData = {};
         let cards = projData.stages[stage];
         let cardsForType = wipData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()));
-        drillIn(`limits-${wipData.cardType}-${stage}`, `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
+        drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
         // add wip number to each card from the wip label
         cardsForType.map((card) => {
             card.wips = rptLib.getCountFromLabel(card, new RegExp(config["count-label-match"]));
@@ -530,7 +533,7 @@ function renderMarkdown(projData, processedData) {
         let wipRow = {};
         wipRow.stage = stageName;
         // data folder is part of the contract here.  make a lib function to create this path
-        wipRow.count = `[${wipStage.wips}](./limits-${wipData.cardType}-${stageName}.md)`;
+        wipRow.count = `[${wipStage.wips}](./${getDrillName(wipData.cardType, stageName)}.md)`;
         if (wipStage.flag) {
             wipRow.count += "  :triangular_flag_on_post:";
         }
