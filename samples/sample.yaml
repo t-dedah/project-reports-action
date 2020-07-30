@@ -19,6 +19,18 @@ reports:
     kind: markdown 
     timezoneOffset: -8
     sections:
+      - name: "limits"
+        config: 
+          report-on-label: '*'
+          accepted-limit: 2
+          in-progress-limit: 2
+          count-label-match: "(\\d+)-dev"
+      - name: "limits"
+        config: 
+          report-on-label: 'Epic'
+          accepted-limit: 2
+          in-progress-limit: 2
+          count-label-match: "(\\d+)-dev"
       - name: "wip-limits"
         config: 
           report-on: ["*", "Epic"]
