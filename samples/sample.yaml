@@ -6,7 +6,6 @@ columnMap:
     "Next"]                      # Previous name of column       
   In-Progress: ["In Progress"]   # Work is underway
   Done: ["Complete"]             # Celebrate
-  Blocked: []                    # Blocked, e.g. waiting on external etc.
 
 projects: 
   - https://github.com/users/bryanmacfarlane/projects/1
