@@ -58,10 +58,6 @@ export interface ProjectData {
     stages: { [key: string]: IssueCard[] }
 }
 
-// export interface ProjectsData {
-//     projects: { [key: string]: ProjectData }
-// }
-
 export interface IssueCardLabel {
     name: string
 }

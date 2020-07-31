@@ -6,14 +6,13 @@ import {GitHubClient} from './github'
 import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
-import * as cp from 'child_process';
 import {ProjectCrawler} from './projectCrawler';
 import {CrawlingConfig, CrawlingTarget} from './interfaces';
 
 let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
-import { GeneratorConfiguration, IssueCard, IssueCardEvent, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
+import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -25,6 +24,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
     let configPath = path.join(workspacePath, configYaml);
     let cachePath = path.join(workspacePath, "_reports", ".data");
+    util.mkdirP(cachePath);
 
     let config = <GeneratorConfiguration>yaml.load(fs.readFileSync(configPath, 'utf-8'))
 
@@ -211,9 +211,7 @@ async function writeDrillIn(report: ReportConfig, identifier: string, cards: Iss
 async function writeSnapshot(snapshot: ReportSnapshot) {
     console.log("Writing snapshot data ...");
     const genPath = path.join(snapshot.rootPath, ".data");
-    if (!fs.existsSync(genPath)) {
-        fs.mkdirSync(genPath, { recursive: true });
-    }
+    util.mkdirP(genPath);
 
     const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
     console.log(`Writing to ${snapshotPath}`);
@@ -227,17 +225,13 @@ async function createReportPath(report: ReportConfig) {
         fs.mkdirSync(report.details.fullPath, { recursive: true });
     }
 
-    if (!fs.existsSync(report.details.dataPath)) {
-        fs.mkdirSync(report.details.dataPath, { recursive: true });
-    }    
+    util.mkdirP(report.details.dataPath);
 }
 
 async function writeSectionData(report: ReportConfig, name: string, settings: any, processed: any) {
     console.log(`Writing section data for ${name}...`);
     const sectionPath = path.join(report.details.fullPath, "data", sanitize(name));
-    if (!fs.existsSync(sectionPath)) {
-        fs.mkdirSync(sectionPath, { recursive: true });
-    }
+    util.mkdirP(sectionPath);
 
     fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
     fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));

@@ -6365,6 +6365,7 @@ function generate(token, configYaml) {
         }
         let configPath = path.join(workspacePath, configYaml);
         let cachePath = path.join(workspacePath, "_reports", ".data");
+        util.mkdirP(cachePath);
         let config = yaml.load(fs.readFileSync(configPath, 'utf-8'));
         let snapshot = {};
         snapshot.datetime = new Date();
@@ -6521,9 +6522,7 @@ function writeSnapshot(snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Writing snapshot data ...");
         const genPath = path.join(snapshot.rootPath, ".data");
-        if (!fs.existsSync(genPath)) {
-            fs.mkdirSync(genPath, { recursive: true });
-        }
+        util.mkdirP(genPath);
         const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
         console.log(`Writing to ${snapshotPath}`);
         fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
@@ -6535,18 +6534,14 @@ function createReportPath(report) {
         if (!fs.existsSync(report.details.fullPath)) {
             fs.mkdirSync(report.details.fullPath, { recursive: true });
         }
-        if (!fs.existsSync(report.details.dataPath)) {
-            fs.mkdirSync(report.details.dataPath, { recursive: true });
-        }
+        util.mkdirP(report.details.dataPath);
     });
 }
 function writeSectionData(report, name, settings, processed) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(`Writing section data for ${name}...`);
         const sectionPath = path.join(report.details.fullPath, "data", sanitize(name));
-        if (!fs.existsSync(sectionPath)) {
-            fs.mkdirSync(sectionPath, { recursive: true });
-        }
+        util.mkdirP(sectionPath);
         fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
         fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
     });
@@ -13839,18 +13834,44 @@ module.exports = (promise, onFinally) => {
 /***/ }),
 
 /***/ 702:
-/***/ (function(__unusedmodule, exports) {
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTimeForOffset = void 0;
+exports.mkdirP = exports.getTimeForOffset = void 0;
+const fs = __importStar(__webpack_require__(747));
 function getTimeForOffset(date, offset) {
     var utc = date.getTime() + (date.getTimezoneOffset() * 60000);
     var nd = new Date(utc + (3600000 * offset));
     return nd.toLocaleString();
 }
 exports.getTimeForOffset = getTimeForOffset;
+function mkdirP(tgtPath) {
+    if (!fs.existsSync(tgtPath)) {
+        fs.mkdirSync(tgtPath, { recursive: true });
+    }
+}
+exports.mkdirP = mkdirP;
 //# sourceMappingURL=util.js.map
 
 /***/ }),
