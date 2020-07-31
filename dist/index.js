@@ -1898,6 +1898,220 @@ module.exports = opts => {
 
 /***/ }),
 
+/***/ 171:
+/***/ (function(__unusedmodule, exports) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ProjectCrawler = void 0;
+let stageLevel = {
+    "None": 0,
+    "Proposed": 1,
+    "Accepted": 2,
+    "In-Progress": 3,
+    "Blocked": 4,
+    "Done": 5
+};
+class ProjectCrawler {
+    constructor(client) {
+        // cache the resolution of stage names for a column
+        // a columns by stage names are the default and resolve immediately
+        this.columnMap = {
+            "proposed": "Proposed",
+            "accepted": "Accepted",
+            "in-progress": "In-Progress",
+            "done": "Done",
+            "blocked": "Blocked"
+        };
+        // keep in order indexed by level above
+        this.stageAtNames = [
+            'none',
+            'project_proposed_at',
+            'project_accepted_at',
+            'project_in_progress_at',
+            'project_blocked_at',
+            'project_done_at'
+        ];
+        this.github = client;
+    }
+    crawl(target, projectData) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Crawling project ${target.htmlUrl} ...`);
+            let columns = {};
+            let proj = yield this.github.getProject(target.htmlUrl);
+            let cols = yield this.github.getColumnsForProject(proj);
+            cols.forEach((col) => {
+                columns[col.name] = col.id;
+            });
+            let mappedColumns = [];
+            for (const key in target.columnMap) {
+                let colNames = target.columnMap[key];
+                if (!colNames || !Array.isArray) {
+                    throw new Error(`Invalid config. column map for ${key} is not an array`);
+                }
+                mappedColumns = mappedColumns.concat(colNames);
+            }
+            let seenUnmappedColumns = [];
+            projectData.stages = {};
+            for (const key in target.columnMap) {
+                projectData.stages[key] = [];
+                console.log(`Processing stage ${key}`);
+                let colNames = target.columnMap[key];
+                for (const colName of colNames) {
+                    let colId = columns[colName];
+                    // it's possible the column name is a previous column name
+                    if (!colId) {
+                        continue;
+                    }
+                    let cards = yield this.github.getCardsForColumns(colId, colName);
+                    for (const card of cards) {
+                        // called as each event is processed 
+                        // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
+                        // this will help diagnose a potential config issue much faster
+                        let eventCallback = (event) => {
+                            let mentioned;
+                            if (event.project_card && event.project_card.column_name) {
+                                mentioned = event.project_card.column_name;
+                            }
+                            if (event.project_card && event.project_card.column_name) {
+                                mentioned = event.project_card.previous_column_name;
+                            }
+                            if (mentioned && mappedColumns.indexOf(mentioned) === -1 && seenUnmappedColumns.indexOf(mentioned) === -1) {
+                                seenUnmappedColumns.push(mentioned);
+                            }
+                        };
+                        // cached since real column could be mapped to two different mapped columns
+                        // read and build the event list once
+                        let issueCard = yield this.github.getIssueForCard(card, projectData.id);
+                        if (issueCard) {
+                            this.processCard(issueCard, projectData.id, target, eventCallback);
+                            projectData.stages[key].push(issueCard);
+                        }
+                    }
+                }
+            }
+            console.log("Done processing.");
+            console.log();
+            if (seenUnmappedColumns.length > 0) {
+                console.log();
+                console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
+                seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`);
+                console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
+                console.log();
+            }
+        });
+    }
+    // process a card in context of the project it's being added to
+    // filter column events to the project being processed only since. this makes it easier on the report author
+    // add stage name to column move events so report authors don't have to repeatedly to that
+    processCard(card, projectId, target, eventCallback) {
+        let filteredEvents = [];
+        // card events should be in order chronologically
+        let currentStage;
+        let doneTime;
+        let blockedTime;
+        let addedTime;
+        if (card.events) {
+            for (let event of card.events) {
+                // since we're adding this card to a projects / stage, let's filter out
+                // events for other project ids since an issue can be part of multiple boards
+                if (event.project_card && event.project_card.project_id !== projectId) {
+                    continue;
+                }
+                eventCallback(event);
+                let eventDateTime;
+                if (event.created_at) {
+                    eventDateTime = event.created_at;
+                }
+                // TODO: should I clear all the stage_at datetimes if I see
+                //       removed_from_project event?
+                let toStage;
+                let toLevel;
+                let fromStage;
+                let fromLevel = 0;
+                if (event.project_card && event.project_card.column_name) {
+                    if (!addedTime) {
+                        addedTime = eventDateTime;
+                    }
+                    toStage = event.project_card.stage_name = this.getStageFromColumn(event.project_card.column_name, target);
+                    toLevel = stageLevel[toStage];
+                    currentStage = toStage;
+                }
+                if (event.project_card && event.project_card.previous_column_name) {
+                    fromStage = event.project_card.previous_stage_name = this.getStageFromColumn(event.project_card.previous_column_name, target);
+                    fromLevel = stageLevel[fromStage];
+                }
+                // last occurence of moving to these columns from a lesser or no column
+                // example. if moved to accepted from proposed (or less), 
+                //      then in-progress (greater) and then back to accepted, first wins            
+                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
+                    if (toLevel > fromLevel) {
+                        card[this.stageAtNames[toLevel]] = eventDateTime;
+                    }
+                }
+                if (toStage === 'Done') {
+                    doneTime = eventDateTime;
+                }
+                if (toStage === 'Blocked') {
+                    blockedTime = eventDateTime;
+                }
+                filteredEvents.push(event);
+            }
+            card.events = filteredEvents;
+            // done_at and blocked_at is only set if it's currently at that stage
+            if (currentStage === 'Done') {
+                card.project_done_at = doneTime;
+            }
+            if (currentStage === 'Blocked') {
+                card.project_blocked_at = blockedTime;
+            }
+            if (addedTime) {
+                card.project_added_at = addedTime;
+            }
+            card.project_stage = currentStage;
+        }
+    }
+    getStageFromColumn(column, target) {
+        column = column.toLowerCase();
+        if (this.columnMap[column]) {
+            return this.columnMap[column];
+        }
+        let resolvedStage = null;
+        for (let stageName in target.columnMap) {
+            // case insensitve match
+            for (let mappedColumn of target.columnMap[stageName]) {
+                let lowerColumn = mappedColumn.toLowerCase();
+                if (lowerColumn === column.toLowerCase()) {
+                    resolvedStage = stageName;
+                    break;
+                }
+            }
+            if (resolvedStage) {
+                break;
+            }
+        }
+        // cache the n^2 reverse case insensitive lookup.  it will never change for this run
+        if (resolvedStage) {
+            this.columnMap[column] = resolvedStage;
+        }
+        return resolvedStage;
+    }
+}
+exports.ProjectCrawler = ProjectCrawler;
+//# sourceMappingURL=projectCrawler.js.map
+
+/***/ }),
+
 /***/ 174:
 /***/ (function(module) {
 
@@ -6139,12 +6353,18 @@ const github_1 = __webpack_require__(970);
 const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
 const drillInRpt = __importStar(__webpack_require__(67));
+const projectCrawler_1 = __webpack_require__(171);
 let sanitize = __webpack_require__(834);
 let clone = __webpack_require__(97);
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Generating reports");
-        let configPath = path.join(process.env["GITHUB_WORKSPACE"], configYaml);
+        const workspacePath = process.env["GITHUB_WORKSPACE"];
+        if (!workspacePath) {
+            throw new Error("GITHUB_WORKSPACE not defined");
+        }
+        let configPath = path.join(workspacePath, configYaml);
+        let cachePath = path.join(workspacePath, "_reports", ".data");
         let config = yaml.load(fs.readFileSync(configPath, 'utf-8'));
         let snapshot = {};
         snapshot.datetime = new Date();
@@ -6157,16 +6377,44 @@ function generate(token, configYaml) {
         let minute = d.getUTCMinutes().toString().padStart(2, "0");
         let dt = `${year}-${month}-${day}_${hour}-${minute}`;
         snapshot.datetimeString = dt;
-        const workspacePath = process.env["GITHUB_WORKSPACE"];
-        if (!workspacePath) {
-            throw new Error("GITHUB_WORKSPACE not defined");
-        }
         snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
         // apply defaults
         snapshot.config.output = snapshot.config.output || "_reports";
+        yield writeSnapshot(snapshot);
         // load up the projects, their columns and all the issue cards + events.
-        let projectsData = yield loadProjectsData(token, config, snapshot);
-        console.log("loaded.");
+        let github = new github_1.GitHubClient(token, cachePath);
+        let projectData = {};
+        let crawlCfg;
+        if (typeof (config.targets) === 'string') {
+            throw new Error('crawl config external files not supported yet');
+        }
+        else {
+            crawlCfg = config.targets;
+        }
+        console.log("crawl cfg");
+        console.log(JSON.stringify(crawlCfg, null, 2));
+        let crawled = 0;
+        for (let targetName in crawlCfg) {
+            console.log(`target: ${targetName}`);
+            let target = crawlCfg[targetName];
+            if (target.type === 'project') {
+                console.log(`crawling project ${target.htmlUrl}`);
+                let projectCrawler = new projectCrawler_1.ProjectCrawler(github);
+                yield projectCrawler.crawl(target, projectData);
+                ++crawled;
+            }
+            else if (target.type === 'repo') {
+                throw new Error('crawling repos not supported yet');
+                //++crawled;
+            }
+            else {
+                throw new Error(`Unsupported target config: ${target.type}`);
+            }
+        }
+        if (crawled == 0) {
+            throw new Error("No targets were crawled for data.  Please specify targets in the config file.");
+        }
+        console.log("data crawled.");
         // update report config details
         for (const report of config.reports) {
             report.timezoneOffset = report.timezoneOffset || -8;
@@ -6181,75 +6429,70 @@ function generate(token, configYaml) {
                 report: report
             });
         }
-        yield writeSnapshot(snapshot);
-        // hand that full data set to each report to render
-        for (const proj in projectsData) {
-            const projectData = projectsData[proj];
-            for (const report of config.reports) {
-                let output = "";
-                output += getReportHeading(report);
-                console.log();
-                console.log(`Generating ${report.name} for ${proj} ...`);
-                yield createReportPath(report);
-                for (const reportSection of report.sections) {
-                    output += `&nbsp;  ${os.EOL}`;
-                    let reportModule = `${reportSection.name}`;
-                    // if it's a relative path, find in the workflow repo relative path.
-                    // this allows for consume of action to create their own report sections
-                    // else look for built-ins
-                    console.log(`Report module ${reportModule}`);
-                    let reportModulePath;
-                    if (reportModule.startsWith("./")) {
-                        reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
-                    }
-                    else {
-                        reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
-                    }
-                    console.log(`Loading: ${reportModulePath}`);
-                    if (!fs.existsSync(reportModulePath)) {
-                        throw new Error(`Report not found: ${reportSection.name}`);
-                    }
-                    let reportGenerator = require(reportModulePath);
-                    // overlay user settings over default settings 
-                    let config = reportGenerator.getDefaultConfiguration();
-                    for (let setting in reportSection.config || {}) {
-                        config[setting] = reportSection.config[setting];
-                    }
-                    console.log("Processing data ...");
-                    let drillIns = [];
-                    let drillInCb = (identifier, title, cards) => {
-                        drillIns.push({
-                            identifier: identifier,
-                            title: title,
-                            cards: cards
-                        });
-                    };
-                    let processed = reportGenerator.process(config, clone(projectData), drillInCb);
-                    yield writeSectionData(report, reportModule, config, processed);
+        for (const report of config.reports) {
+            let output = "";
+            output += getReportHeading(report);
+            console.log();
+            console.log(`Generating ${report.name} ...`);
+            yield createReportPath(report);
+            for (const reportSection of report.sections) {
+                output += `&nbsp;  ${os.EOL}`;
+                let reportModule = `${reportSection.name}`;
+                // if it's a relative path, find in the workflow repo relative path.
+                // this allows for consume of action to create their own report sections
+                // else look for built-ins
+                console.log(`Report module ${reportModule}`);
+                let reportModulePath;
+                if (reportModule.startsWith("./")) {
+                    reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+                }
+                else {
+                    reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
+                }
+                console.log(`Loading: ${reportModulePath}`);
+                if (!fs.existsSync(reportModulePath)) {
+                    throw new Error(`Report not found: ${reportSection.name}`);
+                }
+                let reportGenerator = require(reportModulePath);
+                // overlay user settings over default settings 
+                let config = reportGenerator.getDefaultConfiguration();
+                for (let setting in reportSection.config || {}) {
+                    config[setting] = reportSection.config[setting];
+                }
+                console.log("Processing data ...");
+                let drillIns = [];
+                let drillInCb = (identifier, title, cards) => {
+                    drillIns.push({
+                        identifier: identifier,
+                        title: title,
+                        cards: cards
+                    });
+                };
+                let processed = reportGenerator.process(config, clone(projectData), drillInCb);
+                yield writeSectionData(report, reportModule, config, processed);
+                if (report.kind === 'markdown') {
+                    output += reportGenerator.renderMarkdown(projectData, processed);
+                    // output += `&nbsp;${os.EOL}`;
+                }
+                else {
+                    throw new Error(`Report kind ${report.kind} not supported`);
+                }
+                for (let drillIn of drillIns) {
+                    let drillInReport;
                     if (report.kind === 'markdown') {
-                        output += reportGenerator.renderMarkdown(projectData, processed);
-                        // output += `&nbsp;${os.EOL}`;
+                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
                     }
                     else {
                         throw new Error(`Report kind ${report.kind} not supported`);
                     }
-                    for (let drillIn of drillIns) {
-                        let drillInReport;
-                        if (report.kind === 'markdown') {
-                            drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
-                        }
-                        else {
-                            throw new Error(`Report kind ${report.kind} not supported`);
-                        }
-                        yield writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
-                    }
+                    yield writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
                 }
-                console.log("Writing report");
-                writeReport(report, projectData, output);
-                console.log("Done.");
             }
-            console.log();
+            console.log("Writing report");
+            writeReport(report, projectData, output);
+            console.log("Done.");
         }
+        console.log();
         return snapshot;
     });
 }
@@ -6314,87 +6557,6 @@ function writeReport(report, projectData, contents) {
         fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
         fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
         fs.writeFileSync(path.join(report.details.dataPath, "_project.json"), JSON.stringify(projectData, null, 2));
-    });
-}
-function loadProjectsData(token, config, snapshot) {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log("Querying project data ...");
-        let cachePath = path.join(snapshot.rootPath, ".data");
-        let github = new github_1.GitHubClient(token, cachePath);
-        let projMap = {};
-        for (const projHtmlUrl of config.projects) {
-            let proj = yield github.getProject(projHtmlUrl);
-            if (!proj) {
-                throw new Error(`Project not found: ${projHtmlUrl}`);
-            }
-            projMap[projHtmlUrl] = proj;
-        }
-        //console.log(JSON.stringify(projMap, null, 2));
-        for (const projectUrl of config.projects) {
-            let project = projMap[projectUrl];
-            project.columns = {};
-            let cols = yield github.getColumnsForProject(project);
-            cols.forEach((col) => {
-                projMap[projectUrl].columns[col.name] = col.id;
-            });
-            let mappedColumns = [];
-            for (const key in config.columnMap) {
-                let colNames = config.columnMap[key];
-                if (!colNames || !Array.isArray) {
-                    throw new Error(`Invalid config. column map for ${key} is not an array`);
-                }
-                mappedColumns = mappedColumns.concat(colNames);
-            }
-            let seenUnmappedColumns = [];
-            project.stages = {};
-            for (const key in config.columnMap) {
-                project.stages[key] = [];
-                console.log(`Processing stage ${key}`);
-                let colNames = config.columnMap[key];
-                for (const colName of colNames) {
-                    let colId = projMap[projectUrl].columns[colName];
-                    // it's possible the column name is a previous column name
-                    if (!colId) {
-                        continue;
-                    }
-                    let cards = yield github.getCardsForColumns(colId, colName);
-                    for (const card of cards) {
-                        // called as each event is processed 
-                        // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
-                        // this will help diagnose a potential config issue much faster
-                        let eventCallback = (event) => {
-                            let mentioned;
-                            if (event.project_card && event.project_card.column_name) {
-                                mentioned = event.project_card.column_name;
-                            }
-                            if (event.project_card && event.project_card.column_name) {
-                                mentioned = event.project_card.previous_column_name;
-                            }
-                            if (mentioned && mappedColumns.indexOf(mentioned) === -1 && seenUnmappedColumns.indexOf(mentioned) === -1) {
-                                seenUnmappedColumns.push(mentioned);
-                            }
-                        };
-                        // cached since real column could be mapped to two different mapped columns
-                        // read and build the event list once
-                        let issueCard = yield github.getIssueForCard(card, project.id);
-                        if (issueCard) {
-                            util.processCard(issueCard, project.id, config, eventCallback);
-                            project.stages[key].push(issueCard);
-                        }
-                    }
-                }
-            }
-            console.log("Done processing.");
-            console.log();
-            if (seenUnmappedColumns.length > 0) {
-                console.log();
-                console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
-                seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`);
-                console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
-                console.log();
-            }
-        }
-        return projMap;
     });
 }
 //# sourceMappingURL=generator.js.map
@@ -13682,136 +13844,13 @@ module.exports = (promise, onFinally) => {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processCard = exports.getStageFromColumn = exports.getTimeForOffset = void 0;
+exports.getTimeForOffset = void 0;
 function getTimeForOffset(date, offset) {
     var utc = date.getTime() + (date.getTimezoneOffset() * 60000);
     var nd = new Date(utc + (3600000 * offset));
     return nd.toLocaleString();
 }
 exports.getTimeForOffset = getTimeForOffset;
-// cache the resolution of stage names for a column
-// a columns by stage names are the default and resolve immediately
-let _columnMap = {
-    "proposed": "Proposed",
-    "accepted": "Accepted",
-    "in-progress": "In-Progress",
-    "done": "Done",
-    "blocked": "Blocked"
-};
-function getStageFromColumn(column, config) {
-    column = column.toLowerCase();
-    if (_columnMap[column]) {
-        return _columnMap[column];
-    }
-    let resolvedStage = null;
-    for (let stageName in config.columnMap) {
-        // case insensitve match
-        for (let mappedColumn of config.columnMap[stageName]) {
-            let lowerColumn = mappedColumn.toLowerCase();
-            if (lowerColumn === column.toLowerCase()) {
-                resolvedStage = stageName;
-                break;
-            }
-        }
-        if (resolvedStage) {
-            break;
-        }
-    }
-    // cache the n^2 reverse case insensitive lookup.  it will never change for this run
-    if (resolvedStage) {
-        _columnMap[column] = resolvedStage;
-    }
-    return resolvedStage;
-}
-exports.getStageFromColumn = getStageFromColumn;
-let stageLevel = {
-    "None": 0,
-    "Proposed": 1,
-    "Accepted": 2,
-    "In-Progress": 3,
-    "Blocked": 4,
-    "Done": 5
-};
-// keep in order indexed by level above
-let stageAtNames = [
-    'none',
-    'project_proposed_at',
-    'project_accepted_at',
-    'project_in_progress_at',
-    'project_blocked_at',
-    'project_done_at'
-];
-// process a card in context of the project it's being added to
-// filter column events to the project being processed only since. this makes it easier on the report author
-// add stage name to column move events so report authors don't have to repeatedly to that
-function processCard(card, projectId, config, eventCallback) {
-    let filteredEvents = [];
-    // card events should be in order chronologically
-    let currentStage;
-    let doneTime;
-    let blockedTime;
-    let addedTime;
-    if (card.events) {
-        for (let event of card.events) {
-            // since we're adding this card to a projects / stage, let's filter out
-            // events for other project ids since an issue can be part of multiple boards
-            if (event.project_card && event.project_card.project_id !== projectId) {
-                continue;
-            }
-            eventCallback(event);
-            let eventDateTime;
-            if (event.created_at) {
-                eventDateTime = event.created_at;
-            }
-            // TODO: should I clear all the stage_at datetimes if I see
-            //       removed_from_project event?
-            let toStage;
-            let toLevel;
-            let fromStage;
-            let fromLevel = 0;
-            if (event.project_card && event.project_card.column_name) {
-                if (!addedTime) {
-                    addedTime = eventDateTime;
-                }
-                toStage = event.project_card.stage_name = getStageFromColumn(event.project_card.column_name, config);
-                toLevel = stageLevel[toStage];
-                currentStage = toStage;
-            }
-            if (event.project_card && event.project_card.previous_column_name) {
-                fromStage = event.project_card.previous_stage_name = getStageFromColumn(event.project_card.previous_column_name, config);
-                fromLevel = stageLevel[fromStage];
-            }
-            // last occurence of moving to these columns from a lesser or no column
-            // example. if moved to accepted from proposed (or less), 
-            //      then in-progress (greater) and then back to accepted, first wins            
-            if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                if (toLevel > fromLevel) {
-                    card[stageAtNames[toLevel]] = eventDateTime;
-                }
-            }
-            if (toStage === 'Done') {
-                doneTime = eventDateTime;
-            }
-            if (toStage === 'Blocked') {
-                blockedTime = eventDateTime;
-            }
-            filteredEvents.push(event);
-        }
-        card.events = filteredEvents;
-        // done_at and blocked_at is only set if it's currently at that stage
-        if (currentStage === 'Done') {
-            card.project_done_at = doneTime;
-        }
-        if (currentStage === 'Blocked') {
-            card.project_blocked_at = blockedTime;
-        }
-        if (addedTime) {
-            card.project_added_at = addedTime;
-        }
-        card.project_stage = currentStage;
-    }
-}
-exports.processCard = processCard;
 //# sourceMappingURL=util.js.map
 
 /***/ }),

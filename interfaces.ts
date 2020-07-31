@@ -1,3 +1,32 @@
+
+
+export interface GeneratorConfiguration {
+    name: string,
+    // can be inlined or provide a relative path to another file
+    targets: string | CrawlingConfig,
+    filter: string,
+    output: string,
+    reports: ReportConfig[]    
+}
+
+export interface CrawlingTarget {
+    type: 'project' | 'repo',
+    htmlUrl: string,
+    columnMap: { [key: string]: string[] },    
+}
+
+export type CrawlingConfig = {[name: string]: CrawlingTarget};
+
+export interface ReportConfig {
+    name: string,
+    title: string,
+    kind: 'markdown' | 'html',
+    timezoneOffset: number,
+    targets: string[],
+    sections: ReportSection[],
+    details: ReportDetails
+}
+
 export interface ReportSection {
     name: string,
     config: any
@@ -8,24 +37,6 @@ export interface ReportDetails {
     fullPath: string,
     rootPath: string,
     dataPath: string
-}
-
-export interface ReportConfig {
-    name: string,
-    title: string,
-    kind: 'markdown' | 'html',
-    timezoneOffset: number,
-    sections: ReportSection[],
-    details: ReportDetails
-}
-
-export interface GeneratorConfiguration {
-    name: string,
-    columnMap: { [key: string]: string[] },
-    projects: string[],
-    filter: string,
-    output: string,
-    reports: ReportConfig[]    
 }
 
 export interface ReportSnapshotData {
@@ -44,13 +55,12 @@ export interface ProjectData {
     id: number,
     html_url: string,
     name: string,
-    columns: { [key: string]: number }
     stages: { [key: string]: IssueCard[] }
 }
 
-export interface ProjectsData {
-    projects: { [key: string]: ProjectData }
-}
+// export interface ProjectsData {
+//     projects: { [key: string]: ProjectData }
+// }
 
 export interface IssueCardLabel {
     name: string
