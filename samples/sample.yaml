@@ -1,14 +1,16 @@
 name: "TODO"
-columnMap:
-  Proposed: ["In Box"]           # Drafts author is working on.  Has a chance of moving soon
-  Accepted: [
-    "Up Next",                   # Ready for review
-    "Next"]                      # Previous name of column       
-  In-Progress: ["In Progress"]   # Work is underway
-  Done: ["Complete"]             # Celebrate
 
-projects: 
-  - https://github.com/users/bryanmacfarlane/projects/1
+targets:
+  todoProject:
+    type: project
+    htmlUrl: https://github.com/users/bryanmacfarlane/projects/1
+    columnMap:
+      Proposed: ["In Box"]           # Drafts author is working on.  Has a chance of moving soon
+      Accepted: [
+        "Up Next",                   # Ready for review
+        "Next"]                      # Previous name of column       
+      In-Progress: ["In Progress"]   # Work is underway
+      Done: ["Complete"]             # Celebrate
 
 output: "_reports"
 
@@ -17,6 +19,7 @@ reports:
     title: "{{{ config.name }}} Project Report"
     kind: markdown 
     timezoneOffset: -8
+    targets: ['todoProject']
     sections:
       - name: "limits"
         config: 
@@ -30,12 +33,6 @@ reports:
           accepted-limit: 2
           in-progress-limit: 2
           count-label-match: "(\\d+)-dev"
-      - name: "wip-limits"
-        config: 
-          report-on: ["*", "Epic"]
-          epic-accepted: 2
-          epic-in-progress: 2
-          wip-label-match: "(\\d+)-dev"
       - name: "in-progress"
         config:
           report-on: '*'
