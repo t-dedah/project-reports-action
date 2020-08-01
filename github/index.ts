@@ -1,7 +1,8 @@
 const { Octokit } = require('@octokit/rest');
 import * as url from 'url' 
-import {ProjectData, IssueCard, IssueCardEvent, IssueUser, IssueComment} from '../interfaces'
+import {ProjectData, IssueCard, IssueCardEvent, IssueSummary, IssueComment, IssueParameters} from '../interfaces'
 import * as restCache from './octokit-rest-cache';
+import {DistinctSet} from '../util';
 
 function DateOrNull(date: string): Date {
     return date ? new Date(date) : null;
@@ -179,5 +180,61 @@ export class GitHubClient {
         //TODO: sort ascending by date so it's a good historical view
 
         return issueCard;
-    }    
+    }
+
+    //
+    // This will get all open issues unioned with all issues changed in last n days
+    // It will sort descending by updated time
+    //
+    // This focuses on two main scenarios:
+    //   1. Slice and dice opened bugs by labels, assigned, milestone
+    //   2. Get cycle time (time opened to closed etc.)
+    //
+    // https://developer.github.com/v3/issues/#parameters-3
+    async getIssuesForRepo(repoUrl: string, daysAgo: number = 7): Promise<any[]> {
+        let set = new DistinctSet(issue => issue.number);
+
+        let rUrl = new url.URL(repoUrl);
+        let parts = rUrl.pathname.split('/').filter(e => e);
+
+        let repoProps = {
+            owner:parts[0],
+            repo: parts[1]
+        }
+          
+        let opened = await this.octokit.paginate(
+            "GET /repos/:owner/:repo/issues",
+            {
+                ...repoProps,
+                state: 'open'
+            },
+            (response) => response.data.filter(issue => !issue.pull_request)
+        );
+        console.log(`Found ${opened.length} opened issues`);
+        set.add(opened);
+
+
+        // get Date n days ago as of mindnight (ensures cache hit if you run every 15 min)
+        var dateAgo = new Date();
+        dateAgo.setHours(0,0,0,0);
+        dateAgo.setDate(dateAgo.getDate() - daysAgo);
+
+        console.log(`${daysAgo} days ago is ${dateAgo.toISOString()}`);
+
+        let recentIssues = await this.octokit.paginate(
+            "GET /repos/:owner/:repo/issues",
+            {
+                ...repoProps,
+                since: dateAgo.toUTCString()
+            },
+            (response) => response.data.filter(issue => !issue.pull_request)
+        );
+        console.log(`Found ${recentIssues.length} issues changed in last ${daysAgo} days.`);
+        set.add(recentIssues);
+
+        let issues = set.getItems();
+        console.log(`Total of ${issues.length} distinct issues`);
+
+        return issues;
+    }
 }

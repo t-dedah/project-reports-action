@@ -1,3 +1,4 @@
+import { DistinctSet } from "./util";
 
 
 export interface GeneratorConfiguration {
@@ -29,6 +30,7 @@ export interface ReportConfig {
 
 export interface ReportSection {
     name: string,
+    targets: string[];
     config: any
 }
 
@@ -55,6 +57,8 @@ export interface ProjectData {
     id: number,
     html_url: string,
     name: string,
+
+    // TODO: should go away in favor of DistinctSet
     stages: { [key: string]: IssueCard[] }
 }
 
@@ -100,6 +104,24 @@ export interface IssueComment {
     updated_at: Date
 }
 
+//
+// shallow issue for bug slicing and dicing
+//
+export interface IssueSummary {
+    title: string,
+    number: number;
+    html_url: string,
+    state: string,
+    labels: IssueCardLabel[],
+    assignee: IssueUser,
+    assignees: IssueUser[],
+    user: IssueUser,
+    milestone: IssueMilestone,
+    closed_at: Date,
+    created_at: Date,
+    updated_at: Date
+}
+
 export interface IssueCard {
     title: string,
     number: number;
@@ -141,9 +163,17 @@ export interface IssueCard {
     events: IssueCardEvent[]
 }
 
+export interface IssueParameters {
+    state: string,
+    milestone: string,
+    labels: string
+}
+
 export interface ProjectReportBuilder {
+    // a report accepts project data (and it's stages) or a list of issues from a repo (and it's stages)
+    reportType: "project" | "repo" | "any";
     getDefaultConfiguration(): any;
-    process(config: any, data: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any;
+    process(config: any, data: ProjectData | DistinctSet, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any;
     renderMarkdown(projData: ProjectData, processedData?: any): string;
     renderHtml(projData: ProjectData, processedData?: any): string;
 }

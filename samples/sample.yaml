@@ -1,6 +1,12 @@
 name: "TODO"
 
 targets:
+  quotesFeedRepo:
+    type: repo
+    htmlUrl: https://github.com/bryanmacfarlane/quotes-feed
+  sanenodeRepo:
+    type: repo
+    htmlUrl: https://github.com/bryanmacfarlane/sanenode    
   todoProject:
     type: project
     htmlUrl: https://github.com/users/bryanmacfarlane/projects/1
@@ -14,6 +20,12 @@ targets:
 
 output: "_reports"
 
+#
+# Targets need to be on section and cache in targets map in generator
+# Reports need a type of Project report or issues report and enforced on target type
+# That means change names of reports to project-limits etc.
+#
+
 reports:
   - name: TODO
     title: "{{{ config.name }}} Project Report"
@@ -21,7 +33,7 @@ reports:
     timezoneOffset: -8
     targets: ['todoProject']
     sections:
-      - name: "limits"
+      - name: "project-limits"
         config: 
           report-on-label: '*'
           accepted-limit: 2
@@ -37,8 +49,26 @@ reports:
         config:
           report-on: '*'
           wip-label-match: "(\\d+)-dev"
-      - name: "in-progress"
+      - name: "project-in-progress"
         config:
           report-on: 'Epic'
-          wip-label-match: "(\\d+)-dev"             
-      - name: "echo-board"       
+          wip-label-match: "(\\d+)-dev"
+  - name: Issues
+    title: "{{{ config.name }}} Project Report"
+    kind: markdown 
+    timezoneOffset: -8
+    targets: ['todoProject']
+    sections: 
+      - name: "echo-board"
+        targets: ['sanenodeRepo', 'quotesFeedRepo']          
+      - name: "echo-board"
+        targets: ['sanenodeRepo']
+      - name: "echo-board"
+        targets: ['quotesFeedRepo']        
+  - name: QuotesFeedIssues
+    title: "QuotesFeed Issues Report"
+    kind: markdown 
+    timezoneOffset: -8
+    targets: ['quotesFeedRepo']
+    sections:           
+      - name: "echo-board" 

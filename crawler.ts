@@ -1,5 +1,74 @@
-import {GitHubClient} from './github'
-import {CrawlingTarget, ProjectData, IssueCard, IssueCardEvent} from './interfaces';
+import {CrawlingTarget, ProjectData, IssueCard, IssueSummary, IssueCardEvent} from './interfaces';
+import {GitHubClient} from './github';
+import {DistinctSet} from './util';
+
+export class Crawler {
+    // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
+    targetMap = {}
+    github: GitHubClient;
+
+    constructor(token: string, cachePath: string) {
+        this.github = new GitHubClient(token, cachePath);
+    }
+
+    async crawl(target: CrawlingTarget): Promise<ProjectData | any[]> {
+        if (this.targetMap[target.htmlUrl]) {
+            return this.targetMap[target.htmlUrl];
+        }
+
+        // TODO: eventually deprecate ProjectData and only have distinct set
+        let data: ProjectData | any[];
+        if (target.type === 'project') {
+            let projectCrawler = new ProjectCrawler(this.github);
+            data = await projectCrawler.crawl(target);
+        }
+        else if (target.type === 'repo') {        
+            console.log(`crawling repo ${target.htmlUrl}`);
+            let repoCrawler = new RepoCrawler(this.github);
+            data = await repoCrawler.crawl(target);
+        }
+        else {
+            throw new Error(`Unsupported target config: ${target.type}`);
+        }
+
+        this.targetMap[target.htmlUrl] = data;
+        return data;
+    }
+
+    getTargetData(): any {
+        return this.targetMap;
+    }
+}
+
+class RepoCrawler {
+    github: GitHubClient;
+
+    constructor(client: GitHubClient) {
+        this.github = client;
+    }
+
+    public async crawl(target: CrawlingTarget): Promise<any[]> {
+        console.log(`Crawling project ${target.htmlUrl} ...`);
+
+        let set = new DistinctSet(issue => issue.number);
+        let res = await this.github.getIssuesForRepo(target.htmlUrl);
+        let summaries = res.map(issue => this.summarizeIssue(issue));
+        console.log(`Crawled ${summaries.length} issues`);
+
+        set.add(summaries);
+        return set.getItems();
+    }
+
+    // walk events and rollup / summarize an issue for slicing and dicing.
+    private summarizeIssue(issue): IssueSummary {
+        let summary = <IssueSummary>{};
+        summary.number = issue.number;
+        summary.title = issue.title;
+        summary.labels = issue.labels;
+        // TODO: get events, comments and rollup up other "stage" data
+        return summary;
+    }
+}
 
 let stageLevel = {
     "None": 0,
@@ -11,7 +80,7 @@ let stageLevel = {
 }
 
 
-export class ProjectCrawler {
+class ProjectCrawler {
     github: GitHubClient;
 
     // cache the resolution of stage names for a column
@@ -38,9 +107,10 @@ export class ProjectCrawler {
         this.github = client;
     }
 
-    public async crawl(target: CrawlingTarget, projectData: ProjectData): Promise<void> {
+    public async crawl(target: CrawlingTarget): Promise<ProjectData> {
         console.log(`Crawling project ${target.htmlUrl} ...`);
 
+        let projectData = <ProjectData>{};
         let columns: { [key: string]: number } = {};
 
         let proj = await this.github.getProject(target.htmlUrl);
@@ -117,6 +187,8 @@ export class ProjectCrawler {
             console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
             console.log();
         }
+
+        return projectData;
     }
 
     // process a card in context of the project it's being added to

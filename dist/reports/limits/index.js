@@ -72,6 +72,118 @@ module.exports = /([A-Z\xC0-\xD6\xD8-\xDE\u0100\u0102\u0104\u0106\u0108\u010A\u0
 
 /***/ }),
 
+/***/ 194:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
+const rptLib = __importStar(__webpack_require__(369));
+const tablemark = __webpack_require__(611);
+const os = __importStar(__webpack_require__(87));
+let clone = __webpack_require__(263);
+const reportType = 'project';
+exports.reportType = reportType;
+/*
+ * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
+ * how focused the team is (e.g. how many efforts are going on)
+ * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
+ */
+function getDefaultConfiguration() {
+    return {
+        // Epic for now.  Supports others. 
+        // Will appear on report in this casing but matches labels with lowercase version.
+        "report-on-label": 'Epic',
+        "proposed-limit": 0,
+        "accepted-limit": 0,
+        "in-progress-limit": 4,
+        "done-limt": 0,
+        "count-label-match": "(\\d+)-wip"
+    };
+}
+exports.getDefaultConfiguration = getDefaultConfiguration;
+function getDrillName(cardType, stage) {
+    return `limits-${cardType}-${stage}`.replace(" ", "-");
+}
+function process(config, projData, drillIn) {
+    let wipData = {};
+    wipData.data = {};
+    // epic, etc..
+    wipData.cardType = config["report-on-label"];
+    // proposed, in-progress, etc...
+    for (let stage in projData.stages) {
+        let stageData = {};
+        let cards = projData.stages[stage];
+        let cardsForType = wipData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()));
+        drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
+        // add wip number to each card from the wip label
+        cardsForType.map((card) => {
+            card.wips = rptLib.getCountFromLabel(card, new RegExp(config["count-label-match"]));
+            return card;
+        });
+        stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
+        let limitKey = `${stage.toLocaleLowerCase()}-limit`;
+        stageData.limit = config[limitKey] || 0;
+        stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
+        wipData.data[stage] = stageData;
+    }
+    //wipData[cardType] = wipStage;
+    return wipData;
+}
+exports.process = process;
+function renderMarkdown(projData, processedData) {
+    let wipData = processedData;
+    let lines = [];
+    // create a report for each type.  e.g. "Epic"
+    let typeLabel = wipData.cardType === '*' ? "" : wipData.cardType;
+    lines.push(`## :ship: ${typeLabel} Limits  `);
+    let rows = [];
+    for (let stageName in wipData.data) {
+        let wipStage = wipData.data[stageName];
+        let wipRow = {};
+        wipRow.stage = stageName;
+        // data folder is part of the contract here.  make a lib function to create this path
+        wipRow.count = `[${wipStage.wips}](./${getDrillName(wipData.cardType, stageName)}.md)`;
+        if (wipStage.flag) {
+            wipRow.count += "  :triangular_flag_on_post:";
+        }
+        wipRow.limit = wipStage.limit >= 0 ? wipStage.limit.toString() : "";
+        rows.push(wipRow);
+    }
+    let table = tablemark(rows);
+    lines.push(table);
+    return lines.join(os.EOL);
+}
+exports.renderMarkdown = renderMarkdown;
+function renderHtml() {
+    // Not supported yet
+    return "";
+}
+exports.renderHtml = renderHtml;
+//# sourceMappingURL=project-limits.js.map
+
+/***/ }),
+
 /***/ 205:
 /***/ (function(module) {
 
@@ -449,107 +561,15 @@ if ( true && module.exports) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+// this file is left for compat.  use project-limits instead
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = void 0;
-const rptLib = __importStar(__webpack_require__(369));
-const tablemark = __webpack_require__(611);
-const os = __importStar(__webpack_require__(87));
-let clone = __webpack_require__(263);
-/*
- * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
- * how focused the team is (e.g. how many efforts are going on)
- * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
- */
-function getDefaultConfiguration() {
-    return {
-        // Epic for now.  Supports others. 
-        // Will appear on report in this casing but matches labels with lowercase version.
-        "report-on-label": 'Epic',
-        "proposed-limit": 0,
-        "accepted-limit": 0,
-        "in-progress-limit": 4,
-        "done-limt": 0,
-        "count-label-match": "(\\d+)-wip"
-    };
-}
-exports.getDefaultConfiguration = getDefaultConfiguration;
-function getDrillName(cardType, stage) {
-    return `limits-${cardType}-${stage}`.replace(" ", "-");
-}
-function process(config, projData, drillIn) {
-    let wipData = {};
-    wipData.data = {};
-    // epic, etc..
-    wipData.cardType = config["report-on-label"];
-    // proposed, in-progress, etc...
-    for (let stage in projData.stages) {
-        let stageData = {};
-        let cards = projData.stages[stage];
-        let cardsForType = wipData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()));
-        drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
-        // add wip number to each card from the wip label
-        cardsForType.map((card) => {
-            card.wips = rptLib.getCountFromLabel(card, new RegExp(config["count-label-match"]));
-            return card;
-        });
-        stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
-        let limitKey = `${stage.toLocaleLowerCase()}-limit`;
-        stageData.limit = config[limitKey] || 0;
-        stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
-        wipData.data[stage] = stageData;
-    }
-    //wipData[cardType] = wipStage;
-    return wipData;
-}
-exports.process = process;
-function renderMarkdown(projData, processedData) {
-    let wipData = processedData;
-    let lines = [];
-    // create a report for each type.  e.g. "Epic"
-    let typeLabel = wipData.cardType === '*' ? "" : wipData.cardType;
-    lines.push(`## :ship: ${typeLabel} Limits  `);
-    let rows = [];
-    for (let stageName in wipData.data) {
-        let wipStage = wipData.data[stageName];
-        let wipRow = {};
-        wipRow.stage = stageName;
-        // data folder is part of the contract here.  make a lib function to create this path
-        wipRow.count = `[${wipStage.wips}](./${getDrillName(wipData.cardType, stageName)}.md)`;
-        if (wipStage.flag) {
-            wipRow.count += "  :triangular_flag_on_post:";
-        }
-        wipRow.limit = wipStage.limit >= 0 ? wipStage.limit.toString() : "";
-        rows.push(wipRow);
-    }
-    let table = tablemark(rows);
-    lines.push(table);
-    return lines.join(os.EOL);
-}
-exports.renderMarkdown = renderMarkdown;
-function renderHtml() {
-    // Not supported yet
-    return "";
-}
-exports.renderHtml = renderHtml;
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
+const project_limits_1 = __webpack_require__(194);
+Object.defineProperty(exports, "reportType", { enumerable: true, get: function () { return project_limits_1.reportType; } });
+Object.defineProperty(exports, "getDefaultConfiguration", { enumerable: true, get: function () { return project_limits_1.getDefaultConfiguration; } });
+Object.defineProperty(exports, "process", { enumerable: true, get: function () { return project_limits_1.process; } });
+Object.defineProperty(exports, "renderMarkdown", { enumerable: true, get: function () { return project_limits_1.renderMarkdown; } });
+Object.defineProperty(exports, "renderHtml", { enumerable: true, get: function () { return project_limits_1.renderHtml; } });
 
 
 /***/ }),

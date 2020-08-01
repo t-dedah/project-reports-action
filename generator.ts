@@ -2,17 +2,17 @@ import * as path from 'path'
 import * as fs from 'fs'
 import * as util from './util'
 import * as yaml from 'js-yaml'
-import {GitHubClient} from './github'
+// import {GitHubClient} from './github'
 import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
-import {ProjectCrawler} from './projectCrawler';
-import {CrawlingConfig, CrawlingTarget} from './interfaces';
+import {Crawler} from './crawler';
+import {DistinctSet} from './util';
 
 let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
-import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
+import { CrawlingConfig, GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -47,43 +47,39 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     await writeSnapshot(snapshot);
 
     // load up the projects, their columns and all the issue cards + events.
-    let github = new GitHubClient(token, cachePath);
-    let projectData = <ProjectData>{};
-    let crawlCfg: CrawlingConfig;
-    if (typeof(config.targets) === 'string') {
-        throw new Error('crawl config external files not supported yet');
-    }
-    else {
-        crawlCfg = <CrawlingConfig>config.targets;
-    }
+    
+    // let projectData = <ProjectData>{};
+    // let issuesData = new DistinctSet(issue => issue.number);
 
-    console.log("crawl cfg");
-    console.log(JSON.stringify(crawlCfg, null, 2));
+    // console.log("crawl cfg");
+    // console.log(JSON.stringify(crawlCfg, null, 2));
 
-    let crawled = 0;
-    for (let targetName in crawlCfg) {
-        console.log(`target: ${targetName}`);
-        let target:CrawlingTarget = crawlCfg[targetName];
-        if (target.type === 'project') {
-            console.log(`crawling project ${target.htmlUrl}`);
-            let projectCrawler = new ProjectCrawler(github);
-            await projectCrawler.crawl(target, projectData);
-            ++crawled;
-        }
-        else if (target.type === 'repo') {        
-            throw new Error('crawling repos not supported yet');
-            //++crawled;
-        }
-        else {
-            throw new Error(`Unsupported target config: ${target.type}`);
-        }
-    }
+    // let crawled = 0;
+    // for (let targetName in crawlCfg) {
+    //     console.log(`target: ${targetName}`);
+    //     let target:CrawlingTarget = crawlCfg[targetName];
+    //     if (target.type === 'project') {
+    //         console.log(`crawling project ${target.htmlUrl}`);
+    //         let projectCrawler = new ProjectCrawler(github);
+    //         await projectCrawler.crawl(target, projectData);
+    //         ++crawled;
+    //     }
+    //     else if (target.type === 'repo') {        
+    //         console.log(`crawling repo ${target.htmlUrl}`);
+    //         let repoCrawler = new RepoCrawler(github);
+    //         await repoCrawler.crawl(target, issuesData);
+    //         ++crawled;
+    //     }
+    //     else {
+    //         throw new Error(`Unsupported target config: ${target.type}`);
+    //     }
+    // }
 
-    if (crawled == 0) {
-        throw new Error("No targets were crawled for data.  Please specify targets in the config file.");
-    }
+    // if (crawled == 0) {
+    //     throw new Error("No targets were crawled for data.  Please specify targets in the config file.");
+    // }
 
-    console.log("data crawled.");
+    // console.log("data crawled.");
 
     // update report config details
     for (const report of config.reports) {
@@ -102,6 +98,15 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         });
     }
 
+    let crawlCfg: CrawlingConfig;
+    if (typeof(config.targets) === 'string') {
+        throw new Error('crawl config external files not supported yet');
+    }
+    else {
+        crawlCfg = <CrawlingConfig>config.targets;
+    }
+
+    let crawler: Crawler = new Crawler(token, cachePath);
 
     for (const report of config.reports) {
         let output = "";
@@ -112,6 +117,10 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         await createReportPath(report);
 
         for (const reportSection of report.sections) {
+            // We only support rollup of repo issues. 
+            // once we move ProjectData to a distinct set, we can support project data as well
+            let projectData: ProjectData = null;
+
             output += `&nbsp;  ${os.EOL}`;
 
             let reportModule = `${reportSection.name}`;
@@ -143,6 +152,42 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 config[setting] = reportSection.config[setting];
             }
 
+            // ----------------------------------------------------------------------
+            // Crawl targets data.  
+            // definition on section but fall back to report 
+            // ----------------------------------------------------------------------
+            let targetNames = reportSection.targets || report.targets;
+
+            let set = new DistinctSet(issue => issue.number);
+            
+            for (let targetName of targetNames) {
+                console.log()
+                console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`)
+                console.log('-------------------------------------------------------------------------------')
+                let target = crawlCfg[targetName];
+
+                if (reportGenerator.reportType !== "any" && reportGenerator.reportType !== target.type) {
+                    throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
+                }
+
+                let data: ProjectData | any[] = await crawler.crawl(target);
+                if (Array.isArray(data)) {
+                    console.log(`Adding ${data.length} issues to set ...`);
+                    set.add(data);
+                }
+                else {
+                    // ProjectData which doesn't support rollup yet
+                    if (projectData) {
+                        throw new Error("Project reports do not support rollup of multiple targets yet");
+                    }
+
+                    console.log("Setting projectData ...");
+                    projectData = <ProjectData>data;
+                }
+            }
+
+            console.log(`Issues set has ${set.getItems().length}`);
+            
             console.log("Processing data ...")
 
             let drillIns = [];
@@ -154,12 +199,24 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 })
             }
 
-            let processed = reportGenerator.process(config, clone(projectData), drillInCb);
+            let processed;
+            if (reportGenerator.reportType == 'project') {
+                if (!projectData) {
+                    throw new Error(`Report type ${reportGenerator.reportType} expected project data from target`);
+                }
+
+                processed = reportGenerator.process(config, clone(projectData), drillInCb);
+            }
+            else {
+                // any only type new
+                let data = set ? set.getItems() : projectData;
+                processed = reportGenerator.process(config, clone(data), drillInCb);
+            }
             await writeSectionData(report, reportModule, config, processed);
 
             if (report.kind === 'markdown') {
+                let data = set ? set.getItems() : projectData;
                 output += reportGenerator.renderMarkdown(projectData, processed);
-                // output += `&nbsp;${os.EOL}`;
             }
             else {
                 throw new Error(`Report kind ${report.kind} not supported`);
@@ -178,7 +235,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             }
         }
         console.log("Writing report");
-        writeReport(report, projectData, output);
+        writeReport(report, crawler.getTargetData(), output);
         console.log("Done.");
     }
     console.log();
@@ -237,11 +294,14 @@ async function writeSectionData(report: ReportConfig, name: string, settings: an
     fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
 }
 
-async function writeReport(report: ReportConfig, projectData: ProjectData, contents: string) {
+async function writeReport(report: ReportConfig, targetData: any, contents: string) {
     console.log("Writing the report ...");
     fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
     fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
-    fs.writeFileSync(path.join(report.details.dataPath, "_project.json"), JSON.stringify(projectData, null, 2));
+    for (let target in targetData) {
+        fs.writeFileSync(path.join(report.details.dataPath, `${sanitize(target)}.json`), JSON.stringify(targetData[target], null, 2));
+    }
+    
 }
 
 

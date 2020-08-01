@@ -74,8 +74,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = void 0;
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
 const os = __importStar(__webpack_require__(87));
+const reportType = 'any';
+exports.reportType = reportType;
 function getDefaultConfiguration() {
     return {
         "add-age": 'days'
@@ -85,19 +87,26 @@ exports.getDefaultConfiguration = getDefaultConfiguration;
 // processing the data does a js map on each items and adds data that the report rendering (generate) needs
 // we will dump the json data used to generate the reports next to the rendered report 
 // e.g. this function should look at the transition times and added wip status of yellow, red etc. 
-function process(data) {
+function process(config, data) {
     // TODO: process and add age in hours
+    if (config) {
+        return data;
+    }
     return data;
 }
 exports.process = process;
-function renderMarkdown(projData) {
+function renderMarkdown(projectData, data) {
     let lines = [];
-    lines.push(`## Echo data for ${projData.name}`);
-    lines.push("");
-    lines.push("### Project Data");
+    lines.push(`## Echo data `);
+    if (projectData) {
+        lines.push("");
+        lines.push("```javascript");
+        lines.push(JSON.stringify(projectData, null, 2));
+        lines.push("```");
+    }
     lines.push("");
     lines.push("```javascript");
-    lines.push(JSON.stringify(projData, null, 2));
+    lines.push(JSON.stringify(data, null, 2));
     lines.push("```");
     // TODO
     return lines.join(os.EOL);
