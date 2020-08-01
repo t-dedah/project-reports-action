@@ -1,6 +1,5 @@
 import { DistinctSet } from "./util";
 
-
 export interface GeneratorConfiguration {
     name: string,
     // can be inlined or provide a relative path to another file
@@ -59,10 +58,10 @@ export interface ProjectData {
     name: string,
 
     // TODO: should go away in favor of DistinctSet
-    stages: { [key: string]: IssueCard[] }
+    stages: { [key: string]: ProjectIssue[] }
 }
 
-export interface IssueCardLabel {
+export interface IssueLabel {
     name: string
 }
 
@@ -74,11 +73,11 @@ export interface IssueCardEventProject {
     previous_stage_name: string
 }
 
-export interface IssueCardEvent {
+export interface IssueEvent {
     created_at: Date,
     event: string,
     assignee: IssueUser,
-    label: IssueCardLabel,
+    label: IssueLabel,
     project_card: IssueCardEventProject,
     //data: any
 }
@@ -112,7 +111,7 @@ export interface IssueSummary {
     number: number;
     html_url: string,
     state: string,
-    labels: IssueCardLabel[],
+    labels: IssueLabel[],
     assignee: IssueUser,
     assignees: IssueUser[],
     user: IssueUser,
@@ -122,11 +121,8 @@ export interface IssueSummary {
     updated_at: Date
 }
 
-export interface IssueCard {
-    title: string,
-    number: number;
-    html_url: string,
-    labels: IssueCardLabel[],
+export interface ProjectIssue extends IssueSummary {
+    labels: IssueLabel[],
     assignee: IssueUser,
     assignees: IssueUser[],
     user: IssueUser,
@@ -160,7 +156,7 @@ export interface IssueCard {
     // current stage of this card on the board
     project_stage: string,
     
-    events: IssueCardEvent[]
+    events: IssueEvent[]
 }
 
 export interface IssueParameters {
@@ -173,7 +169,7 @@ export interface ProjectReportBuilder {
     // a report accepts project data (and it's stages) or a list of issues from a repo (and it's stages)
     reportType: "project" | "repo" | "any";
     getDefaultConfiguration(): any;
-    process(config: any, data: ProjectData | DistinctSet, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any;
-    renderMarkdown(projData: ProjectData, processedData?: any): string;
+    process(config: any, data: ProjectData | DistinctSet, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any;
+    renderMarkdown(data: ProjectData, processedData?: any): string;
     renderHtml(projData: ProjectData, processedData?: any): string;
 }

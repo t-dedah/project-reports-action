@@ -1,4 +1,4 @@
-import {ProjectData, IssueCard} from '../interfaces';
+import {ProjectData, ProjectIssue} from '../interfaces';
 import * as inProgress from '../reports/in-progress';
 import {ProgressData, IssueCardEx} from '../reports/in-progress';
 
@@ -35,7 +35,7 @@ describe('report-lib', () => {
 
     it('process returns InProgressData', async () => {
         let drillIns = [];
-        let drillIn = (identifier: string, title: string, cards: IssueCard[]) => {
+        let drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
             drillIns.push(identifier);
         }
 
@@ -64,7 +64,7 @@ describe('report-lib', () => {
     
     it('renderMarkdown renders valid markdown', async () => {
         let drillIns = [];
-        let drillIn = (identifier: string, title: string, cards: IssueCard[]) => {
+        let drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
             drillIns.push(identifier);
         }
 

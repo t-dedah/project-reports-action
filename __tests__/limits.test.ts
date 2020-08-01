@@ -1,4 +1,4 @@
-import {ProjectData, IssueCard} from '../interfaces';
+import {ProjectData, ProjectIssue} from '../interfaces';
 import * as limits from '../reports/limits';
 import {WipData} from '../reports/limits';
 
@@ -33,7 +33,7 @@ describe('report-lib', () => {
 
     it('process returns WipData', async () => {
         let drillIns = [];
-        let drillIn = (identifier: string, title: string, cards: IssueCard[]) => {
+        let drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
             drillIns.push(identifier);
         }
 
@@ -58,7 +58,7 @@ describe('report-lib', () => {
     
     it('renderMarkdown renders valid markdown', async () => {
         let drillIns = [];
-        let drillIn = (identifier: string, title: string, cards: IssueCard[]) => {
+        let drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
             drillIns.push(identifier);
         }
 

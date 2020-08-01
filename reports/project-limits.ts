@@ -1,4 +1,4 @@
-import {ProjectData, IssueCard} from '../interfaces';
+import {ProjectData, ProjectIssue} from '../interfaces';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -53,14 +53,14 @@ export interface WipStageData {
     // items that matched so possible to do drill in later
     items: IssueCardEx[]    
 }
-export interface IssueCardEx extends IssueCard {
+export interface IssueCardEx extends ProjectIssue {
     wips: number;
 }
 
 function getDrillName(cardType: string, stage: string): string {
     return `limits-${cardType}-${stage}`.replace(" ", "-");
 }
-export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
+export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     let wipData = <WipData>{};
     wipData.data = {};
 
@@ -69,9 +69,11 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
 
     // proposed, in-progress, etc...
     for (let stage in projData.stages) {
+        console.log(stage);
         let stageData = <WipStageData>{};
 
         let cards = projData.stages[stage];
+        console.log(cards.length);
         let cardsForType = wipData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()) as IssueCardEx[]);
 
         drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
@@ -90,8 +92,6 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
 
         wipData.data[stage] = stageData;    
     }
-    
-    //wipData[cardType] = wipStage;
 
     return wipData;
 }

@@ -12,7 +12,7 @@ import {DistinctSet} from './util';
 let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
-import { CrawlingConfig, GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
+import { CrawlingConfig, GeneratorConfiguration, ProjectIssue, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails, IssueSummary } from './interfaces'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -191,7 +191,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             console.log("Processing data ...")
 
             let drillIns = [];
-            let drillInCb = (identifier: string, title: string, cards: IssueCard[]) => {
+            let drillInCb = (identifier: string, title: string, cards: ProjectIssue[]) => {
                 drillIns.push({
                     identifier: identifier,
                     title: title,
@@ -200,13 +200,21 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             }
 
             let processed;
+            // let data: ProjectData | IssueSummary[];
             if (reportGenerator.reportType == 'project') {
                 if (!projectData) {
                     throw new Error(`Report type ${reportGenerator.reportType} expected project data from target`);
                 }
-
+                // data = projectData;
                 processed = reportGenerator.process(config, clone(projectData), drillInCb);
             }
+            else if (reportGenerator.reportType == 'repo') {
+                if (!set) {
+                    throw new Error(`Report type ${reportGenerator.reportType} expected issues data from target`);
+                }
+                // data = set.getItems() as IssueSummary[];
+                processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
+            }            
             else {
                 // any only type new
                 let data = set ? set.getItems() : projectData;
@@ -215,7 +223,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             await writeSectionData(report, reportModule, config, processed);
 
             if (report.kind === 'markdown') {
-                let data = set ? set.getItems() : projectData;
+                console.log('Rendering markdown ...');
                 output += reportGenerator.renderMarkdown(projectData, processed);
             }
             else {
@@ -257,7 +265,7 @@ function getReportHeading(report: ReportConfig) {
     return lines.join(os.EOL);
 }
 
-async function writeDrillIn(report: ReportConfig, identifier: string, cards: IssueCard[], contents: string) {
+async function writeDrillIn(report: ReportConfig, identifier: string, cards: ProjectIssue[], contents: string) {
     console.log(`Writing drill-in data for ${identifier} ...`);
     fs.writeFileSync(path.join(report.details.dataPath, `${identifier}.json`), JSON.stringify(cards, null, 2));
     fs.writeFileSync(path.join(report.details.rootPath, `${identifier}.md`), contents);

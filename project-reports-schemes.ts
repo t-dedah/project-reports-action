@@ -1,6 +1,6 @@
-import {IssueCard} from './interfaces';
+import {ProjectIssue} from './interfaces';
 
-export function dataFromCard(card: IssueCard, filterBy: string, data: string): any {
+export function dataFromCard(card: ProjectIssue, filterBy: string, data: string): any {
     
     let fn = module.exports[`get${filterBy}`];
     if (!fn) { 
@@ -13,7 +13,7 @@ export function dataFromCard(card: IssueCard, filterBy: string, data: string): a
 //
 // returns hours since last comment with a body matching a pattern
 //
-export function getLastCommentPattern(card: IssueCard, pattern: string): any {
+export function getLastCommentPattern(card: ProjectIssue, pattern: string): any {
     if (!card.comments) {
         return '';
     }

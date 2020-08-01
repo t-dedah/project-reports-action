@@ -1,6 +1,6 @@
 const { Octokit } = require('@octokit/rest');
 import * as url from 'url' 
-import {ProjectData, IssueCard, IssueCardEvent, IssueSummary, IssueComment, IssueParameters} from '../interfaces'
+import {ProjectData, ProjectIssue, IssueEvent, IssueSummary, IssueComment, IssueParameters} from '../interfaces'
 import * as restCache from './octokit-rest-cache';
 import {DistinctSet} from '../util';
 
@@ -124,7 +124,7 @@ export class GitHubClient {
     } 
     
     // returns null if not an issue
-    public async getIssueForCard(card:any, projectId: number): Promise<IssueCard> {
+    public async getIssueForCard(card:any, projectId: number): Promise<ProjectIssue> {
         if (!card.content_url) {
             return null;
         }
@@ -139,7 +139,7 @@ export class GitHubClient {
         let repo = cardParts[2];
         let issue_number = cardParts[4];
 
-        let issueCard = <IssueCard>{};
+        let issueCard = <ProjectIssue>{};
 
         let res = await this.octokit.issues.get({
             owner: owner,
@@ -175,7 +175,7 @@ export class GitHubClient {
             per_page: 100
         });
 
-        issueCard.events = res.data as IssueCardEvent[];
+        issueCard.events = res.data as IssueEvent[];
 
         //TODO: sort ascending by date so it's a good historical view
 

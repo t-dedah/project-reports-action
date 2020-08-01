@@ -1,4 +1,4 @@
-import {ProjectData, IssueCard} from '../interfaces';
+import {ProjectData, ProjectIssue} from '../interfaces';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -33,7 +33,7 @@ export type ProgressData = {
     cards: IssueCardEx[] 
 }
 
-export interface IssueCardEx extends IssueCard {
+export interface IssueCardEx extends ProjectIssue {
     status: string;
     wips: number;
     hoursLastUpdated: number;
@@ -70,7 +70,7 @@ export function sortCards(card1: IssueCardEx, card2: IssueCardEx) {
     }
 } 
 
-export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any {
+export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     console.log("> in-progress::process");
     let progressData = <ProgressData>{};
 

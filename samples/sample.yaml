@@ -59,11 +59,11 @@ reports:
     timezoneOffset: -8
     targets: ['todoProject']
     sections: 
-      - name: "echo-board"
+      - name: "repo-issues"
         targets: ['sanenodeRepo', 'quotesFeedRepo']          
-      - name: "echo-board"
+      - name: "repo-issues"
         targets: ['sanenodeRepo']
-      - name: "echo-board"
+      - name: "repo-issues"
         targets: ['quotesFeedRepo']        
   - name: QuotesFeedIssues
     title: "QuotesFeed Issues Report"

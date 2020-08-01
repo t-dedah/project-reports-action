@@ -1,9 +1,9 @@
-import {IssueCard} from '../interfaces';
+import {ProjectIssue} from '../interfaces';
 //const tablemark = require('tablemark')
 import * as os from 'os';
 
 
-export function renderMarkdown(heading: string, cards: IssueCard[]): string {
+export function renderMarkdown(heading: string, cards: ProjectIssue[]): string {
     let lines: string[] = [];
 
     lines.push(`## ${heading}`)

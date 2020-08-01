@@ -1,4 +1,4 @@
-import {CrawlingTarget, ProjectData, IssueCard, IssueSummary, IssueCardEvent} from './interfaces';
+import {CrawlingTarget, ProjectData, ProjectIssue, IssueSummary, IssueEvent} from './interfaces';
 import {GitHubClient} from './github';
 import {DistinctSet} from './util';
 
@@ -152,7 +152,7 @@ class ProjectCrawler {
                     // called as each event is processed 
                     // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
                     // this will help diagnose a potential config issue much faster
-                    let eventCallback = (event: IssueCardEvent):void => {
+                    let eventCallback = (event: IssueEvent):void => {
                         let mentioned;
                         if (event.project_card && event.project_card.column_name) {
                             mentioned = event.project_card.column_name;
@@ -194,7 +194,7 @@ class ProjectCrawler {
     // process a card in context of the project it's being added to
     // filter column events to the project being processed only since. this makes it easier on the report author
     // add stage name to column move events so report authors don't have to repeatedly to that
-    public processCard(card: IssueCard, projectId: number, target: CrawlingTarget, eventCallback: (event: IssueCardEvent) => void): void {
+    public processCard(card: ProjectIssue, projectId: number, target: CrawlingTarget, eventCallback: (event: IssueEvent) => void): void {
         let filteredEvents = [];
 
         // card events should be in order chronologically

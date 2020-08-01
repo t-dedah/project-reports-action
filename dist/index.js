@@ -6292,11 +6292,20 @@ function generate(token, configYaml) {
                     });
                 };
                 let processed;
+                // let data: ProjectData | IssueSummary[];
                 if (reportGenerator.reportType == 'project') {
                     if (!projectData) {
                         throw new Error(`Report type ${reportGenerator.reportType} expected project data from target`);
                     }
+                    // data = projectData;
                     processed = reportGenerator.process(config, clone(projectData), drillInCb);
+                }
+                else if (reportGenerator.reportType == 'repo') {
+                    if (!set) {
+                        throw new Error(`Report type ${reportGenerator.reportType} expected issues data from target`);
+                    }
+                    // data = set.getItems() as IssueSummary[];
+                    processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
                 }
                 else {
                     // any only type new
@@ -6305,7 +6314,7 @@ function generate(token, configYaml) {
                 }
                 yield writeSectionData(report, reportModule, config, processed);
                 if (report.kind === 'markdown') {
-                    let data = set ? set.getItems() : projectData;
+                    console.log('Rendering markdown ...');
                     output += reportGenerator.renderMarkdown(projectData, processed);
                 }
                 else {

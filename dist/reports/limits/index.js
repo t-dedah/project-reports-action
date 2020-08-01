@@ -130,10 +130,17 @@ function process(config, projData, drillIn) {
     wipData.data = {};
     // epic, etc..
     wipData.cardType = config["report-on-label"];
+    console.log();
+    console.log("Processing limits");
+    console.log(JSON.stringify(config, null, 2));
+    console.log("stages");
+    // console.log(projData.stages.length);
     // proposed, in-progress, etc...
     for (let stage in projData.stages) {
+        console.log(stage);
         let stageData = {};
         let cards = projData.stages[stage];
+        console.log(cards.length);
         let cardsForType = wipData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()));
         drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
         // add wip number to each card from the wip label
@@ -152,6 +159,12 @@ function process(config, projData, drillIn) {
 }
 exports.process = process;
 function renderMarkdown(projData, processedData) {
+    // console.log()
+    // console.log("projData");
+    // console.log(JSON.stringify(projData, null, 2));
+    console.log();
+    console.log("processedData");
+    console.log(JSON.stringify(processedData, null, 2));
     let wipData = processedData;
     let lines = [];
     // create a report for each type.  e.g. "Epic"
@@ -596,8 +609,8 @@ __exportStar(__webpack_require__(714), exports);
 //
 // filter cards by label
 //
-function filterByLabel(cards, name) {
-    return cards.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+function filterByLabel(issues, name) {
+    return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
 }
 exports.filterByLabel = filterByLabel;
 //
