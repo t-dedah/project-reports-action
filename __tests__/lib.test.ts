@@ -1,25 +1,25 @@
 import * as rptLib from '../project-reports-lib'
 
-import {IssueCard} from '../interfaces';
+import {ProjectIssue} from '../interfaces';
 
-let testCards:IssueCard[] = [
-    <IssueCard>{
+let testCards:ProjectIssue[] = [
+    <ProjectIssue>{
         number: 1,
         title: 'one',
         labels: [{ name: 'One'}],
         
     },
-    <IssueCard>{
+    <ProjectIssue>{
         number: 2,
         title: 'twothree',
         labels: [{ name: 'Two'}, { name: 'three'}]
     },
-    <IssueCard>{
+    <ProjectIssue>{
         number: 3,
         title: 'other',
         labels: [{ name: 'two'}, { name: '11-dev'}, { name: 'foo:baz'}] 
     },
-    <IssueCard>{
+    <ProjectIssue>{
         number: 4,
         title: 'more',
         labels: [{ name: 'five'}, { name: '13-DEV'}, { name: 'Foo: bar '}]
@@ -96,7 +96,7 @@ describe('report-lib', () => {
     expect(val).toBe('bar');
   });
   
-  let card = <IssueCard>{
+  let card = <ProjectIssue>{
     comments: [{
         body: "## update 2",
         updated_at: new Date('2020-07-23T03:28:28.950Z')
@@ -120,7 +120,7 @@ describe('report-lib', () => {
   });
 
   it('does not gets last comment if no comments', async () => {
-    let d = rptLib.getLastCommentPattern(<IssueCard>{comments:[]}, "^(#){1,4} update");
+    let d = rptLib.getLastCommentPattern(<ProjectIssue>{comments:[]}, "^(#){1,4} update");
     expect(d).toBe(-1);
   });  
 
