@@ -521,7 +521,7 @@ function renderMarkdown(targets, processedData) {
     let rows = [];
     for (let label in breakdown.issues) {
         let row = {};
-        row.label = label;
+        row.label = `\`${label}\``;
         // data folder is part of the contract here.  make a lib function to create this path
         row.count = `[${breakdown.issues[label].length}](./${getDrillName(label, breakdown.identifier)}.md)`;
         rows.push(row);
