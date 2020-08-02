@@ -1022,10 +1022,8 @@ function process(config, projData, drillIn) {
     wipData.cardType = config["report-on-label"];
     // proposed, in-progress, etc...
     for (let stage in projData.stages) {
-        console.log(stage);
         let stageData = {};
         let cards = projData.stages[stage];
-        console.log(cards.length);
         let cardsForType = wipData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()));
         drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
         // add wip number to each card from the wip label

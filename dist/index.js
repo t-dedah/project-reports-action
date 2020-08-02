@@ -6169,35 +6169,6 @@ function generate(token, configYaml) {
         // apply defaults
         snapshot.config.output = snapshot.config.output || "_reports";
         yield writeSnapshot(snapshot);
-        // load up the projects, their columns and all the issue cards + events.
-        // let projectData = <ProjectData>{};
-        // let issuesData = new DistinctSet(issue => issue.number);
-        // console.log("crawl cfg");
-        // console.log(JSON.stringify(crawlCfg, null, 2));
-        // let crawled = 0;
-        // for (let targetName in crawlCfg) {
-        //     console.log(`target: ${targetName}`);
-        //     let target:CrawlingTarget = crawlCfg[targetName];
-        //     if (target.type === 'project') {
-        //         console.log(`crawling project ${target.htmlUrl}`);
-        //         let projectCrawler = new ProjectCrawler(github);
-        //         await projectCrawler.crawl(target, projectData);
-        //         ++crawled;
-        //     }
-        //     else if (target.type === 'repo') {        
-        //         console.log(`crawling repo ${target.htmlUrl}`);
-        //         let repoCrawler = new RepoCrawler(github);
-        //         await repoCrawler.crawl(target, issuesData);
-        //         ++crawled;
-        //     }
-        //     else {
-        //         throw new Error(`Unsupported target config: ${target.type}`);
-        //     }
-        // }
-        // if (crawled == 0) {
-        //     throw new Error("No targets were crawled for data.  Please specify targets in the config file.");
-        // }
-        // console.log("data crawled.");
         // update report config details
         for (const report of config.reports) {
             report.timezoneOffset = report.timezoneOffset || -8;
@@ -6258,7 +6229,7 @@ function generate(token, configYaml) {
                 // definition on section but fall back to report 
                 // ----------------------------------------------------------------------
                 let targetNames = reportSection.targets || report.targets;
-                let set = new util_1.DistinctSet(issue => issue.number);
+                let set = new util_1.DistinctSet(issue => issue.html_url);
                 let targets = [];
                 for (let targetName of targetNames) {
                     console.log();

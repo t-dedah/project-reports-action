@@ -57,7 +57,7 @@ reports:
     title: "{{{ config.name }}} Project Report"
     kind: markdown 
     timezoneOffset: -8
-    targets: ['todoProject']
+    targets: []
     sections: 
       - name: "repo-issues"
         targets: ['sanenodeRepo', 'quotesFeedRepo']          

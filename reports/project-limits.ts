@@ -69,11 +69,9 @@ export function process(config: any, projData: ProjectData, drillIn: (identifier
 
     // proposed, in-progress, etc...
     for (let stage in projData.stages) {
-        console.log(stage);
         let stageData = <WipStageData>{};
 
         let cards = projData.stages[stage];
-        console.log(cards.length);
         let cardsForType = wipData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()) as IssueCardEx[]);
 
         drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
