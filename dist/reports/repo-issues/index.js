@@ -510,8 +510,10 @@ function renderMarkdown(targets, processedData) {
     let linksHeading = '';
     for (let target of targets) {
         let props = rptLib.repoPropsFromUrl(target.htmlUrl);
-        linksHeading += `[${props.repo}](${target.htmlUrl}) `;
+        linksHeading += `[${props.repo}](${target.htmlUrl}), `;
     }
+    // chop final delimiter
+    linksHeading = linksHeading.substr(0, linksHeading.length - 2);
     lines.push(`## Issues for ${linksHeading}`);
     // create a report for each type.  e.g. "Epic"
     // let typeLabel = wipData.cardType === '*'? "": wipData.cardType;

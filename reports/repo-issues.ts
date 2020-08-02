@@ -58,8 +58,10 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
     let linksHeading: string = '';
     for (let target of targets) {
         let props = rptLib.repoPropsFromUrl(target.htmlUrl);
-        linksHeading += `[${props.repo}](${target.htmlUrl}) `
+        linksHeading += `[${props.repo}](${target.htmlUrl}), `;
     }
+    // chop final delimiter
+    linksHeading = linksHeading.substr(0, linksHeading.length - 2);
 
     lines.push(`## Issues for ${linksHeading}`);    
 
