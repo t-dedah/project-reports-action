@@ -1,9 +1,24 @@
 import {ProjectIssue, IssueSummary} from './interfaces';
+import * as url from 'url' 
 
 // TODO: separate npm module.  for now it's a file till we flush out
 
 export * from './project-reports-schemes';
 
+export interface RepoProps {
+    owner: string,
+    repo: string
+}
+
+export function repoPropsFromUrl(htmlUrl: string): RepoProps {
+    let rUrl = new url.URL(htmlUrl);
+    let parts = rUrl.pathname.split('/').filter(e => e);
+
+    return <RepoProps>{
+        owner:parts[0],
+        repo: parts[1]
+    }    
+}
 //
 // filter cards by label
 //

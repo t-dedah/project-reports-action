@@ -170,6 +170,6 @@ export interface ProjectReportBuilder {
     reportType: "project" | "repo" | "any";
     getDefaultConfiguration(): any;
     process(config: any, data: ProjectData | DistinctSet, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any;
-    renderMarkdown(data: ProjectData, processedData?: any): string;
+    renderMarkdown(data: ProjectData | CrawlingTarget[], processedData?: any): string;
     renderHtml(projData: ProjectData, processedData?: any): string;
 }

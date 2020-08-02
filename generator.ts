@@ -12,7 +12,7 @@ import {DistinctSet} from './util';
 let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
-import { CrawlingConfig, GeneratorConfiguration, ProjectIssue, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails, IssueSummary } from './interfaces'
+import { CrawlingConfig, GeneratorConfiguration, ProjectIssue, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails, IssueSummary, CrawlingTarget } from './interfaces'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -160,11 +160,13 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
             let set = new DistinctSet(issue => issue.number);
             
+            let targets: CrawlingTarget[] = [];
             for (let targetName of targetNames) {
                 console.log()
                 console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`)
                 console.log('-------------------------------------------------------------------------------')
                 let target = crawlCfg[targetName];
+                targets.push(target);
 
                 if (reportGenerator.reportType !== "any" && reportGenerator.reportType !== target.type) {
                     throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
@@ -224,7 +226,8 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
             if (report.kind === 'markdown') {
                 console.log('Rendering markdown ...');
-                output += reportGenerator.renderMarkdown(projectData, processed);
+                let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+                output += reportGenerator.renderMarkdown(data, processed);
             }
             else {
                 throw new Error(`Report kind ${report.kind} not supported`);

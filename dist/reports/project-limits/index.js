@@ -456,13 +456,35 @@ var __createBinding = (this && this.__createBinding) || (Object.create ? (functi
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = void 0;
+exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const url = __importStar(__webpack_require__(835));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
+function repoPropsFromUrl(htmlUrl) {
+    let rUrl = new url.URL(htmlUrl);
+    let parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
 //
 // filter cards by label
 //
@@ -933,6 +955,13 @@ module.exports = /([a-z\xB5\xDF-\xF6\xF8-\xFF\u0101\u0103\u0105\u0107\u0109\u010
 
 /***/ }),
 
+/***/ 835:
+/***/ (function(module) {
+
+module.exports = require("url");
+
+/***/ }),
+
 /***/ 878:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -991,11 +1020,6 @@ function process(config, projData, drillIn) {
     wipData.data = {};
     // epic, etc..
     wipData.cardType = config["report-on-label"];
-    console.log();
-    console.log("Processing limits");
-    console.log(JSON.stringify(config, null, 2));
-    console.log("stages");
-    // console.log(projData.stages.length);
     // proposed, in-progress, etc...
     for (let stage in projData.stages) {
         console.log(stage);
@@ -1015,17 +1039,10 @@ function process(config, projData, drillIn) {
         stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
         wipData.data[stage] = stageData;
     }
-    //wipData[cardType] = wipStage;
     return wipData;
 }
 exports.process = process;
 function renderMarkdown(projData, processedData) {
-    // console.log()
-    // console.log("projData");
-    // console.log(JSON.stringify(projData, null, 2));
-    console.log();
-    console.log("processedData");
-    console.log(JSON.stringify(processedData, null, 2));
     let wipData = processedData;
     let lines = [];
     // create a report for each type.  e.g. "Epic"

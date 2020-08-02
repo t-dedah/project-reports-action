@@ -456,13 +456,35 @@ var __createBinding = (this && this.__createBinding) || (Object.create ? (functi
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = void 0;
+exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const url = __importStar(__webpack_require__(835));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
+function repoPropsFromUrl(htmlUrl) {
+    let rUrl = new url.URL(htmlUrl);
+    let parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
 //
 // filter cards by label
 //
@@ -948,6 +970,13 @@ Object.defineProperty(exports, "process", { enumerable: true, get: function () {
 Object.defineProperty(exports, "renderMarkdown", { enumerable: true, get: function () { return project_in_progress_1.renderMarkdown; } });
 Object.defineProperty(exports, "renderHtml", { enumerable: true, get: function () { return project_in_progress_1.renderHtml; } });
 
+
+/***/ }),
+
+/***/ 835:
+/***/ (function(module) {
+
+module.exports = require("url");
 
 /***/ }),
 

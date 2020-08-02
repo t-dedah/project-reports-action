@@ -6259,11 +6259,13 @@ function generate(token, configYaml) {
                 // ----------------------------------------------------------------------
                 let targetNames = reportSection.targets || report.targets;
                 let set = new util_1.DistinctSet(issue => issue.number);
+                let targets = [];
                 for (let targetName of targetNames) {
                     console.log();
                     console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`);
                     console.log('-------------------------------------------------------------------------------');
                     let target = crawlCfg[targetName];
+                    targets.push(target);
                     if (reportGenerator.reportType !== "any" && reportGenerator.reportType !== target.type) {
                         throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                     }
@@ -6315,7 +6317,8 @@ function generate(token, configYaml) {
                 yield writeSectionData(report, reportModule, config, processed);
                 if (report.kind === 'markdown') {
                     console.log('Rendering markdown ...');
-                    output += reportGenerator.renderMarkdown(projectData, processed);
+                    let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+                    output += reportGenerator.renderMarkdown(data, processed);
                 }
                 else {
                     throw new Error(`Report kind ${report.kind} not supported`);

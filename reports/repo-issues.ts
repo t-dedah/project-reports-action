@@ -1,4 +1,4 @@
-import {IssueSummary} from '../interfaces';
+import {IssueSummary, CrawlingTarget, CrawlingConfig} from '../interfaces';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -48,16 +48,20 @@ interface BreakdownRow {
     count: string,
 }
 
-export function renderMarkdown(projData, processedData: any): string {
-    if (!projData) {
-        console.log('no projData');
-    }
-    
+
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
+
     let breakdown = processedData as IssueLabelBreakdown;
 
     let lines: string[] = [];
 
-    lines.push(`## Issue Breakdown`);    
+    let linksHeading: string = '';
+    for (let target of targets) {
+        let props = rptLib.repoPropsFromUrl(target.htmlUrl);
+        linksHeading += `[${props.repo}](${target.htmlUrl}) `
+    }
+
+    lines.push(`## Issues for ${linksHeading}`);    
 
     // create a report for each type.  e.g. "Epic"
     // let typeLabel = wipData.cardType === '*'? "": wipData.cardType;
