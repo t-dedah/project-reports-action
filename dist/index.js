@@ -6243,6 +6243,7 @@ function generate(token, configYaml) {
                     let data = yield crawler.crawl(target);
                     if (Array.isArray(data)) {
                         console.log(`Adding ${data.length} issues to set ...`);
+                        // console.log(JSON.stringify(data, null, 2))
                         set.add(data);
                     }
                     else {
@@ -14030,6 +14031,7 @@ class RepoCrawler {
         let summary = {};
         summary.number = issue.number;
         summary.title = issue.title;
+        summary.html_url = issue.html_url;
         summary.labels = issue.labels;
         // TODO: get events, comments and rollup up other "stage" data
         return summary;

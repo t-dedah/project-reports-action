@@ -140,6 +140,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 let data: ProjectData | any[] = await crawler.crawl(target);
                 if (Array.isArray(data)) {
                     console.log(`Adding ${data.length} issues to set ...`);
+                    // console.log(JSON.stringify(data, null, 2))
                     set.add(data);
                 }
                 else {
