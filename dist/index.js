@@ -14093,6 +14093,10 @@ class ProjectCrawler {
                         let issueCard = yield this.github.getIssueForCard(card, projectData.id);
                         if (issueCard) {
                             this.processCard(issueCard, projectData.id, target, eventCallback);
+                            if (!issueCard["project_stage"]) {
+                                // TODO: add these to an anomolies report via callback
+                                console.log(`WARNING: project_stage not set for ${issueCard.html_url}`);
+                            }
                             //projectData.stages[key].push(issueCard);
                             issues.push(issueCard);
                         }

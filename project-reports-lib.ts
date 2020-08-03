@@ -90,7 +90,8 @@ export function getProjectStageIssues(issues: ProjectIssue[]) {
     for (let projIssue of issues) {
         let stage = projIssue["project_stage"];
         if (!stage) {
-            throw new Error(`issue missing stage: ${projIssue.html_url}`);
+            // the engine will handle and add to an issues list
+            continue;
         }
 
         if (!projIssues[stage]) {

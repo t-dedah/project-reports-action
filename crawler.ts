@@ -170,6 +170,11 @@ class ProjectCrawler {
                     let issueCard = await this.github.getIssueForCard(card, projectData.id);
                     if (issueCard) {
                         this.processCard(issueCard, projectData.id, target, eventCallback);
+                        if (!issueCard["project_stage"]) {
+                            // TODO: add these to an anomolies report via callback
+                            // report consumers don't read actions output and they need to react
+                            console.log(`WARNING: project_stage not set for ${issueCard.html_url}`);
+                        }
                         //projectData.stages[key].push(issueCard);
                         issues.push(issueCard);
                     }
