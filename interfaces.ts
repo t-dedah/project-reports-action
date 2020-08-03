@@ -1,4 +1,4 @@
-
+import { DistinctSet } from "./util";
 
 export interface GeneratorConfiguration {
     name: string,
@@ -29,6 +29,7 @@ export interface ReportConfig {
 
 export interface ReportSection {
     name: string,
+    targets: string[];
     config: any
 }
 
@@ -55,10 +56,12 @@ export interface ProjectData {
     id: number,
     html_url: string,
     name: string,
-    stages: { [key: string]: IssueCard[] }
+
+    // TODO: should go away in favor of DistinctSet
+    // stages: { [key: string]: ProjectIssue[] }
 }
 
-export interface IssueCardLabel {
+export interface IssueLabel {
     name: string
 }
 
@@ -70,11 +73,11 @@ export interface IssueCardEventProject {
     previous_stage_name: string
 }
 
-export interface IssueCardEvent {
+export interface IssueEvent {
     created_at: Date,
     event: string,
     assignee: IssueUser,
-    label: IssueCardLabel,
+    label: IssueLabel,
     project_card: IssueCardEventProject,
     //data: any
 }
@@ -100,11 +103,26 @@ export interface IssueComment {
     updated_at: Date
 }
 
-export interface IssueCard {
+//
+// shallow issue for bug slicing and dicing
+//
+export interface IssueSummary {
     title: string,
     number: number;
     html_url: string,
-    labels: IssueCardLabel[],
+    state: string,
+    labels: IssueLabel[],
+    assignee: IssueUser,
+    assignees: IssueUser[],
+    user: IssueUser,
+    milestone: IssueMilestone,
+    closed_at: Date,
+    created_at: Date,
+    updated_at: Date
+}
+
+export interface ProjectIssue extends IssueSummary {
+    labels: IssueLabel[],
     assignee: IssueUser,
     assignees: IssueUser[],
     user: IssueUser,
@@ -138,12 +156,20 @@ export interface IssueCard {
     // current stage of this card on the board
     project_stage: string,
     
-    events: IssueCardEvent[]
+    events: IssueEvent[]
+}
+
+export interface IssueParameters {
+    state: string,
+    milestone: string,
+    labels: string
 }
 
 export interface ProjectReportBuilder {
+    // a report accepts project data (and it's stages) or a list of issues from a repo (and it's stages)
+    reportType: "project" | "repo" | "any";
     getDefaultConfiguration(): any;
-    process(config: any, data: ProjectData, drillIn: (identifier: string, title: string, cards: IssueCard[]) => void): any;
-    renderMarkdown(projData: ProjectData, processedData?: any): string;
-    renderHtml(projData: ProjectData, processedData?: any): string;
+    process(config: any, data: ProjectData | DistinctSet, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any;
+    renderMarkdown(targets: CrawlingTarget[], processedData?: any): string;
+    renderHtml(targets: CrawlingTarget[], processedData?: any): string;
 }

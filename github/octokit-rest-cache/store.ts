@@ -1,5 +1,6 @@
 import * as mustache from 'mustache';
 import * as path from 'path';
+import * as url from 'url';
 import { promises as fs } from 'fs';
 
 export interface IStore {
@@ -17,9 +18,10 @@ export class FileSystemStore implements IStore {
     }
 
     private getUrlPath(options): string {
-        let urlFormat = options.url.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
+        let pathPart = url.parse(options.url).path;
+        let urlFormat = pathPart.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
         let urlPath = mustache.render(urlFormat, options);
-
+        
         return urlPath;
     }
 

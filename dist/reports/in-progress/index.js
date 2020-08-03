@@ -456,18 +456,40 @@ var __createBinding = (this && this.__createBinding) || (Object.create ? (functi
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
 }));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = void 0;
+exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const url = __importStar(__webpack_require__(835));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
+function repoPropsFromUrl(htmlUrl) {
+    let rUrl = new url.URL(htmlUrl);
+    let parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
 //
 // filter cards by label
 //
-function filterByLabel(cards, name) {
-    return cards.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+function filterByLabel(issues, name) {
+    return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
 }
 exports.filterByLabel = filterByLabel;
 //
@@ -510,6 +532,28 @@ function sumCardProperty(cards, prop) {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
 exports.sumCardProperty = sumCardProperty;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: "Proposed",
+    Accepted: "Accepted",
+    InProgress: "In-Progress",
+    Done: "Done"
+};
+function getProjectStageIssues(issues) {
+    let projIssues = {};
+    for (let projIssue of issues) {
+        let stage = projIssue["project_stage"];
+        if (!stage) {
+            throw new Error(`issue missing stage: ${projIssue.html_url}`);
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
 //# sourceMappingURL=project-reports-lib.js.map
 
 /***/ }),
@@ -938,6 +982,31 @@ module.exports = /([a-z\xB5\xDF-\xF6\xF8-\xFF\u0101\u0103\u0105\u0107\u0109\u010
 
 "use strict";
 
+// this report is left for compat.  use project-in-progress instead.
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
+const project_in_progress_1 = __webpack_require__(857);
+Object.defineProperty(exports, "reportType", { enumerable: true, get: function () { return project_in_progress_1.reportType; } });
+Object.defineProperty(exports, "getDefaultConfiguration", { enumerable: true, get: function () { return project_in_progress_1.getDefaultConfiguration; } });
+Object.defineProperty(exports, "process", { enumerable: true, get: function () { return project_in_progress_1.process; } });
+Object.defineProperty(exports, "renderMarkdown", { enumerable: true, get: function () { return project_in_progress_1.renderMarkdown; } });
+Object.defineProperty(exports, "renderHtml", { enumerable: true, get: function () { return project_in_progress_1.renderHtml; } });
+
+
+/***/ }),
+
+/***/ 835:
+/***/ (function(module) {
+
+module.exports = require("url");
+
+/***/ }),
+
+/***/ 857:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
@@ -958,11 +1027,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = void 0;
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = exports.reportType = void 0;
+const project_reports_lib_1 = __webpack_require__(369);
 const rptLib = __importStar(__webpack_require__(369));
 const tablemark = __webpack_require__(611);
 const os = __importStar(__webpack_require__(87));
 let clone = __webpack_require__(263);
+const reportType = 'project';
+exports.reportType = reportType;
 /*
  * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
  * how focused the team is (e.g. how many efforts are going on)
@@ -1014,11 +1086,12 @@ function sortCards(card1, card2) {
     }
 }
 exports.sortCards = sortCards;
-function process(config, projData, drillIn) {
+function process(config, issues, drillIn) {
     console.log("> in-progress::process");
     let progressData = {};
     progressData.cardType = config["report-on"];
-    let cards = projData.stages["In-Progress"];
+    let projData = rptLib.getProjectStageIssues(issues);
+    let cards = projData[project_reports_lib_1.ProjectStages.InProgress];
     if (!cards) {
         // if the column exists but has no cards, that's fine, it will no get here. 
         // It would have to be a non existant column which is a config problem so fail.
@@ -1048,7 +1121,7 @@ function process(config, projData, drillIn) {
     return progressData;
 }
 exports.process = process;
-function renderMarkdown(projData, processedData) {
+function renderMarkdown(targets, processedData) {
     console.log("> in-progress::renderMarkdown");
     let progressData = processedData;
     let lines = [];
@@ -1103,7 +1176,7 @@ function renderHtml() {
     return "";
 }
 exports.renderHtml = renderHtml;
-
+//# sourceMappingURL=project-in-progress.js.map
 
 /***/ })
 
