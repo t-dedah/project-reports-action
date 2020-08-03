@@ -80,7 +80,8 @@ export const ProjectStages = {
     Proposed: "Proposed",
     Accepted: "Accepted",
     InProgress: "In-Progress",
-    Done: "Done" 
+    Done: "Done",
+    Missing: "Missing"
 }
 
 export type ProjectStageIssues = { [key: string]: ProjectIssue[] };

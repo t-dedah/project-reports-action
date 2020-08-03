@@ -715,7 +715,8 @@ exports.ProjectStages = {
     Proposed: "Proposed",
     Accepted: "Accepted",
     InProgress: "In-Progress",
-    Done: "Done"
+    Done: "Done",
+    Missing: "Missing"
 };
 function getProjectStageIssues(issues) {
     let projIssues = {};

@@ -90,7 +90,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
         let limitKey = `${stage.toLocaleLowerCase()}-limit`;
         stageData.limit = config[limitKey] || 0;
         stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
-
+        
         wipData.data[stage] = stageData;    
     }
 
