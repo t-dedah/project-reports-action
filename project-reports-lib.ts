@@ -69,3 +69,36 @@ export function getStringFromLabel(card: ProjectIssue, re: RegExp): string {
 export function sumCardProperty(cards: ProjectIssue[], prop: string): number {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
+
+// Project issues keyed by the stage they are in
+export interface ProjectIssues {
+    stages: { [key: string]: ProjectIssue[] }
+}
+
+// stages more discoverable
+export const ProjectStages = {
+    Proposed: "Proposed",
+    Accepted: "Accepted",
+    InProgress: "In-Progress",
+    Done: "Done" 
+}
+
+export type ProjectStageIssues = { [key: string]: ProjectIssue[] };
+
+export function getProjectStageIssues(issues: ProjectIssue[]) {
+    let projIssues = <ProjectStageIssues>{};
+    for (let projIssue of issues) {
+        let stage = projIssue["project_stage"];
+        if (!stage) {
+            throw new Error(`issue missing stage: ${projIssue.html_url}`);
+        }
+
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+
+        projIssues[stage].push(projIssue);
+    }
+
+    return projIssues;
+}

@@ -1,5 +1,6 @@
-import {ProjectData, ProjectIssue} from '../interfaces';
+import {ProjectIssue, CrawlingTarget} from '../interfaces';
 import * as rptLib from '../project-reports-lib';
+import {ProjectStageIssues} from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
 
@@ -51,33 +52,35 @@ export interface WipStageData {
     wips: number, 
     limit: number, 
     // items that matched so possible to do drill in later
-    items: IssueCardEx[]    
+    items: ProjectIssueEx[]    
 }
-export interface IssueCardEx extends ProjectIssue {
+export interface ProjectIssueEx extends ProjectIssue {
     wips: number;
 }
 
 function getDrillName(cardType: string, stage: string): string {
     return `limits-${cardType}-${stage}`.replace(" ", "-");
 }
-export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     let wipData = <WipData>{};
     wipData.data = {};
 
     // epic, etc..
     wipData.cardType = config["report-on-label"];
 
+    let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
+
     // proposed, in-progress, etc...
-    for (let stage in projData.stages) {
+    for (let stage in projData) {
         let stageData = <WipStageData>{};
 
-        let cards = projData.stages[stage];
-        let cardsForType = wipData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()) as IssueCardEx[]);
+        let cards = projData[stage];
+        let cardsForType = wipData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()) as ProjectIssueEx[]);
 
         drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
 
         // add wip number to each card from the wip label
-        cardsForType.map((card: IssueCardEx) => {
+        cardsForType.map((card: ProjectIssueEx) => {
             card.wips = rptLib.getCountFromLabel(card, new RegExp(config["count-label-match"]));
             return card;
         })
@@ -100,7 +103,9 @@ interface WipRow {
     count: string,
 }
 
-export function renderMarkdown(projData: ProjectData, processedData: any): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
+    console.log(`Rendering for ${targets.length} targets`);
+
     let wipData = processedData as WipData;
     let lines: string[] = [];
 

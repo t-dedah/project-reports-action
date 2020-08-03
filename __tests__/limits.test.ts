@@ -1,8 +1,8 @@
-import {ProjectData, ProjectIssue} from '../interfaces';
+import {ProjectIssue} from '../interfaces';
 import * as limits from '../reports/limits';
 import {WipData} from '../reports/limits';
 
-let projectData: ProjectData = require('./project-data.test.json');
+let projectData: ProjectIssue[] = require('./project-data.test.json');
 
 let config: any = {
     'report-on-label': 'Epic',
@@ -27,8 +27,7 @@ describe('report-lib', () => {
     // make sure the mocked data set is loaded and valid
     it('imports a valid projectData from file', async () => {
         expect(projectData).toBeDefined();
-        expect(projectData.name).toBe("TODO");
-        expect(projectData.stages["In-Progress"]).toBeDefined();
+        expect(projectData.length).toBe(14);
     });
 
     it('process returns WipData', async () => {
@@ -64,9 +63,9 @@ describe('report-lib', () => {
 
         let processed = limits.process(config, projectData, drillIn) as WipData;
         expect(processed).toBeDefined();
-        expect(drillIns.length).toBe(5);
+        expect(drillIns.length).toBe(4);
 
-        let markdown = limits.renderMarkdown(projectData, processed);
+        let markdown = limits.renderMarkdown([], processed);
         expect(markdown).toBeDefined();
         expect(markdown).toContain("## :ship: Epic Limits");
         expect(markdown).toContain("| In-Progress | [5](./limits-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |");

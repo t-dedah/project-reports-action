@@ -6135,6 +6135,7 @@ const path = __importStar(__webpack_require__(622));
 const fs = __importStar(__webpack_require__(747));
 const util = __importStar(__webpack_require__(702));
 const yaml = __importStar(__webpack_require__(414));
+const url = __importStar(__webpack_require__(835));
 // import {GitHubClient} from './github'
 const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
@@ -6143,6 +6144,7 @@ const crawler_1 = __webpack_require__(750);
 const util_1 = __webpack_require__(702);
 let sanitize = __webpack_require__(834);
 let clone = __webpack_require__(97);
+//import { url } from 'inspector';
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Generating reports");
@@ -6241,19 +6243,8 @@ function generate(token, configYaml) {
                         throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                     }
                     let data = yield crawler.crawl(target);
-                    if (Array.isArray(data)) {
-                        console.log(`Adding ${data.length} issues to set ...`);
-                        // console.log(JSON.stringify(data, null, 2))
-                        set.add(data);
-                    }
-                    else {
-                        // ProjectData which doesn't support rollup yet
-                        if (projectData) {
-                            throw new Error("Project reports do not support rollup of multiple targets yet");
-                        }
-                        console.log("Setting projectData ...");
-                        projectData = data;
-                    }
+                    console.log(`Adding ${data.length} issues to set ...`);
+                    set.add(data);
                 }
                 console.log(`Issues set has ${set.getItems().length}`);
                 console.log("Processing data ...");
@@ -6265,32 +6256,15 @@ function generate(token, configYaml) {
                         cards: cards
                     });
                 };
-                let processed;
-                // let data: ProjectData | IssueSummary[];
-                if (reportGenerator.reportType == 'project') {
-                    if (!projectData) {
-                        throw new Error(`Report type ${reportGenerator.reportType} expected project data from target`);
-                    }
-                    // data = projectData;
-                    processed = reportGenerator.process(config, clone(projectData), drillInCb);
-                }
-                else if (reportGenerator.reportType == 'repo') {
-                    if (!set) {
-                        throw new Error(`Report type ${reportGenerator.reportType} expected issues data from target`);
-                    }
-                    // data = set.getItems() as IssueSummary[];
-                    processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
-                }
-                else {
-                    // any only type new
-                    let data = set ? set.getItems() : projectData;
-                    processed = reportGenerator.process(config, clone(data), drillInCb);
-                }
+                // if (!set) {
+                //     throw new Error(`Report type ${reportGenerator.reportType} expected issues data from target`);
+                // }
+                let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
                 yield writeSectionData(report, reportModule, config, processed);
                 if (report.kind === 'markdown') {
                     console.log('Rendering markdown ...');
-                    let data = reportGenerator.reportType == 'repo' ? targets : projectData;
-                    output += reportGenerator.renderMarkdown(data, processed);
+                    // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+                    output += reportGenerator.renderMarkdown(targets, processed);
                 }
                 else {
                     throw new Error(`Report kind ${report.kind} not supported`);
@@ -6369,7 +6343,8 @@ function writeReport(report, targetData, contents) {
         fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
         fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
         for (let target in targetData) {
-            fs.writeFileSync(path.join(report.details.dataPath, `${sanitize(target)}.json`), JSON.stringify(targetData[target], null, 2));
+            let urlPath = url.parse(target).path.split("/").join("_");
+            fs.writeFileSync(path.join(report.details.dataPath, `target-${sanitize(urlPath)}.json`), JSON.stringify(targetData[target], null, 2));
         }
     });
 }
@@ -7036,13 +7011,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.FileSystemStore = void 0;
 const mustache = __importStar(__webpack_require__(174));
 const path = __importStar(__webpack_require__(622));
+const url = __importStar(__webpack_require__(835));
 const fs_1 = __webpack_require__(747);
 class FileSystemStore {
     constructor(path) {
         this._path = path;
     }
     getUrlPath(options) {
-        let urlFormat = options.url.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
+        let pathPart = url.parse(options.url).path;
+        let urlFormat = pathPart.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
         let urlPath = mustache.render(urlFormat, options);
         return urlPath;
     }
@@ -14053,8 +14030,7 @@ class ProjectCrawler {
             "proposed": "Proposed",
             "accepted": "Accepted",
             "in-progress": "In-Progress",
-            "done": "Done",
-            "blocked": "Blocked"
+            "done": "Done"
         };
         // keep in order indexed by level above
         this.stageAtNames = [
@@ -14070,10 +14046,10 @@ class ProjectCrawler {
     crawl(target) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log(`Crawling project ${target.htmlUrl} ...`);
-            let projectData = {};
+            let issues = [];
             let columns = {};
-            let proj = yield this.github.getProject(target.htmlUrl);
-            let cols = yield this.github.getColumnsForProject(proj);
+            let projectData = yield this.github.getProject(target.htmlUrl);
+            let cols = yield this.github.getColumnsForProject(projectData);
             cols.forEach((col) => {
                 columns[col.name] = col.id;
             });
@@ -14086,9 +14062,7 @@ class ProjectCrawler {
                 mappedColumns = mappedColumns.concat(colNames);
             }
             let seenUnmappedColumns = [];
-            projectData.stages = {};
             for (const key in target.columnMap) {
-                projectData.stages[key] = [];
                 console.log(`Processing stage ${key}`);
                 let colNames = target.columnMap[key];
                 for (const colName of colNames) {
@@ -14119,7 +14093,8 @@ class ProjectCrawler {
                         let issueCard = yield this.github.getIssueForCard(card, projectData.id);
                         if (issueCard) {
                             this.processCard(issueCard, projectData.id, target, eventCallback);
-                            projectData.stages[key].push(issueCard);
+                            //projectData.stages[key].push(issueCard);
+                            issues.push(issueCard);
                         }
                     }
                 }
@@ -14133,13 +14108,16 @@ class ProjectCrawler {
                 console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
                 console.log();
             }
-            return projectData;
+            return issues;
         });
     }
     // process a card in context of the project it's being added to
     // filter column events to the project being processed only since. this makes it easier on the report author
     // add stage name to column move events so report authors don't have to repeatedly to that
     processCard(card, projectId, target, eventCallback) {
+        if (!projectId) {
+            throw new Error('projectId not set');
+        }
         let filteredEvents = [];
         // card events should be in order chronologically
         let currentStage;
@@ -14182,13 +14160,11 @@ class ProjectCrawler {
                 if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         card[this.stageAtNames[toLevel]] = eventDateTime;
+                        console.log(`${this.stageAtNames[toLevel]}: ${eventDateTime}`);
                     }
                 }
                 if (toStage === 'Done') {
                     doneTime = eventDateTime;
-                }
-                if (toStage === 'Blocked') {
-                    blockedTime = eventDateTime;
                 }
                 filteredEvents.push(event);
             }
@@ -14196,14 +14172,14 @@ class ProjectCrawler {
             // done_at and blocked_at is only set if it's currently at that stage
             if (currentStage === 'Done') {
                 card.project_done_at = doneTime;
-            }
-            if (currentStage === 'Blocked') {
-                card.project_blocked_at = blockedTime;
+                console.log(`project_done_at: ${card.project_done_at}`);
             }
             if (addedTime) {
                 card.project_added_at = addedTime;
+                console.log(`project_added_at: ${card.project_added_at}`);
             }
             card.project_stage = currentStage;
+            console.log(`project_stage: ${card.project_stage}`);
         }
     }
     getStageFromColumn(column, target) {

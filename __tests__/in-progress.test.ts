@@ -1,8 +1,8 @@
-import {ProjectData, ProjectIssue} from '../interfaces';
+import {ProjectIssue} from '../interfaces';
 import * as inProgress from '../reports/in-progress';
 import {ProgressData, IssueCardEx} from '../reports/in-progress';
 
-let projectData: ProjectData = require('./project-data.test.json');
+let projectData: ProjectIssue[] = require('./project-data.test.json');
 
 let config: any = {
     "report-on": 'Epic',
@@ -29,8 +29,7 @@ describe('report-lib', () => {
     // make sure the mocked data set is loaded and valid
     it('imports a valid projectData from file', async () => {
         expect(projectData).toBeDefined();
-        expect(projectData.name).toBe("TODO");
-        expect(projectData.stages["In-Progress"]).toBeDefined();
+        expect(projectData.length).toBe(14);
     });
 
     it('process returns InProgressData', async () => {
@@ -71,7 +70,7 @@ describe('report-lib', () => {
         let processed = inProgress.process(config, projectData, drillIn) as IssueCardEx[];
         expect(processed).toBeDefined();
 
-        let markdown = inProgress.renderMarkdown(projectData, processed);
+        let markdown = inProgress.renderMarkdown([], processed);
         expect(markdown).toBeDefined();
         // console.log(markdown);
         expect(markdown).toContain("## :hourglass_flowing_sand: In Progress Epics");

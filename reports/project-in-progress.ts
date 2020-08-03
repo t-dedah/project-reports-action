@@ -1,4 +1,5 @@
-import {ProjectData, ProjectIssue} from '../interfaces';
+import {ProjectIssue, CrawlingTarget} from '../interfaces';
+import {ProjectStages, ProjectStageIssues} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -70,13 +71,14 @@ export function sortCards(card1: IssueCardEx, card2: IssueCardEx) {
     }
 } 
 
-export function process(config: any, projData: ProjectData, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     console.log("> in-progress::process");
     let progressData = <ProgressData>{};
 
     progressData.cardType = config["report-on"];
 
-    let cards = projData.stages["In-Progress"];
+    let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
+    let cards = projData[ProjectStages.InProgress];
     if (!cards) {
         // if the column exists but has no cards, that's fine, it will no get here. 
         // It would have to be a non existant column which is a config problem so fail.
@@ -121,7 +123,7 @@ interface ProgressRow {
     daysLastUpdated: string,
 }
 
-export function renderMarkdown(projData: ProjectData, processedData: any): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
     console.log("> in-progress::renderMarkdown");
     let progressData = processedData as ProgressData;
     

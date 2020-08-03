@@ -75,6 +75,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = exports.reportType = void 0;
+const project_reports_lib_1 = __webpack_require__(369);
 const rptLib = __importStar(__webpack_require__(369));
 const tablemark = __webpack_require__(611);
 const os = __importStar(__webpack_require__(87));
@@ -132,11 +133,12 @@ function sortCards(card1, card2) {
     }
 }
 exports.sortCards = sortCards;
-function process(config, projData, drillIn) {
+function process(config, issues, drillIn) {
     console.log("> in-progress::process");
     let progressData = {};
     progressData.cardType = config["report-on"];
-    let cards = projData.stages["In-Progress"];
+    let projData = rptLib.getProjectStageIssues(issues);
+    let cards = projData[project_reports_lib_1.ProjectStages.InProgress];
     if (!cards) {
         // if the column exists but has no cards, that's fine, it will no get here. 
         // It would have to be a non existant column which is a config problem so fail.
@@ -166,7 +168,7 @@ function process(config, projData, drillIn) {
     return progressData;
 }
 exports.process = process;
-function renderMarkdown(projData, processedData) {
+function renderMarkdown(targets, processedData) {
     console.log("> in-progress::renderMarkdown");
     let progressData = processedData;
     let lines = [];
@@ -648,7 +650,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
@@ -708,6 +710,28 @@ function sumCardProperty(cards, prop) {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
 exports.sumCardProperty = sumCardProperty;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: "Proposed",
+    Accepted: "Accepted",
+    InProgress: "In-Progress",
+    Done: "Done"
+};
+function getProjectStageIssues(issues) {
+    let projIssues = {};
+    for (let projIssue of issues) {
+        let stage = projIssue["project_stage"];
+        if (!stage) {
+            throw new Error(`issue missing stage: ${projIssue.html_url}`);
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
 //# sourceMappingURL=project-reports-lib.js.map
 
 /***/ }),

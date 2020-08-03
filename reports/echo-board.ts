@@ -1,4 +1,5 @@
 import * as os from 'os';
+import { CrawlingTarget } from '../interfaces';
 
 const reportType = 'any';
 export {reportType};
@@ -20,16 +21,11 @@ export function process(config, data: any): any {
     return data;
 }
 
-export function renderMarkdown(projectData, data: any): string {
+export function renderMarkdown(targets: CrawlingTarget[], data: any): string {
+    console.log(`rendering for ${targets.length} targets`);
+
     let lines: string[] = []
     lines.push(`## Echo data `);
-
-    if (projectData) {
-        lines.push("");
-        lines.push("```javascript")
-        lines.push(JSON.stringify(projectData, null, 2));
-        lines.push("```");        
-    }
 
     lines.push("");
     lines.push("```javascript")

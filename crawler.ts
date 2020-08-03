@@ -11,13 +11,13 @@ export class Crawler {
         this.github = new GitHubClient(token, cachePath);
     }
 
-    async crawl(target: CrawlingTarget): Promise<ProjectData | any[]> {
+    async crawl(target: CrawlingTarget): Promise<IssueSummary[]> {
         if (this.targetMap[target.htmlUrl]) {
             return this.targetMap[target.htmlUrl];
         }
 
         // TODO: eventually deprecate ProjectData and only have distinct set
-        let data: ProjectData | any[];
+        let data: IssueSummary[];
         if (target.type === 'project') {
             let projectCrawler = new ProjectCrawler(this.github);
             data = await projectCrawler.crawl(target);
@@ -90,8 +90,7 @@ class ProjectCrawler {
         "proposed": "Proposed",
         "accepted": "Accepted",
         "in-progress": "In-Progress",
-        "done": "Done",
-        "blocked": "Blocked"
+        "done": "Done"
     }
 
     // keep in order indexed by level above
@@ -108,15 +107,15 @@ class ProjectCrawler {
         this.github = client;
     }
 
-    public async crawl(target: CrawlingTarget): Promise<ProjectData> {
+    public async crawl(target: CrawlingTarget): Promise<ProjectIssue[]> {
         console.log(`Crawling project ${target.htmlUrl} ...`);
 
-        let projectData = <ProjectData>{};
+        let issues: ProjectIssue[] = [];
         let columns: { [key: string]: number } = {};
 
-        let proj = await this.github.getProject(target.htmlUrl);
+        let projectData = await this.github.getProject(target.htmlUrl);
 
-        let cols = await this.github.getColumnsForProject(proj);
+        let cols = await this.github.getColumnsForProject(projectData);
         cols.forEach((col) => {
             columns[col.name] = col.id;
         })
@@ -132,10 +131,8 @@ class ProjectCrawler {
         }
 
         let seenUnmappedColumns: string[] = [];
-        projectData.stages = {}
-        for (const key in target.columnMap) {
-            projectData.stages[key] = [];
 
+        for (const key in target.columnMap) {
             console.log(`Processing stage ${key}`);
             let colNames = target.columnMap[key];
 
@@ -173,7 +170,8 @@ class ProjectCrawler {
                     let issueCard = await this.github.getIssueForCard(card, projectData.id);
                     if (issueCard) {
                         this.processCard(issueCard, projectData.id, target, eventCallback);
-                        projectData.stages[key].push(issueCard);
+                        //projectData.stages[key].push(issueCard);
+                        issues.push(issueCard);
                     }
                 }
             }
@@ -189,13 +187,17 @@ class ProjectCrawler {
             console.log();
         }
 
-        return projectData;
+        return issues;
     }
 
     // process a card in context of the project it's being added to
     // filter column events to the project being processed only since. this makes it easier on the report author
     // add stage name to column move events so report authors don't have to repeatedly to that
     public processCard(card: ProjectIssue, projectId: number, target: CrawlingTarget, eventCallback: (event: IssueEvent) => void): void {
+        if (!projectId) {
+            throw new Error('projectId not set');
+        }
+
         let filteredEvents = [];
 
         // card events should be in order chronologically
@@ -208,13 +210,12 @@ class ProjectCrawler {
             for (let event of card.events) {
                 // since we're adding this card to a projects / stage, let's filter out
                 // events for other project ids since an issue can be part of multiple boards
-                
                 if (event.project_card && event.project_card.project_id !== projectId) {
                     continue;
                 }
 
                 eventCallback(event);
-                
+
                 let eventDateTime: Date;
                 if (event.created_at) {
                     eventDateTime = event.created_at;
@@ -249,15 +250,12 @@ class ProjectCrawler {
                 if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         card[this.stageAtNames[toLevel]] = eventDateTime;
+                        console.log(`${this.stageAtNames[toLevel]}: ${eventDateTime}`);
                     } 
                 }
 
                 if (toStage === 'Done') {
                     doneTime = eventDateTime;
-                }
-
-                if (toStage === 'Blocked') {
-                    blockedTime = eventDateTime;
                 }
 
                 filteredEvents.push(event);
@@ -267,17 +265,16 @@ class ProjectCrawler {
             // done_at and blocked_at is only set if it's currently at that stage
             if (currentStage === 'Done') {
                 card.project_done_at = doneTime;
-            }
-
-            if (currentStage === 'Blocked') {
-                card.project_blocked_at = blockedTime
+                console.log(`project_done_at: ${card.project_done_at}`);
             }
 
             if (addedTime) {
                 card.project_added_at = addedTime;
+                console.log(`project_added_at: ${card.project_added_at}`);
             }
 
             card.project_stage = currentStage;
+            console.log(`project_stage: ${card.project_stage}`);
         }
     } 
     

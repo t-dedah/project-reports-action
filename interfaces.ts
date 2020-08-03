@@ -58,7 +58,7 @@ export interface ProjectData {
     name: string,
 
     // TODO: should go away in favor of DistinctSet
-    stages: { [key: string]: ProjectIssue[] }
+    // stages: { [key: string]: ProjectIssue[] }
 }
 
 export interface IssueLabel {
@@ -170,6 +170,6 @@ export interface ProjectReportBuilder {
     reportType: "project" | "repo" | "any";
     getDefaultConfiguration(): any;
     process(config: any, data: ProjectData | DistinctSet, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any;
-    renderMarkdown(data: ProjectData | CrawlingTarget[], processedData?: any): string;
-    renderHtml(projData: ProjectData, processedData?: any): string;
+    renderMarkdown(targets: CrawlingTarget[], processedData?: any): string;
+    renderHtml(targets: CrawlingTarget[], processedData?: any): string;
 }

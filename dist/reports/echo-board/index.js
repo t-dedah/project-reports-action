@@ -95,15 +95,10 @@ function process(config, data) {
     return data;
 }
 exports.process = process;
-function renderMarkdown(projectData, data) {
+function renderMarkdown(targets, data) {
+    console.log(`rendering for ${targets.length} targets`);
     let lines = [];
     lines.push(`## Echo data `);
-    if (projectData) {
-        lines.push("");
-        lines.push("```javascript");
-        lines.push(JSON.stringify(projectData, null, 2));
-        lines.push("```");
-    }
     lines.push("");
     lines.push("```javascript");
     lines.push(JSON.stringify(data, null, 2));

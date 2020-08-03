@@ -2,6 +2,7 @@ import * as path from 'path'
 import * as fs from 'fs'
 import * as util from './util'
 import * as yaml from 'js-yaml'
+import * as url from 'url';
 // import {GitHubClient} from './github'
 import * as os from 'os';
 import * as mustache from 'mustache'
@@ -13,6 +14,7 @@ let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
 import { CrawlingConfig, GeneratorConfiguration, ProjectIssue, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails, IssueSummary, CrawlingTarget } from './interfaces'
+//import { url } from 'inspector';
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     console.log("Generating reports");
@@ -137,21 +139,9 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                     throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                 }
 
-                let data: ProjectData | any[] = await crawler.crawl(target);
-                if (Array.isArray(data)) {
-                    console.log(`Adding ${data.length} issues to set ...`);
-                    // console.log(JSON.stringify(data, null, 2))
-                    set.add(data);
-                }
-                else {
-                    // ProjectData which doesn't support rollup yet
-                    if (projectData) {
-                        throw new Error("Project reports do not support rollup of multiple targets yet");
-                    }
-
-                    console.log("Setting projectData ...");
-                    projectData = <ProjectData>data;
-                }
+                let data: IssueSummary[] = await crawler.crawl(target);
+                console.log(`Adding ${data.length} issues to set ...`);
+                set.add(data);
             }
 
             console.log(`Issues set has ${set.getItems().length}`);
@@ -167,33 +157,18 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 })
             }
 
-            let processed;
-            // let data: ProjectData | IssueSummary[];
-            if (reportGenerator.reportType == 'project') {
-                if (!projectData) {
-                    throw new Error(`Report type ${reportGenerator.reportType} expected project data from target`);
-                }
-                // data = projectData;
-                processed = reportGenerator.process(config, clone(projectData), drillInCb);
-            }
-            else if (reportGenerator.reportType == 'repo') {
-                if (!set) {
-                    throw new Error(`Report type ${reportGenerator.reportType} expected issues data from target`);
-                }
-                // data = set.getItems() as IssueSummary[];
-                processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
-            }            
-            else {
-                // any only type new
-                let data = set ? set.getItems() : projectData;
-                processed = reportGenerator.process(config, clone(data), drillInCb);
-            }
+            // if (!set) {
+            //     throw new Error(`Report type ${reportGenerator.reportType} expected issues data from target`);
+            // }
+
+            let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
+
             await writeSectionData(report, reportModule, config, processed);
 
             if (report.kind === 'markdown') {
                 console.log('Rendering markdown ...');
-                let data = reportGenerator.reportType == 'repo' ? targets : projectData;
-                output += reportGenerator.renderMarkdown(data, processed);
+                // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+                output += reportGenerator.renderMarkdown(targets, processed);
             }
             else {
                 throw new Error(`Report kind ${report.kind} not supported`);
@@ -276,7 +251,8 @@ async function writeReport(report: ReportConfig, targetData: any, contents: stri
     fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
     fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
     for (let target in targetData) {
-        fs.writeFileSync(path.join(report.details.dataPath, `${sanitize(target)}.json`), JSON.stringify(targetData[target], null, 2));
+        let urlPath = url.parse(target).path.split("/").join("_");
+        fs.writeFileSync(path.join(report.details.dataPath, `target-${sanitize(urlPath)}.json`), JSON.stringify(targetData[target], null, 2));
     }
     
 }

@@ -568,7 +568,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
@@ -628,6 +628,28 @@ function sumCardProperty(cards, prop) {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
 exports.sumCardProperty = sumCardProperty;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: "Proposed",
+    Accepted: "Accepted",
+    InProgress: "In-Progress",
+    Done: "Done"
+};
+function getProjectStageIssues(issues) {
+    let projIssues = {};
+    for (let projIssue of issues) {
+        let stage = projIssue["project_stage"];
+        if (!stage) {
+            throw new Error(`issue missing stage: ${projIssue.html_url}`);
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
 //# sourceMappingURL=project-reports-lib.js.map
 
 /***/ }),
