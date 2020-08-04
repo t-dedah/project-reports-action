@@ -54,6 +54,25 @@ jobs:
           configPath: yourconfig.yml
 ```
 
+You will want to checkin the reports after they are generated.  Note that the etag cache and other data files should be checked in with the reports.  Do this by checking in the `_reports` folder generated in the root of the repo.
+
+Add this step after the `project-reports-action` step.  Note that pull-requests validate the report generation run but do not checkin reports or the cache.  Only pushes to master.
+
+TODO: probably want to change this to !== pull_request since we will want to run on a schedule.
+
+```yaml
+    steps:
+...
+      - if: ${{ github.event_name == 'push' }}
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com     
+          git add ./_reports
+          git pull origin master
+          git commit -a -m "adding reports"
+          git push origin master
+```
+
 ## Configuration File
 
 A sample configuration file is in [samples/sample.yaml](../samples/sample.yaml).
