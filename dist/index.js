@@ -14081,7 +14081,7 @@ class ProjectCrawler {
                             if (event.project_card && event.project_card.column_name) {
                                 mentioned = event.project_card.column_name;
                             }
-                            if (event.project_card && event.project_card.column_name) {
+                            if (event.project_card && event.project_card.previous_column_name) {
                                 mentioned = event.project_card.previous_column_name;
                             }
                             if (mentioned && mappedColumns.indexOf(mentioned) === -1 && seenUnmappedColumns.indexOf(mentioned) === -1) {

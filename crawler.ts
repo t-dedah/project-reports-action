@@ -156,7 +156,7 @@ class ProjectCrawler {
                             mentioned = event.project_card.column_name;
                         }
 
-                        if (event.project_card && event.project_card.column_name) {
+                        if (event.project_card && event.project_card.previous_column_name) {
                             mentioned = event.project_card.previous_column_name;
                         }                        
 
