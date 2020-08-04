@@ -86,7 +86,6 @@ reports:
     targets: ['todoProject']
     sections:
       - name: "project-limits"
-      - name: "limits"
       - name: "project-in-progress"
       - name: "project-done"
       - name: "project-new"
