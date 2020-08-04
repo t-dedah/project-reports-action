@@ -66,10 +66,11 @@ TODO: probably want to change this to !== pull_request since we will want to run
 
 If you follow all the defaults, then a configuration file can be minimal.
 
-Type labels: `epic`, `feature`, `task`, `bug`
-Status labels: `green`, `yellow`, `red`
-Project board column names: `Proposed`, `Accepted`, `In-Progress`, `Done`
-For issue "updates" head with `## update` (last updated column will read)
+**Type labels:** `epic`, `feature`, `task`, `bug`  
+**Status labels:** `green`, `yellow`, `red`  
+**Project board column names:** `Proposed`, `Accepted`, `In-Progress`, `Done`  
+
+For issue "updates" head with `## update` (last updated column will read)  
 
 This is the minimal configuration file for a project:
 
