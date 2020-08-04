@@ -14077,15 +14077,17 @@ class ProjectCrawler {
                         // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
                         // this will help diagnose a potential config issue much faster
                         let eventCallback = (event) => {
-                            let mentioned;
+                            let mentioned = [];
                             if (event.project_card && event.project_card.column_name) {
-                                mentioned = event.project_card.column_name;
+                                mentioned.push(event.project_card.column_name);
                             }
                             if (event.project_card && event.project_card.previous_column_name) {
-                                mentioned = event.project_card.previous_column_name;
+                                mentioned.push(event.project_card.previous_column_name);
                             }
-                            if (mentioned && mappedColumns.indexOf(mentioned) === -1 && seenUnmappedColumns.indexOf(mentioned) === -1) {
-                                seenUnmappedColumns.push(mentioned);
+                            for (let mention of mentioned) {
+                                if (mappedColumns.indexOf(mention) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
+                                    seenUnmappedColumns.push(mention);
+                                }
                             }
                         };
                         // cached since real column could be mapped to two different mapped columns
