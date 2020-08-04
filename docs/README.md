@@ -138,9 +138,14 @@ reports:
 
 Each section references the `name` of a report.
 
-> KEY: reports that start with `project-` are project reports and expect a project target.  Reports that start with `repo-` are repository reports and expect a repo target.  The generator will error out with a good message if you mix.  Note that data from a project board has stage data on it like `project_added_at`, `progress-in-progress-at` etc.  Those reports expect that.
+> Important: reports that start with `project-` are project reports and expect a project target.  Reports that start with `repo-` are repository reports and expect a repo target.  The generator will error out with a good message if you mix.  Note that data from a project board has stage data on it like `project_added_at`, `progress-in-progress-at` etc.  Those reports expect that.
+
+The `config` settings are specific to each report.   However, note that each report supplies defaults and you only need to specify what's different from that.
 
 ## Built-in Reports
+
+[project-limits](./project-limits.md)  
+
 
 
 ## Custom Reports
