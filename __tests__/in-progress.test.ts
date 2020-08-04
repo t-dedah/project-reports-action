@@ -15,7 +15,7 @@ let config: any = {
     "last-updated-scheme-data": "^(#){1,4} update",   
   };
 
-describe('report-lib', () => {
+describe('project-in-progress', () => {
 
     beforeEach(() => {
     });
