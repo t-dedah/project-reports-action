@@ -45,14 +45,18 @@ reports:
           accepted-limit: 2
           in-progress-limit: 2
           count-label-match: "(\\d+)-dev"
-      - name: "in-progress"
-        config:
-          report-on: '*'
-          wip-label-match: "(\\d+)-dev"
       - name: "project-in-progress"
         config:
           report-on: 'Epic'
           wip-label-match: "(\\d+)-dev"
+      - name: "project-done"
+        config:
+          report-on: 'Epic'
+          daysAgo: 100
+      - name: "project-new"
+        config:
+          report-on: 'Epic'
+          daysAgo: 100      
   - name: Issues
     title: "{{{ config.name }}} Project Report"
     kind: markdown 
