@@ -203,14 +203,15 @@ function renderMarkdown(targets, processedData) {
     lines.push("  ");
     let rows = [];
     for (let card of processedData.cards) {
-        let progressRow = {};
+        let newRow = {};
         let assigned = card.assignee;
         if (!assigned && card.assignees && card.assignees.length > 0) {
             assigned = card.assignees[0];
         }
-        progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
-        progressRow.title = `[${card.title}](${card.html_url})`;
-        rows.push(progressRow);
+        newRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
+        newRow.title = `[${card.title}](${card.html_url})`;
+        newRow.added = new Date(card["project_added_at"]).toDateString();
+        rows.push(newRow);
     }
     let table;
     if (rows && rows.length > 0) {

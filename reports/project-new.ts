@@ -53,7 +53,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
 interface NewRow {
     assigned: string,
     title: string,
-    completed: string,    
+    added: string,    
 }
 
 export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
@@ -68,17 +68,18 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
 
     let rows: NewRow[] = [];
     for (let card of processedData.cards) {
-        let progressRow = <NewRow>{};
+        let newRow = <NewRow>{};
 
         let assigned= card.assignee;
         if (!assigned && card.assignees && card.assignees.length > 0) {
             assigned = card.assignees[0];
         }
 
-        progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
-        progressRow.title = `[${card.title}](${card.html_url})`;
+        newRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
+        newRow.title = `[${card.title}](${card.html_url})`;
+        newRow.added = new Date(card["project_added_at"]).toDateString();
 
-        rows.push(progressRow);
+        rows.push(newRow);
     }
 
     let table: string;

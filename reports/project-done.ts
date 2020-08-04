@@ -69,17 +69,18 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
 
     let rows: CompletedRow[] = [];
     for (let card of processedData.cards) {
-        let progressRow = <CompletedRow>{};
+        let doneRow = <CompletedRow>{};
 
         let assigned= card.assignee;
         if (!assigned && card.assignees && card.assignees.length > 0) {
             assigned = card.assignees[0];
         }
 
-        progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
-        progressRow.title = `[${card.title}](${card.html_url})`;
+        doneRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
+        doneRow.title = `[${card.title}](${card.html_url})`;
+        doneRow.completed = new Date(card["project_done_at"]).toDateString();
 
-        rows.push(progressRow);
+        rows.push(doneRow);
     }
 
     let table: string;
