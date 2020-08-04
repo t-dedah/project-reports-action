@@ -14,17 +14,6 @@ Each stage can map to one or more physical columns on your board.  The time for 
 
 If a report section targets multiple targets, the data will be rolled up and passed to the report.  Since the stages and times are normalized, it can provide a common view of different boards and repos.
 
-Reports have default settings but they can be overriden in your configuration file.
-
-Reports will have settings for various labels, but in general using this set will allow for less configuration settings and consistency:
-
-- type: `epic`, `feature`, `task`, `bug`
-- status: `status: green`, `status: yellow`, `status: red`
-
-> TODO: I think we should change this to `green`, `yellow`, `red` for alignment with type and being simple
-
-"Last updated" is calculated by default from looking for a comment with the heading text `## update`.  This is customizable.
-
 So let's get started ...
 
 ## Create a repo for running and storing your reports
@@ -73,9 +62,38 @@ TODO: probably want to change this to !== pull_request since we will want to run
           git push origin master
 ```
 
-## Configuration File
+## Minimal Configuration File for Project
 
-A sample configuration file is in [samples/sample.yaml](../samples/sample.yaml).
+If you follow all the defaults, then a configuration file can be minimal.
+
+Type labels: `epic`, `feature`, `task`, `bug`
+Status labels: `green`, `yellow`, `red`
+Project board column names: `Proposed`, `Accepted`, `In-Progress`, `Done`
+For issue "updates" head with `## update` (last updated column will read)
+
+This is the minimal configuration file for a project:
+
+```yaml
+targets: 
+  todoProject:
+    type: project
+    htmlUrl: https://github.com/users/bryanmacfarlane/projects/1
+
+reports:
+  - name: TODO
+    title: "My Project Report"
+    targets: ['todoProject']
+    sections:
+      - name: "project-limits"
+      - name: "limits"
+      - name: "project-in-progress"
+      - name: "project-done"
+      - name: "project-new"
+```
+
+## Configuration File Details
+
+A sample configuration file show more detailed settings is in [samples/sample.yaml](../samples/sample.yaml).
 
 A configuration file has:
 
