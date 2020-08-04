@@ -23,7 +23,7 @@ export function getDefaultConfiguration(): any {
         "proposed-limit": 0,  
         "accepted-limit": 0,
         "in-progress-limit": 4,
-        "done-limt": 0,
+        "done-limit": 0,
         "count-label-match": "(\\d+)-wip"
     };
 }

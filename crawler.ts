@@ -76,8 +76,7 @@ let stageLevel = {
     "Proposed": 1,
     "Accepted": 2,
     "In-Progress": 3,
-    "Blocked": 4,
-    "Done": 5
+    "Done": 4
 }
 
 
