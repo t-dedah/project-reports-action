@@ -6147,7 +6147,6 @@ let clone = __webpack_require__(97);
 //import { url } from 'inspector';
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Generating reports");
         const workspacePath = process.env["GITHUB_WORKSPACE"];
         if (!workspacePath) {
             throw new Error("GITHUB_WORKSPACE not defined");
@@ -6167,9 +6166,9 @@ function generate(token, configYaml) {
         let minute = d.getUTCMinutes().toString().padStart(2, "0");
         let dt = `${year}-${month}-${day}_${hour}-${minute}`;
         snapshot.datetimeString = dt;
-        snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
-        // apply defaults
         snapshot.config.output = snapshot.config.output || "_reports";
+        snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
+        console.log(`Writing snapshot to ${snapshot.rootPath}`);
         yield writeSnapshot(snapshot);
         // update report config details
         for (const report of config.reports) {
@@ -6191,6 +6190,26 @@ function generate(token, configYaml) {
         }
         else {
             crawlCfg = config.targets;
+        }
+        // apply defaults to targets
+        console.log("Applying target defaults");
+        for (let targetName in crawlCfg) {
+            let target = crawlCfg[targetName];
+            if (target.type === 'project') {
+                if (!target.columnMap) {
+                    target.columnMap = {};
+                }
+                let defaultPhases = ['Proposed', 'Accepted', 'In-Progress', 'Done'];
+                for (let phase of defaultPhases) {
+                    if (!target.columnMap[phase]) {
+                        target.columnMap[phase] = [phase];
+                    }
+                }
+                // make sure "In Progress" (default in GH Kanban) is synonymous with In-Progress
+                if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
+                    target.columnMap['In-Progress'].push('In progress');
+                }
+            }
         }
         let crawler = new crawler_1.Crawler(token, cachePath);
         for (const report of config.reports) {
@@ -6261,6 +6280,7 @@ function generate(token, configYaml) {
                 // }
                 let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
                 yield writeSectionData(report, reportModule, config, processed);
+                report.kind = report.kind || 'markdown';
                 if (report.kind === 'markdown') {
                     console.log('Rendering markdown ...');
                     // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
@@ -13785,6 +13805,7 @@ function run() {
         try {
             let token = core.getInput('token', { required: true });
             let configPath = core.getInput('configPath', { required: true });
+            console.log(`Generating reports for ${configPath} ...`);
             yield generator_1.generate(token, configPath);
         }
         catch (err) {
@@ -14019,8 +14040,7 @@ let stageLevel = {
     "Proposed": 1,
     "Accepted": 2,
     "In-Progress": 3,
-    "Blocked": 4,
-    "Done": 5
+    "Done": 4
 };
 class ProjectCrawler {
     constructor(client) {
@@ -14049,6 +14069,9 @@ class ProjectCrawler {
             let issues = [];
             let columns = {};
             let projectData = yield this.github.getProject(target.htmlUrl);
+            if (!projectData) {
+                throw new Error(`Could not find project ${target.htmlUrl}`);
+            }
             let cols = yield this.github.getColumnsForProject(projectData);
             cols.forEach((col) => {
                 columns[col.name] = col.id;

@@ -113,6 +113,9 @@ class ProjectCrawler {
         let columns: { [key: string]: number } = {};
 
         let projectData = await this.github.getProject(target.htmlUrl);
+        if (!projectData) {
+            throw new Error(`Could not find project ${target.htmlUrl}`);
+        }
 
         let cols = await this.github.getColumnsForProject(projectData);
         cols.forEach((col) => {

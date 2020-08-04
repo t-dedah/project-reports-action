@@ -1,0 +1,14 @@
+targets: 
+  sampleProject:
+    type: project
+    htmlUrl: https://github.com/bryanmacfarlane/sample-reports/projects/1
+
+reports:
+  - name: Sample
+    title: "My Project Report"
+    targets: ['sampleProject']
+    sections:
+      - name: "project-limits"
+      - name: "project-in-progress"
+      - name: "project-done"
+      - name: "project-new"

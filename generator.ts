@@ -17,8 +17,6 @@ import { CrawlingConfig, GeneratorConfiguration, ProjectIssue, ReportSnapshot, R
 //import { url } from 'inspector';
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
-    console.log("Generating reports");
-
     const workspacePath = process.env["GITHUB_WORKSPACE"];
     if (!workspacePath) {
         throw new Error("GITHUB_WORKSPACE not defined");
@@ -41,11 +39,11 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     let minute = d.getUTCMinutes().toString().padStart(2, "0");
     let dt: string = `${year}-${month}-${day}_${hour}-${minute}`;
     snapshot.datetimeString = dt;  
-        
+
+    snapshot.config.output = snapshot.config.output || "_reports";
     snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
 
-    // apply defaults
-    snapshot.config.output = snapshot.config.output || "_reports";
+    console.log(`Writing snapshot to ${snapshot.rootPath}`);
     await writeSnapshot(snapshot);
 
     // update report config details
@@ -71,6 +69,29 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     }
     else {
         crawlCfg = <CrawlingConfig>config.targets;
+    }
+
+    // apply defaults to targets
+    console.log("Applying target defaults");
+    for (let targetName in crawlCfg) {
+        let target = crawlCfg[targetName];
+        if (target.type === 'project') {
+            if (!target.columnMap) {
+                target.columnMap = {};
+            }
+
+            let defaultPhases = ['Proposed', 'Accepted', 'In-Progress', 'Done'];
+            for (let phase of defaultPhases) {
+                if (!target.columnMap[phase]) {
+                    target.columnMap[phase] = [ phase ];
+                }
+            }
+
+            // make sure "In Progress" (default in GH Kanban) is synonymous with In-Progress
+            if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
+                target.columnMap['In-Progress'].push('In progress');
+            }
+        }
     }
 
     let crawler: Crawler = new Crawler(token, cachePath);
@@ -165,6 +186,8 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
             await writeSectionData(report, reportModule, config, processed);
 
+            report.kind = report.kind || 'markdown';
+            
             if (report.kind === 'markdown') {
                 console.log('Rendering markdown ...');
                 // let data = reportGenerator.reportType == 'repo' ? targets : projectData;

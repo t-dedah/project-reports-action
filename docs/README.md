@@ -8,7 +8,9 @@ Project board reports report on the life cycle of work (a card) as it moves thro
 
 ```
     Proposed => Accepted => In-Progress => Done
-```
+``` 
+
+Note: "In progress" (default in GitHub Kanban project) is auto mapped to In-Progress.
 
 Each stage can map to one or more physical columns on your board.  The time for each stage is recorded as the first time it entered that stage from a previous stage or no stage.  For example, if it moved from accepted to in progress on date 1, then to Done on date 2 and back to in progress on date 3, it has been in progress since date 1.
 
@@ -78,10 +80,10 @@ This is the minimal configuration file for a project:
 targets: 
   todoProject:
     type: project
-    htmlUrl: https://github.com/users/bryanmacfarlane/projects/1
+    htmlUrl: https://github.com/users/bryanmacfarlane/projects/2
 
 reports:
-  - name: TODO
+  - name: Sample
     title: "My Project Report"
     targets: ['todoProject']
     sections:

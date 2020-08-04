@@ -1049,7 +1049,7 @@ function getDefaultConfiguration() {
         "report-on": 'Epic',
         // TODO: implement getting a shapshot of data n days ago
         "daysAgo": 7,
-        "status-label-match": "(?<=status:).*",
+        "status-label-match": "(?:green|yellow|red)",
         "wip-label-match": "(\\d+)-wip",
         "last-updated-days-flag": 3.0,
         "last-updated-scheme": "LastCommentPattern",
