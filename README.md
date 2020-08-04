@@ -14,7 +14,7 @@ An action to generate reports like this ffor a GitHub project board.  Customizab
 
 ![sample](./docs/sample.png)
 
-## Use in workflow
+## Documentation
 
 Documentation is [located here](./docs/README.md)
 
