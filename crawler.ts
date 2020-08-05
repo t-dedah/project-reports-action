@@ -98,7 +98,6 @@ class ProjectCrawler {
         'project_proposed_at',
         'project_accepted_at',
         'project_in_progress_at',
-        'project_blocked_at',
         'project_done_at'
     ]
 

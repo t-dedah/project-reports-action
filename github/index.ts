@@ -113,14 +113,14 @@ export class GitHubClient {
     }
     
     public async getIssueComments(owner: string, repo: string, issue_number: string): Promise<IssueComment[]> {    
-        let res = await this.octokit.issues.listComments({
-            owner,
-            repo,
-            issue_number,
-            per_page: 100
-          });
-    
-        return res.data;
+        return await this.octokit.paginate(
+            "GET /repos/:owner/:repo/issues/:id/comments",
+            {
+                owner: owner,
+                repo: repo,
+                id: issue_number,
+            }
+        );
     } 
     
     // returns null if not an issue
@@ -148,7 +148,6 @@ export class GitHubClient {
             per_page: 100
         });
 
-        //console.log(JSON.stringify(res, null, 2));
         let issue = res.data;
 
         issueCard.number = issue.number;
@@ -167,17 +166,14 @@ export class GitHubClient {
             issueCard.comments = await this.getIssueComments(owner, repo, issue_number);
         }
         
-        // TODO: paginate?
-        res = await this.octokit.issues.listEvents({
-            owner: owner,
-            repo: repo,
-            issue_number: issue_number,
-            per_page: 100
-        });
-
-        issueCard.events = res.data as IssueEvent[];
-
-        //TODO: sort ascending by date so it's a good historical view
+        issueCard.events = await this.octokit.paginate(
+            "GET /repos/:owner/:repo/issues/:id/events",
+            {
+                owner: owner,
+                repo: repo,
+                id: issue_number,
+            }
+        );
 
         return issueCard;
     }

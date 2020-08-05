@@ -14058,7 +14058,6 @@ class ProjectCrawler {
             'project_proposed_at',
             'project_accepted_at',
             'project_in_progress_at',
-            'project_blocked_at',
             'project_done_at'
         ];
         this.github = client;
@@ -16412,13 +16411,11 @@ class GitHubClient {
     }
     getIssueComments(owner, repo, issue_number) {
         return __awaiter(this, void 0, void 0, function* () {
-            let res = yield this.octokit.issues.listComments({
-                owner,
-                repo,
-                issue_number,
-                per_page: 100
+            return yield this.octokit.paginate("GET /repos/:owner/:repo/issues/:id/comments", {
+                owner: owner,
+                repo: repo,
+                id: issue_number,
             });
-            return res.data;
         });
     }
     // returns null if not an issue
@@ -16441,7 +16438,6 @@ class GitHubClient {
                 issue_number: issue_number,
                 per_page: 100
             });
-            //console.log(JSON.stringify(res, null, 2));
             let issue = res.data;
             issueCard.number = issue.number;
             issueCard.title = issue.title;
@@ -16457,15 +16453,11 @@ class GitHubClient {
             if (issue.comments > 0) {
                 issueCard.comments = yield this.getIssueComments(owner, repo, issue_number);
             }
-            // TODO: paginate?
-            res = yield this.octokit.issues.listEvents({
+            issueCard.events = yield this.octokit.paginate("GET /repos/:owner/:repo/issues/:id/events", {
                 owner: owner,
                 repo: repo,
-                issue_number: issue_number,
-                per_page: 100
+                id: issue_number,
             });
-            issueCard.events = res.data;
-            //TODO: sort ascending by date so it's a good historical view
             return issueCard;
         });
     }
