@@ -101,7 +101,7 @@ Documentation for reports built-in to the action
 
 :ship: [project-limits](./project-limits.md):  Flag limits broken down by type and count labels
 
-:hourglass_flowing_sand: [project-in-progress](./project-limits.md):  Flag limits broken down by type and count labels
+:hourglass_flowing_sand: [project-in-progress](./project-in-progress.md):  Flag limits broken down by type and count labels
 
 :wave: [project-new](./project-new.md):  List cards added to the board in last n days.
 
