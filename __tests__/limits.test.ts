@@ -1,6 +1,6 @@
 import {ProjectIssue} from '../interfaces';
 import * as limits from '../reports/limits';
-import {WipData} from '../reports/limits';
+import {LimitsData} from '../reports/limits';
 
 let projectData: ProjectIssue[] = require('./project-data.test.json');
 
@@ -36,7 +36,7 @@ describe('report-lib', () => {
             drillIns.push(identifier);
         }
 
-        let processed = limits.process(config, projectData, drillIn) as WipData;
+        let processed = limits.process(config, projectData, drillIn) as LimitsData;
         //console.log(JSON.stringify(processed, null, 2));
 
         let data = processed.data;
@@ -44,11 +44,11 @@ describe('report-lib', () => {
         expect(data).toBeDefined();
         // expect(processed["Epic"]).toBeDefined();
         expect(data["Proposed"]).toBeDefined();
-        expect(data["Proposed"].wips).toBe(0);
+        expect(data["Proposed"].items.length).toBe(0);
         expect(data["Proposed"].limit).toBe(2);
         expect(data["Proposed"].flag).toBe(false);
         expect(data["In-Progress"]).toBeDefined();
-        expect(data["In-Progress"].wips).toBe(5);
+        expect(data["In-Progress"].items.length).toBe(4);
         expect(data["In-Progress"].limit).toBe(2);
         expect(data["In-Progress"].flag).toBe(true);
         expect(data["Accepted"]).toBeDefined();
@@ -61,13 +61,13 @@ describe('report-lib', () => {
             drillIns.push(identifier);
         }
 
-        let processed = limits.process(config, projectData, drillIn) as WipData;
+        let processed = limits.process(config, projectData, drillIn) as LimitsData;
         expect(processed).toBeDefined();
         expect(drillIns.length).toBe(4);
 
         let markdown = limits.renderMarkdown([], processed);
         expect(markdown).toBeDefined();
         expect(markdown).toContain("## :ship: Epic Limits");
-        expect(markdown).toContain("| In-Progress | [5](./limits-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |");
+        expect(markdown).toContain("| In-Progress | [4](./limits-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |");
     });    
 });

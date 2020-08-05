@@ -1031,8 +1031,7 @@ function getDefaultConfiguration() {
         "proposed-limit": 0,
         "accepted-limit": 0,
         "in-progress-limit": 4,
-        "done-limit": 0,
-        "count-label-match": "(\\d+)-wip"
+        "done-limit": -1
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -1040,50 +1039,45 @@ function getDrillName(cardType, stage) {
     return `limits-${cardType}-${stage}`.replace(" ", "-");
 }
 function process(config, issues, drillIn) {
-    let wipData = {};
-    wipData.data = {};
+    let limitsData = {};
+    limitsData.data = {};
     // epic, etc..
-    wipData.cardType = config["report-on-label"];
+    limitsData.cardType = config["report-on-label"];
     let projData = rptLib.getProjectStageIssues(issues);
     // proposed, in-progress, etc...
     for (let stage in projData) {
         let stageData = {};
         let cards = projData[stage];
-        let cardsForType = wipData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()));
-        drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
-        // add wip number to each card from the wip label
-        cardsForType.map((card) => {
-            card.wips = rptLib.getCountFromLabel(card, new RegExp(config["count-label-match"]));
-            return card;
-        });
-        stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
+        let cardsForType = limitsData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, limitsData.cardType.toLowerCase()));
+        stageData.items = cardsForType;
+        drillIn(getDrillName(limitsData.cardType, stage), `Issues for ${stage} ${limitsData.cardType}s`, cardsForType);
         let limitKey = `${stage.toLocaleLowerCase()}-limit`;
         stageData.limit = config[limitKey] || 0;
-        stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
-        wipData.data[stage] = stageData;
+        stageData.flag = stageData.limit > -1 && cardsForType.length > stageData.limit;
+        limitsData.data[stage] = stageData;
     }
-    return wipData;
+    return limitsData;
 }
 exports.process = process;
 function renderMarkdown(targets, processedData) {
     console.log(`Rendering for ${targets.length} targets`);
-    let wipData = processedData;
+    let stageData = processedData;
     let lines = [];
     // create a report for each type.  e.g. "Epic"
-    let typeLabel = wipData.cardType === '*' ? "" : wipData.cardType;
+    let typeLabel = stageData.cardType === '*' ? "" : stageData.cardType;
     lines.push(`## :ship: ${typeLabel} Limits  `);
     let rows = [];
-    for (let stageName in wipData.data) {
-        let wipStage = wipData.data[stageName];
-        let wipRow = {};
-        wipRow.stage = stageName;
+    for (let stageName in stageData.data) {
+        let stage = stageData.data[stageName];
+        let stageRow = {};
+        stageRow.stage = stageName;
         // data folder is part of the contract here.  make a lib function to create this path
-        wipRow.count = `[${wipStage.wips}](./${getDrillName(wipData.cardType, stageName)}.md)`;
-        if (wipStage.flag) {
-            wipRow.count += "  :triangular_flag_on_post:";
+        stageRow.count = `[${stage.items.length}](./${getDrillName(stageData.cardType, stageName)}.md)`;
+        if (stage.flag) {
+            stageRow.count += "  :triangular_flag_on_post:";
         }
-        wipRow.limit = wipStage.limit >= 0 ? wipStage.limit.toString() : "";
-        rows.push(wipRow);
+        stageRow.limit = stage.limit >= 0 ? stage.limit.toString() : "";
+        rows.push(stageRow);
     }
     let table = tablemark(rows);
     lines.push(table);

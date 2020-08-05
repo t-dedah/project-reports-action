@@ -23,8 +23,7 @@ export function getDefaultConfiguration(): any {
         "proposed-limit": 0,  
         "accepted-limit": 0,
         "in-progress-limit": 4,
-        "done-limit": 0,
-        "count-label-match": "(\\d+)-wip"
+        "done-limit": -1
     };
 }
 
@@ -41,63 +40,53 @@ export function getDefaultConfiguration(): any {
 //     }
 // }
 
-export interface WipData { 
+export interface LimitsData { 
     cardType: string,
-    data: {[key: string]: WipStageData}
+    data: {[key: string]: StageData}
 }
 
 //export type WipStage = { [key: string]: WipStageData }
-export interface WipStageData {
+export interface StageData {
     flag: boolean,
-    wips: number, 
     limit: number, 
     // items that matched so possible to do drill in later
-    items: ProjectIssueEx[]    
-}
-export interface ProjectIssueEx extends ProjectIssue {
-    wips: number;
+    items: ProjectIssue[]    
 }
 
 function getDrillName(cardType: string, stage: string): string {
     return `limits-${cardType}-${stage}`.replace(" ", "-");
 }
+
 export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
-    let wipData = <WipData>{};
-    wipData.data = {};
+    let limitsData = <LimitsData>{};
+    limitsData.data = {};
 
     // epic, etc..
-    wipData.cardType = config["report-on-label"];
+    limitsData.cardType = config["report-on-label"];
 
     let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
 
     // proposed, in-progress, etc...
     for (let stage in projData) {
-        let stageData = <WipStageData>{};
+        let stageData = <StageData>{};
 
         let cards = projData[stage];
-        let cardsForType = wipData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, wipData.cardType.toLowerCase()) as ProjectIssueEx[]);
+        let cardsForType = limitsData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, limitsData.cardType.toLowerCase()) as ProjectIssue[]);
+        stageData.items = cardsForType;
 
-        drillIn(getDrillName(wipData.cardType, stage), `Issues for ${stage} ${wipData.cardType}s`, cardsForType);
-
-        // add wip number to each card from the wip label
-        cardsForType.map((card: ProjectIssueEx) => {
-            card.wips = rptLib.getCountFromLabel(card, new RegExp(config["count-label-match"]));
-            return card;
-        })
-
-        stageData.wips = rptLib.sumCardProperty(cardsForType, "wips");
+        drillIn(getDrillName(limitsData.cardType, stage), `Issues for ${stage} ${limitsData.cardType}s`, cardsForType);
 
         let limitKey = `${stage.toLocaleLowerCase()}-limit`;
         stageData.limit = config[limitKey] || 0;
-        stageData.flag = stageData.limit > -1 && stageData.wips > stageData.limit;
+        stageData.flag = stageData.limit > -1 && cardsForType.length > stageData.limit;
         
-        wipData.data[stage] = stageData;    
+        limitsData.data[stage] = stageData;    
     }
 
-    return wipData;
+    return limitsData;
 }
 
-interface WipRow {
+interface StageRow {
     stage: string,
     limit: string,
     count: string,
@@ -106,25 +95,25 @@ interface WipRow {
 export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
     console.log(`Rendering for ${targets.length} targets`);
 
-    let wipData = processedData as WipData;
+    let stageData = processedData as LimitsData;
     let lines: string[] = [];
 
     // create a report for each type.  e.g. "Epic"
-    let typeLabel = wipData.cardType === '*'? "": wipData.cardType;
+    let typeLabel = stageData.cardType === '*'? "": stageData.cardType;
     lines.push(`## :ship: ${typeLabel} Limits  `);
 
-    let rows: WipRow[] = [];
-    for (let stageName in wipData.data) {
-        let wipStage = wipData.data[stageName];
-        let wipRow = <WipRow>{};
-        wipRow.stage = stageName;
+    let rows: StageRow[] = [];
+    for (let stageName in stageData.data) {
+        let stage = stageData.data[stageName];
+        let stageRow = <StageRow>{};
+        stageRow.stage = stageName;
         // data folder is part of the contract here.  make a lib function to create this path
-        wipRow.count = `[${wipStage.wips}](./${getDrillName(wipData.cardType, stageName)}.md)`;
-        if (wipStage.flag) {
-            wipRow.count += "  :triangular_flag_on_post:";
+        stageRow.count = `[${stage.items.length}](./${getDrillName(stageData.cardType, stageName)}.md)`;
+        if (stage.flag) {
+            stageRow.count += "  :triangular_flag_on_post:";
         }
-        wipRow.limit = wipStage.limit >= 0 ? wipStage.limit.toString() : "";
-        rows.push(wipRow);
+        stageRow.limit = stage.limit >= 0 ? stage.limit.toString() : "";
+        rows.push(stageRow);
     }
 
     let table: string = tablemark(rows);
