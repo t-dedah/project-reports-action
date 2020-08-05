@@ -7,7 +7,7 @@ A report is a generated markdown file (and soon might be html or json).  A repor
 Project board reports report on the life cycle of work (a card) as it moves through `stages`.  The logical stages are pre-defined for consistent reports.
 
 ```
-    `Proposed` => `Accepted` => `In-Progress` => `Done`
+    Proposed => Accepted => In-Progress => Done
 ``` 
 
 Note: "In progress" (default in GitHub Kanban project) is auto mapped to In-Progress.
