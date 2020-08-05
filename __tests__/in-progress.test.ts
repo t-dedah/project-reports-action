@@ -50,13 +50,11 @@ describe('project-in-progress', () => {
         // spot check a card
         expect(cards[0]).toBeDefined();
         expect(cards[0].title).toBe("gRPC generation");
-        expect(cards[0].wips).toBe(0);
         expect(cards[0].hoursLastUpdated).toBe(-1);
         expect(cards[0].hoursInProgress).toBeGreaterThan(120);
 
         expect(cards[1]).toBeDefined();
         expect(cards[1].title).toBe("Initial Web UI");
-        expect(cards[1].wips).toBe(1);
         expect(cards[1].hoursLastUpdated).toBeGreaterThan(100);
         expect(cards[1].hoursInProgress).toBeGreaterThan(160);
     });
@@ -74,7 +72,7 @@ describe('project-in-progress', () => {
         expect(markdown).toBeDefined();
         // console.log(markdown);
         expect(markdown).toContain("## :hourglass_flowing_sand: In Progress Epics");
-        expect(markdown).toContain("gRPC generation](https://github.com/bryanmacfarlane/quotes-feed/issues/16)  | :exclamation: | 0     |  :triangular_flag_on_post:");
-        expect(markdown).toContain("| [Initial Frontend](https://github.com/bryanmacfarlane/quotes-feed/issues/14) | :green_heart: | 2     |");
+        expect(markdown).toContain("| [gRPC generation](https://github.com/bryanmacfarlane/quotes-feed/issues/16)  | :exclamation: |  :triangular_flag_on_post:");
+        expect(markdown).toContain("| [Initial Frontend](https://github.com/bryanmacfarlane/quotes-feed/issues/14) | :green_heart: |");
     });    
 });

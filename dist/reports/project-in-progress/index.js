@@ -150,8 +150,6 @@ function process(config, issues, drillIn) {
     cardsForType.map((card) => {
         console.log(`issue: ${card.html_url}`);
         let labels = card.labels.map(label => label.name);
-        card.wips = rptLib.getCountFromLabel(card, new RegExp(config["wip-label-match"])) || 0;
-        console.log(`wips: '${card.wips}' - '${config["wip-label-match"]}':${JSON.stringify(labels)}`);
         card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
         card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
@@ -198,7 +196,6 @@ function renderMarkdown(targets, processedData) {
         progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
         progressRow.title = `[${card.title}](${card.html_url})`;
         progressRow.status = statusEmoji;
-        progressRow.wips = card.wips;
         progressRow.daysLastUpdated = card.hoursLastUpdated > 0 ? (card.hoursLastUpdated / 24).toFixed(1) : '';
         if (card.flagHoursLastUpdated) {
             progressRow.daysLastUpdated += " :triangular_flag_on_post:";
