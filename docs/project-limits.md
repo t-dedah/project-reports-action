@@ -31,13 +31,13 @@ A count is comprised by extracting a number from this label by regex pattern.  T
 
 For example, for a report filtering on `Epic`, if an `In-progress` card has an `epic` type label and a `2-wip`, then a count of two will be added to the in progress total.  If the total exceeeds the limit for that stage, it will be flagged.
 
-## <stage>-limits
+## (stage)-limit
 
 Specify a limit for the number of items allowed at a stage.  Defaults:
 
-**proposed-limit**: 0  
-**accepted-limit**: 0
-**in-progress-limit**: 4
-**done-limit**: 0
+**proposed-limit**: 0    
+**accepted-limit**: 0  
+**in-progress-limit**: 4  
+**done-limit**: 0  
 
 
