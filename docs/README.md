@@ -76,14 +76,14 @@ This is the minimal configuration file for a project:
 
 ```yaml
 targets: 
-  todoProject:
+  sampleProject:
     type: project
     htmlUrl: https://github.com/users/bryanmacfarlane/projects/2
 
 reports:
   - name: Sample
     title: "My Project Report"
-    targets: ['todoProject']
+    targets: ['sampleProject']
     sections:
       - name: "project-limits"
       - name: "project-in-progress"
