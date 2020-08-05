@@ -21,8 +21,7 @@ reports:
 Breakdown counts by this label.  
 
 **Default**: `Epic` (also matches `epic` labels)
-
-`*` is "any" which represents all cards.
+**any**: `*` is supported which represents all cards.
 
 ## count-label-match
 

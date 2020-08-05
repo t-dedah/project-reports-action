@@ -47,14 +47,12 @@ jobs:
 
 You will want to checkin the reports after they are generated.  Note that the etag cache and other data files should be checked in with the reports.  Do this by checking in the `_reports` folder generated in the root of the repo.
 
-Add this step after the `project-reports-action` step.  Note that pull-requests validate the report generation run but do not checkin reports or the cache.  Only pushes to master.
-
-TODO: probably want to change this to !== pull_request since we will want to run on a schedule.
+Add this step after the `project-reports-action` step.  Note that pull-requests validate the report generation run but do not checkin reports or the cache.
 
 ```yaml
     steps:
 ...
-      - if: ${{ github.event_name == 'push' }}
+      - if: ${{ github.event_name != 'pull_request' }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com     
@@ -99,7 +97,11 @@ Detailed configuration settings are [covered here](./configuration.md)
 
 ## Built-in Reports
 
-[project-limits](./project-limits.md)  
+Documentation for reports built-in to the action
+
+:ship: [project-limits](./project-limits.md):  Flag limits broken down by type and count labels
+
+:ship: [project-in-progress](./project-limits.md):  Flag limits broken down by type and count labels
 
 
 

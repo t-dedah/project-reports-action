@@ -12,7 +12,7 @@ let config: any = {
     "wip-label-match": "(\\d+)-dev",
     "last-updated-days-flag": 3.0,
     "last-updated-scheme": "LastCommentPattern", 
-    "last-updated-scheme-data": "^(#){1,4} update",   
+    "last-updated-scheme-data": "^(#){1,4} [Uu]pdate",   
   };
 
 describe('project-in-progress', () => {

@@ -18,11 +18,10 @@ export function getDefaultConfiguration(): any {
     return <any>{
         // Takes a single type since settings like daysAgo might be different by type.
         // Can add multiple sections on report if you want more
-        "report-on": 'Epic',
+        "report-on-label": 'Epic',
         // TODO: implement getting a shapshot of data n days ago
         "daysAgo": 7,
         "status-label-match": "(?:green|yellow|red)",
-        "wip-label-match": "(\\d+)-wip",
         "last-updated-days-flag": 3.0,
         "last-updated-scheme": "LastCommentPattern", 
         "last-updated-scheme-data": "^(#){1,4} update",       
@@ -74,7 +73,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
     console.log("> in-progress::process");
     let progressData = <ProgressData>{};
 
-    progressData.cardType = config["report-on"];
+    progressData.cardType = config["report-on-label"] || config["report-on"];
 
     let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
     let cards = projData[ProjectStages.InProgress];
