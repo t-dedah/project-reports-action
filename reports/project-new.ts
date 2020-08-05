@@ -32,7 +32,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
     console.log("> project-new::process");
     let newCards = <NewCards>{};
 
-    newCards.cardType = config["report-on-label"] || config["report-on"];
+    newCards.cardType = config["report-on"] || config["report-on-label"];
 
     let daysAgo = config['daysAgo'];
     if (isNaN(daysAgo)) {

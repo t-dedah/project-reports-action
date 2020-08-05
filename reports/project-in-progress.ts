@@ -73,7 +73,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
     console.log("> in-progress::process");
     let progressData = <ProgressData>{};
 
-    progressData.cardType = config["report-on-label"] || config["report-on"];
+    progressData.cardType = config["report-on"] || config["report-on-label"];
 
     let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
     let cards = projData[ProjectStages.InProgress];

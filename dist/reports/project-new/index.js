@@ -180,7 +180,7 @@ exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(config, issues, drillIn) {
     console.log("> project-new::process");
     let newCards = {};
-    newCards.cardType = config["report-on-label"] || config["report-on"];
+    newCards.cardType = config["report-on"] || config["report-on-label"];
     let daysAgo = config['daysAgo'];
     if (isNaN(daysAgo)) {
         throw new Error("daysAgo is not a number");

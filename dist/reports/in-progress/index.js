@@ -1090,7 +1090,7 @@ exports.sortCards = sortCards;
 function process(config, issues, drillIn) {
     console.log("> in-progress::process");
     let progressData = {};
-    progressData.cardType = config["report-on-label"] || config["report-on"];
+    progressData.cardType = config["report-on"] || config["report-on-label"];
     let projData = rptLib.getProjectStageIssues(issues);
     let cards = projData[project_reports_lib_1.ProjectStages.InProgress];
     if (!cards) {
