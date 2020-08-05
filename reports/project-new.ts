@@ -16,7 +16,7 @@ export {reportType};
  */
 export function getDefaultConfiguration(): any {
     return <any>{
-        "report-on": 'Epic',
+        "report-on-label": 'Epic',
         "daysAgo": 7
     };
 }
@@ -32,7 +32,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
     console.log("> project-new::process");
     let newCards = <NewCards>{};
 
-    newCards.cardType = config["report-on"];
+    newCards.cardType = config["report-on-label"] || config["report-on"];
 
     let daysAgo = config['daysAgo'];
     if (isNaN(daysAgo)) {

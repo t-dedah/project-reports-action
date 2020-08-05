@@ -172,7 +172,7 @@ exports.reportType = reportType;
  */
 function getDefaultConfiguration() {
     return {
-        "report-on": 'Epic',
+        "report-on-label": 'Epic',
         "daysAgo": 7
     };
 }
@@ -180,7 +180,7 @@ exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(config, issues, drillIn) {
     console.log("> project-new::process");
     let newCards = {};
-    newCards.cardType = config["report-on"];
+    newCards.cardType = config["report-on-label"] || config["report-on"];
     let daysAgo = config['daysAgo'];
     if (isNaN(daysAgo)) {
         throw new Error("daysAgo is not a number");

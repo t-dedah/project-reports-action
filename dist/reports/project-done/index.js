@@ -717,7 +717,7 @@ exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(config, issues, drillIn) {
     console.log("> project-done::process");
     let completedCards = {};
-    completedCards.cardType = config["report-on"];
+    completedCards.cardType = config["report-on-label"] || config["report-on"];
     let daysAgo = config['daysAgo'];
     if (isNaN(daysAgo)) {
         throw new Error("daysAgo is not a number");

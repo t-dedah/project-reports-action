@@ -32,7 +32,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
     console.log("> project-done::process");
     let completedCards = <CompletedCards>{};
 
-    completedCards.cardType = config["report-on"];
+    completedCards.cardType = config["report-on-label"] || config["report-on"];
 
     let daysAgo = config['daysAgo'];
     if (isNaN(daysAgo)) {
