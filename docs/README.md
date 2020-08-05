@@ -66,7 +66,7 @@ TODO: probably want to change this to !== pull_request since we will want to run
 
 ## Minimal Configuration File for Project
 
-If you follow all the defaults, then a configuration file can be minimal.
+If you follow all the defaults, then a configuration file can be minimal. The [sample-reports repository](https://github.com/bryanmacfarlane/sample-reports) is an example of this.
 
 **Type labels:** `epic`, `feature`, `task`, `bug`  
 **Status labels:** `green`, `yellow`, `red`  
