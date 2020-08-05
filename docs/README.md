@@ -68,7 +68,9 @@ If you follow all the defaults, then a configuration file can be minimal. The [s
 
 **Type labels:** `epic`, `feature`, `task`, `bug`  
 **Status labels:** `green`, `yellow`, `red`  
-**Project board column names:** `Proposed`, `Accepted`, `In-Progress`, `Done`  
+**Project board column names:** `Proposed`, `Accepted`, `In progress`, `Done`
+
+<sup><sub>NOTE: Github boards kanban creates a column named "In progress" by default.  The action auto maps that to the "In-Progress" stage.  The hyphen allows use in yaml tags etc.</sub></sup>
 
 For issue "updates" head with `## update` (last updated column will read)  
 
