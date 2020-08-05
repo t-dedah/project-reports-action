@@ -1036,7 +1036,7 @@ function getDefaultConfiguration() {
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
 function getDrillName(cardType, stage) {
-    return `limits-${cardType}-${stage}`.replace(" ", "-");
+    return `limits-${cardType}-${stage}`.split(" ").join("-");
 }
 function process(config, issues, drillIn) {
     let limitsData = {};

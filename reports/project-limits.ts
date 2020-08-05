@@ -54,7 +54,7 @@ export interface StageData {
 }
 
 function getDrillName(cardType: string, stage: string): string {
-    return `limits-${cardType}-${stage}`.replace(" ", "-");
+    return `limits-${cardType}-${stage}`.split(" ").join("-");
 }
 
 export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {

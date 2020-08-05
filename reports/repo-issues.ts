@@ -25,7 +25,7 @@ export interface IssueLabelBreakdown {
 };
 
 function getDrillName(label: string, identifier: number): string {
-    return `issues-${label}-${identifier}`.replace(" ", "-");
+    return `issues-${label}-${identifier}`.split(" ").join("-");
 }
 
 export function process(config: any, issues: IssueSummary[], drillIn: (identifier: string, title: string, cards: IssueSummary[]) => void): any {

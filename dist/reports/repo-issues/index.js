@@ -489,7 +489,7 @@ function getDefaultConfiguration() {
 exports.getDefaultConfiguration = getDefaultConfiguration;
 ;
 function getDrillName(label, identifier) {
-    return `issues-${label}-${identifier}`.replace(" ", "-");
+    return `issues-${label}-${identifier}`.split(" ").join("-");
 }
 function process(config, issues, drillIn) {
     console.log("Processing issues");
