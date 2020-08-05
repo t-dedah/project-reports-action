@@ -16415,6 +16415,7 @@ class GitHubClient {
                 owner: owner,
                 repo: repo,
                 id: issue_number,
+                per_page: 100,
             });
         });
     }
@@ -16457,6 +16458,7 @@ class GitHubClient {
                 owner: owner,
                 repo: repo,
                 id: issue_number,
+                per_page: 100,
             });
             return issueCard;
         });
@@ -16479,7 +16481,7 @@ class GitHubClient {
                 owner: parts[0],
                 repo: parts[1]
             };
-            let opened = yield this.octokit.paginate("GET /repos/:owner/:repo/issues", Object.assign(Object.assign({}, repoProps), { state: 'open' }), (response) => response.data.filter(issue => !issue.pull_request));
+            let opened = yield this.octokit.paginate("GET /repos/:owner/:repo/issues", Object.assign(Object.assign({}, repoProps), { state: 'open', per_page: 100 }), (response) => response.data.filter(issue => !issue.pull_request));
             console.log(`Found ${opened.length} opened issues`);
             set.add(opened);
             // get Date n days ago as of mindnight (ensures cache hit if you run every 15 min)
@@ -16487,7 +16489,7 @@ class GitHubClient {
             dateAgo.setHours(0, 0, 0, 0);
             dateAgo.setDate(dateAgo.getDate() - daysAgo);
             console.log(`${daysAgo} days ago is ${dateAgo.toISOString()}`);
-            let recentIssues = yield this.octokit.paginate("GET /repos/:owner/:repo/issues", Object.assign(Object.assign({}, repoProps), { since: dateAgo.toUTCString() }), (response) => response.data.filter(issue => !issue.pull_request));
+            let recentIssues = yield this.octokit.paginate("GET /repos/:owner/:repo/issues", Object.assign(Object.assign({}, repoProps), { since: dateAgo.toUTCString(), per_page: 100 }), (response) => response.data.filter(issue => !issue.pull_request));
             console.log(`Found ${recentIssues.length} issues changed in last ${daysAgo} days.`);
             set.add(recentIssues);
             let issues = set.getItems();

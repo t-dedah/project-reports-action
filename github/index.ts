@@ -119,6 +119,7 @@ export class GitHubClient {
                 owner: owner,
                 repo: repo,
                 id: issue_number,
+                per_page: 100,
             }
         );
     } 
@@ -172,6 +173,7 @@ export class GitHubClient {
                 owner: owner,
                 repo: repo,
                 id: issue_number,
+                per_page: 100,
             }
         );
 
@@ -202,7 +204,8 @@ export class GitHubClient {
             "GET /repos/:owner/:repo/issues",
             {
                 ...repoProps,
-                state: 'open'
+                state: 'open',
+                per_page: 100,
             },
             (response) => response.data.filter(issue => !issue.pull_request)
         );
@@ -221,7 +224,8 @@ export class GitHubClient {
             "GET /repos/:owner/:repo/issues",
             {
                 ...repoProps,
-                since: dateAgo.toUTCString()
+                since: dateAgo.toUTCString(),
+                per_page: 100,
             },
             (response) => response.data.filter(issue => !issue.pull_request)
         );
