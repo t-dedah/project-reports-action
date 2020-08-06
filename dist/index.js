@@ -6214,6 +6214,8 @@ function generate(token, configYaml) {
         let crawler = new crawler_1.Crawler(token, cachePath);
         for (const report of config.reports) {
             let output = "";
+            // gather all the markdown files in the root to delete before writing new files
+            deleteFilesInPath(report.details.rootPath);
             output += getReportHeading(report);
             console.log();
             console.log(`Generating ${report.name} ...`);
@@ -6221,7 +6223,7 @@ function generate(token, configYaml) {
             for (const reportSection of report.sections) {
                 // We only support rollup of repo issues. 
                 // once we move ProjectData to a distinct set, we can support project data as well
-                let projectData = null;
+                // let projectData: ProjectData = null;
                 output += `&nbsp;  ${os.EOL}`;
                 let reportModule = `${reportSection.name}`;
                 // if it's a relative path, find in the workflow repo relative path.
@@ -6275,9 +6277,6 @@ function generate(token, configYaml) {
                         cards: cards
                     });
                 };
-                // if (!set) {
-                //     throw new Error(`Report type ${reportGenerator.reportType} expected issues data from target`);
-                // }
                 let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
                 yield writeSectionData(report, reportModule, config, processed);
                 report.kind = report.kind || 'markdown';
@@ -6319,6 +6318,17 @@ function getReportHeading(report) {
         lines.push("  ");
     }
     return lines.join(os.EOL);
+}
+function deleteFilesInPath(targetPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log();
+        let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item));
+        existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
+        for (let file of existingRootFiles) {
+            console.log(`cleaning up ${file}`);
+            fs.unlinkSync(file);
+        }
+    });
 }
 function writeDrillIn(report, identifier, cards, contents) {
     return __awaiter(this, void 0, void 0, function* () {
