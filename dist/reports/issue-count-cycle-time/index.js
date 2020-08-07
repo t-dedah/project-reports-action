@@ -621,35 +621,43 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = void 0;
+exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
 const rptLib = __importStar(__webpack_require__(369));
 const tablemark = __webpack_require__(611);
 const os = __importStar(__webpack_require__(87));
+const reportType = 'project';
+exports.reportType = reportType;
 function getDefaultConfiguration() {
     return {};
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
-function process(config, projData, drillIn) {
+function process(config, issues, drillIn) {
+    console.log(`ISSUE CYCLE TIME REPORT : config is ${JSON.stringify(config)}`);
+    // console.log(`ISSUE CYCLE TIME REPORT : first issue is ${JSON.stringify(issues[0])}`);
     let cycleTimeData = {};
+    let projData = rptLib.getProjectStageIssues(issues);
     for (let cardType of config["report-on"]) {
-        console.log(`generating report for card type: ${cardType}`);
-        //     let stageData = <CycleTimeStageData>{};
-        //     let cards = projData.stages["Done"];
-        //     console.log(`Found [${cards.length}] cards in Done state`);
-        //     let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
-        //     console.log(`cardsForType is ${cardsForType.length}`);
-        //     // add cycle time to each card in this type.
-        //     cards.map((card: IssueCardCycleTime) => {
-        //         card.cycletime = calculateCycleTime(card);
-        //         return card;
-        //     });
-        //     stageData.title = cardType;
-        //     stageData.count = cards.length;
-        //     stageData.cycletime = rptLib.sumCardProperty(cardsForType, "cycletime");
-        //     let limitKey = `${cardType.toLocaleLowerCase()}-cycletime-limit`;
-        //     stageData.limit = config[limitKey] || 0;
-        //     stageData.flag = stageData.limit > 0 && stageData.cycletime > stageData.limit;
-        //     cycleTimeData[cardType] = stageData;
+        console.log(`ISSUE CYCLE TIME REPORT : generating report for card type: ${cardType}`);
+        // console.log(`ISSUE CYCLE TIME REPORT : projData is ${JSON.stringify(projData)}`);
+        let stageData = {};
+        let cards = projData["Done"];
+        // console.log(`ISSUE CYCLE TIME REPORT : there are [${cards.length}] cards at this stage`);
+        console.log(`Found [${cards.length}] cards in Done state`);
+        console.log(`ISSUE CYCLE TIME REPORT : labels for first issue : [${JSON.stringify(cards[0].labels)}]`);
+        let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
+        console.log(`cardsForType is ${cardsForType.length}`);
+        // add cycle time to each card in this type.
+        cards.map((card) => {
+            card.cycletime = calculateCycleTime(card);
+            return card;
+        });
+        stageData.title = cardType;
+        stageData.count = cards.length;
+        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0);
+        let limitKey = `${cardType.toLocaleLowerCase()}-cycletime-limit`;
+        stageData.limit = config[limitKey] || 0;
+        stageData.flag = stageData.limit > 0 && stageData.cycletime > stageData.limit;
+        cycleTimeData[cardType] = stageData;
     }
     return cycleTimeData;
 }
@@ -673,6 +681,7 @@ function renderMarkdown(projData, processedData) {
     let table = tablemark(rows);
     lines.push(table);
     return lines.join(os.EOL);
+    // return "## Issue Count & Cycle Time ";
 }
 exports.renderMarkdown = renderMarkdown;
 //
@@ -685,24 +694,25 @@ function calculateCycleTime(card) {
     // cycle time starts at Accepted, ends at Done.
     let accepted_time = null;
     let done_time = null;
-    // card.events.forEach((event)=> {
-    //     if (event.event == "added_to_project") {
-    //         if (event.project_card.stage_name == "Accepted") {
-    //             accepted_time = new Date(event.created_at);
-    //         }
-    //     } else if (event.event == "moved_columns_in_project" ) {
-    //         if (event.project_card.stage_name == "Accepted") {
-    //             accepted_time = new Date(event.created_at);
-    //         }
-    //         else if (event.project_card.stage_name == "Done") {
-    //             done_time = new Date(event.created_at);
-    //         }
-    //     }
-    // });
+    card.events.forEach((event) => {
+        if (event.event == "added_to_project") {
+            if (event.project_card.stage_name == "Accepted") {
+                accepted_time = new Date(event.created_at);
+            }
+        }
+        else if (event.event == "moved_columns_in_project") {
+            if (event.project_card.stage_name == "Accepted") {
+                accepted_time = new Date(event.created_at);
+            }
+            else if (event.project_card.stage_name == "Done") {
+                done_time = new Date(event.created_at);
+            }
+        }
+    });
     if (accepted_time == null || done_time == null) {
         return 0;
     }
-    return rptLib.diffDays(done_time, accepted_time);
+    return rptLib.diffDays(accepted_time, done_time);
 }
 
 
