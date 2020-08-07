@@ -568,7 +568,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.diffDays = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
@@ -588,6 +588,11 @@ function filterByLabel(issues, name) {
     return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
 }
 exports.filterByLabel = filterByLabel;
+function diffDays(start, end) {
+    const difference = end.getTime() - start.getTime();
+    return difference / (1000 * 60 * 60 * 24);
+}
+exports.diffDays = diffDays;
 //
 // Get number from a label by regex.  
 // e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")

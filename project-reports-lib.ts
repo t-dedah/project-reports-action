@@ -26,6 +26,11 @@ export function filterByLabel(issues: IssueSummary[], name: string): IssueSummar
     return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
 }
 
+export function diffDays(start: Date, end: Date): number {
+    const difference = end.getTime() - start.getTime();
+    return difference / (1000 * 60 * 60 * 24);
+}
+
 //
 // Get number from a label by regex.  
 // e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")

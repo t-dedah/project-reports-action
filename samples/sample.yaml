@@ -25,7 +25,6 @@ output: "_reports"
 # Reports need a type of Project report or issues report and enforced on target type
 # That means change names of reports to project-limits etc.
 #
-
 reports:
   - name: TODO
     title: "{{{ config.name }}} Project Report"
@@ -39,6 +38,7 @@ reports:
           accepted-limit: 2
           in-progress-limit: 2
           count-label-match: "(\\d+)-dev"
+      - name: "issue-count-cycle-time"
       - name: "limits"
         config: 
           report-on-label: 'Epic'
@@ -56,7 +56,7 @@ reports:
       - name: "project-new"
         config:
           report-on: 'Epic'
-          daysAgo: 100      
+          daysAgo: 100
   - name: Issues
     title: "{{{ config.name }}} Project Report"
     kind: markdown 
@@ -64,15 +64,15 @@ reports:
     targets: []
     sections: 
       - name: "repo-issues"
-        targets: ['sanenodeRepo', 'quotesFeedRepo']          
+        targets: ['sanenodeRepo', 'quotesFeedRepo']
       - name: "repo-issues"
         targets: ['sanenodeRepo']
       - name: "repo-issues"
-        targets: ['quotesFeedRepo']        
+        targets: ['quotesFeedRepo']
   - name: QuotesFeedIssues
     title: "QuotesFeed Issues Report"
     kind: markdown 
     timezoneOffset: -8
     targets: ['quotesFeedRepo']
-    sections:           
-      - name: "echo-board" 
+    sections:
+      - name: "echo-board"
