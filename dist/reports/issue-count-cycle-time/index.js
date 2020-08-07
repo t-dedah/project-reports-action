@@ -628,24 +628,22 @@ const os = __importStar(__webpack_require__(87));
 const reportType = 'project';
 exports.reportType = reportType;
 function getDefaultConfiguration() {
-    return {};
+    return {
+        "report-on": ["bug", "p2", "service"],
+        "p2-cycletime-limit": 200,
+        "bug-cycletime-limit": 200,
+        "service-cycletime-limit": 200
+    };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(config, issues, drillIn) {
-    console.log(`ISSUE CYCLE TIME REPORT : config is ${JSON.stringify(config)}`);
-    // console.log(`ISSUE CYCLE TIME REPORT : first issue is ${JSON.stringify(issues[0])}`);
     let cycleTimeData = {};
+    config = getDefaultConfiguration();
     let projData = rptLib.getProjectStageIssues(issues);
     for (let cardType of config["report-on"]) {
-        console.log(`ISSUE CYCLE TIME REPORT : generating report for card type: ${cardType}`);
-        // console.log(`ISSUE CYCLE TIME REPORT : projData is ${JSON.stringify(projData)}`);
         let stageData = {};
         let cards = projData["Done"];
-        // console.log(`ISSUE CYCLE TIME REPORT : there are [${cards.length}] cards at this stage`);
-        console.log(`Found [${cards.length}] cards in Done state`);
-        console.log(`ISSUE CYCLE TIME REPORT : labels for first issue : [${JSON.stringify(cards[0].labels)}]`);
         let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
-        console.log(`cardsForType is ${cardsForType.length}`);
         // add cycle time to each card in this type.
         cards.map((card) => {
             card.cycletime = calculateCycleTime(card);

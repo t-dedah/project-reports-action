@@ -83,9 +83,3 @@ reports:
     sections:
       - name: "issue-count-cycle-time"
         targets: ['todoProject']
-        config:
-          report-on: ["bug", "p2", "service" ]
-          p2-cycletime-limit: 200
-          bug-cycletime-limit: 200
-          service-cycletime-limit: 200
-          wip-label-match: "(\\d+)-dev"

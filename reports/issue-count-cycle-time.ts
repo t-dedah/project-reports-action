@@ -29,14 +29,20 @@ export interface IssueCardCycleTime extends ProjectIssue {
 }
 
 export function getDefaultConfiguration(): any {
-    return <any>{};
+    return <any>{
+      "report-on": ["bug", "p2", "service" ],
+      "p2-cycletime-limit": 200,
+      "bug-cycletime-limit": 200,
+      "service-cycletime-limit": 200
+    };
 }
 
 export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
-	let cycleTimeData = <CycleTimeData>{};
+  let cycleTimeData = <CycleTimeData>{};
+  config = getDefaultConfiguration();
   let projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(issues);
   for (let cardType of config["report-on"]) {
-  		let stageData = <CycleTimeStageData>{};
+      let stageData = <CycleTimeStageData>{};
       let cards = projData["Done"];
       
       let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
@@ -49,7 +55,7 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
       stageData.title = cardType;
       stageData.count = cards.length;
       stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0);
-      
+
       let limitKey = `${cardType.toLocaleLowerCase()}-cycletime-limit`;
       stageData.limit = config[limitKey] || 0;
       stageData.flag = stageData.limit > 0 && stageData.cycletime > stageData.limit;
@@ -84,7 +90,6 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
   let table: string = tablemark(rows);
   lines.push(table);
   return lines.join(os.EOL);
-  // return "## Issue Count & Cycle Time ";
 }
 //
 // Calculate cycle time for a card
