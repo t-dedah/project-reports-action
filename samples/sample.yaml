@@ -57,13 +57,19 @@ reports:
         config:
           report-on: 'Epic'
           daysAgo: 100
-  - name: "issue-count-cycle-time"
-      config:
-        feature-cycletime-limit: 200
-        epic-cycletime-limit: 200
-        documentation-cycletime-limit: 200
-        report-on: ["feature", "epic", "documentation" ]
-        wip-label-match: "(\\d+)-dev"
+  - name: Issues Cycle Time
+    title: "{{{ config.name }}} Project Report"
+    kind: markdown 
+    timezoneOffset: -8
+    targets: []
+    sections: 
+      - name: "issue-count-cycle-time"
+        config:
+          feature-cycletime-limit: 200
+          epic-cycletime-limit: 200
+          documentation-cycletime-limit: 200
+          report-on: ["feature", "epic", "documentation" ]
+          wip-label-match: "(\\d+)-dev"
   - name: Issues
     title: "{{{ config.name }}} Project Report"
     kind: markdown 

@@ -6,7 +6,7 @@ echo
 echo Building generator
 echo
 npx tsc 
-npx ncc build ./index.ts -o ./dist 
+npx ncc build ./index.ts -o ./dist  > /dev/null
 # cp ./interfaces.js ./dist
 
 echo
@@ -19,7 +19,7 @@ for filepath in ./reports/*.ts; do
     filename=$(basename ${filepath})
     report=${filename%.*}
 
-    cmd="ncc build ${filepath} -o ./dist/reports/${report}"
+    cmd="ncc build ${filepath} -o ./dist/reports/${report} > /dev/null"
     echo
     echo $cmd
     eval ${cmd}
