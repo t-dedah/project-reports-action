@@ -11,40 +11,9 @@ export function filterByLabel(cards: IssueCard[], name: string): IssueCard[] {
     return cards.filter((card) => card.labels.findIndex(label => label.name.toLowerCase() === name.toLowerCase()) >= 0);
 }
 
-//
-// Calculate cycle time for a card
-// The time, in days, a unit of work spends between the first day it is actively being worked on until the day it is closed.
-// In this case, since a project card has events, we look for the event that moved or added a card to the "Accepted" column
-// and subtract it from the time that the card moved to the `Done` column.
-//
-export function calculateCycleTime(card: IssueCard): number {
-    // console.log(`Calculating cycle time for [${card.title}]`);
-
-    // cycle time starts at Accepted, ends at Done.
-    let accepted_time:Date = null;
-    let done_time:Date = null;
-    card.events.forEach((event)=> {
-        if (event.event == "added_to_project") {
-            if (event.project_card.stage_name == "Accepted") {
-                accepted_time = new Date(event.created_at);
-            }
-        } else if (event.event == "moved_columns_in_project" ) {
-            if (event.project_card.stage_name == "Accepted") {
-                accepted_time = new Date(event.created_at);
-            }
-            else if (event.project_card.stage_name == "Done") {
-                done_time = new Date(event.created_at);
-            }
-        }
-    });
-
-    if (accepted_time == null || done_time == null) {
-        return 0;
-    }
-
-    const difference = done_time.getTime() - accepted_time.getTime();
-    const cycleTimeInDays = difference / (1000 * 60 * 60 * 24);
-    return cycleTimeInDays;
+export function diffDays(start: Date, end: Date): number {
+    const difference = end.getTime() - start.getTime();
+    return difference / (1000 * 60 * 60 * 24);
 }
 
 //
