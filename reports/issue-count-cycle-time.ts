@@ -39,7 +39,8 @@ export function getDefaultConfiguration(): any {
 
 export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
   let cycleTimeData = <CycleTimeData>{};
-  config = getDefaultConfiguration();
+  // merge defaults and overriden config.
+  config = Object.assign({}, getDefaultConfiguration(), config);
   let projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(issues);
   for (let cardType of config["report-on"]) {
       let stageData = <CycleTimeStageData>{};
