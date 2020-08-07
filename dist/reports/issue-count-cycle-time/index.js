@@ -629,10 +629,9 @@ const reportType = 'project';
 exports.reportType = reportType;
 function getDefaultConfiguration() {
     return {
-        "report-on": ["bug", "p2", "service"],
-        "p2-cycletime-limit": 200,
-        "bug-cycletime-limit": 200,
-        "service-cycletime-limit": 200
+        "report-on-label": ["feature", "epic"],
+        "feature-cycletime-limit": 0,
+        "epic-cycletime-limit": 1
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -641,7 +640,7 @@ function process(config, issues, drillIn) {
     // merge defaults and overriden config.
     config = Object.assign({}, getDefaultConfiguration(), config);
     let projData = rptLib.getProjectStageIssues(issues);
-    for (let cardType of config["report-on"]) {
+    for (let cardType of config["report-on-label"]) {
         let stageData = {};
         let cards = projData["Done"];
         let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
@@ -653,9 +652,9 @@ function process(config, issues, drillIn) {
         stageData.title = cardType;
         stageData.count = cards.length;
         stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0);
-        let limitKey = `${cardType.toLocaleLowerCase()}-cycletime-limit`;
+        let limitKey = `${cardType.toLocaleLowerCase().replace(/\s/g, "-")}-cycletime-limit`;
         stageData.limit = config[limitKey] || 0;
-        stageData.flag = stageData.limit > 0 && stageData.cycletime > stageData.limit;
+        stageData.flag = stageData.limit > -1 && stageData.cycletime > stageData.limit;
         cycleTimeData[cardType] = stageData;
     }
     return cycleTimeData;
@@ -669,12 +668,10 @@ function renderMarkdown(projData, processedData) {
     for (let cardType in cycleTimeData) {
         const stageData = cycleTimeData[cardType];
         let ctRow = {};
-        ctRow.worktype = cardType;
         ctRow.labels = `\`${cardType}\``;
         ctRow.count = stageData.count;
-        ctRow.cycleTimeInDays = stageData.cycletime.toPrecision(2);
+        ctRow.cycleTimeInDays = ` ${stageData.cycletime.toPrecision(2)} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
         ctRow.limit = stageData.limit;
-        ctRow.flag = stageData.flag ? ":triangular_flag_on_post:" : "";
         rows.push(ctRow);
     }
     let table = tablemark(rows);

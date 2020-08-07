@@ -38,6 +38,7 @@ reports:
           accepted-limit: 2
           in-progress-limit: 2
           count-label-match: "(\\d+)-dev"
+      - name: "issue-count-cycle-time"
       - name: "limits"
         config: 
           report-on-label: 'Epic'
@@ -75,11 +76,3 @@ reports:
     targets: ['quotesFeedRepo']
     sections:
       - name: "echo-board"
-  - name: Issues Cycle Time
-    title: "{{{ config.name }}} Project Report"
-    kind: markdown
-    timezoneOffset: -8
-    targets: ['todoProject']
-    sections:
-      - name: "issue-count-cycle-time"
-        targets: ['todoProject']
