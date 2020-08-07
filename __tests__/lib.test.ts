@@ -1,28 +1,28 @@
 import * as rptLib from '../project-reports-lib'
 
-import {IssueCard} from '../interfaces';
+import {ProjectIssue} from '../interfaces';
 
-let testCards:IssueCard[] = [
-    <IssueCard>{
+let testCards:ProjectIssue[] = [
+    <ProjectIssue>{
         number: 1,
         title: 'one',
         labels: [{ name: 'One'}],
         
     },
-    <IssueCard>{
+    <ProjectIssue>{
         number: 2,
         title: 'twothree',
-        labels: [{ name: 'two'}, { name: 'three'}]
+        labels: [{ name: 'Two'}, { name: 'three'}]
     },
-    <IssueCard>{
+    <ProjectIssue>{
         number: 3,
         title: 'other',
         labels: [{ name: 'two'}, { name: '11-dev'}, { name: 'foo:baz'}] 
     },
-    <IssueCard>{
+    <ProjectIssue>{
         number: 4,
         title: 'more',
-        labels: [{ name: 'five'}, { name: 'foo: bar '}]
+        labels: [{ name: 'five'}, { name: '13-DEV'}, { name: 'Foo: bar '}]
     } 
 ]
 
@@ -58,6 +58,13 @@ describe('report-lib', () => {
     expect(count).toBe(11);
   });
 
+  it('can get count from an upper label', async () => {
+    let re = new RegExp("(\\d+)-DEV");
+    let count = rptLib.getCountFromLabel(testCards[3], re);
+
+    expect(count).toBe(13);
+  });  
+
   it('gets NaN count from card without that label', async () => {
     let re = new RegExp("(\\d+)-dev");
     let count = rptLib.getCountFromLabel(testCards[1], re);
@@ -83,13 +90,13 @@ describe('report-lib', () => {
     expect(val).toBe('baz');
   });
 
-  it('gets string value from label with spaces', async () => {
-    let re = new RegExp("(?<=foo:).*");
+  it('gets string value from label with casing and spaces', async () => {
+    let re = new RegExp("(?<=Foo:).*");
     let val = rptLib.getStringFromLabel(testCards[3], re);
     expect(val).toBe('bar');
   });
   
-  let card = <IssueCard>{
+  let card = <ProjectIssue>{
     comments: [{
         body: "## update 2",
         updated_at: new Date('2020-07-23T03:28:28.950Z')
@@ -113,7 +120,7 @@ describe('report-lib', () => {
   });
 
   it('does not gets last comment if no comments', async () => {
-    let d = rptLib.getLastCommentPattern(<IssueCard>{comments:[]}, "^(#){1,4} update");
+    let d = rptLib.getLastCommentPattern(<ProjectIssue>{comments:[]}, "^(#){1,4} update");
     expect(d).toBe(-1);
   });  
 

@@ -40,7 +40,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(123);
+/******/ 		return __webpack_require__(435);
 /******/ 	};
 /******/
 /******/ 	// run startup
@@ -53,24 +53,6 @@ module.exports =
 /***/ (function(module) {
 
 module.exports = require("os");
-
-/***/ }),
-
-/***/ 123:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-// this report is left for compat.  use project-in-progress instead.
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
-const project_in_progress_1 = __webpack_require__(538);
-Object.defineProperty(exports, "reportType", { enumerable: true, get: function () { return project_in_progress_1.reportType; } });
-Object.defineProperty(exports, "getDefaultConfiguration", { enumerable: true, get: function () { return project_in_progress_1.getDefaultConfiguration; } });
-Object.defineProperty(exports, "process", { enumerable: true, get: function () { return project_in_progress_1.process; } });
-Object.defineProperty(exports, "renderMarkdown", { enumerable: true, get: function () { return project_in_progress_1.renderMarkdown; } });
-Object.defineProperty(exports, "renderHtml", { enumerable: true, get: function () { return project_in_progress_1.renderHtml; } });
-
 
 /***/ }),
 
@@ -235,6 +217,113 @@ exports.diffHours = diffHours;
 
 /***/ }),
 
+/***/ 435:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
+const rptLib = __importStar(__webpack_require__(857));
+const tablemark = __webpack_require__(609);
+const os = __importStar(__webpack_require__(87));
+let clone = __webpack_require__(820);
+const reportType = 'project';
+exports.reportType = reportType;
+/*
+ * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
+ * how focused the team is (e.g. how many efforts are going on)
+ * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
+ */
+function getDefaultConfiguration() {
+    return {
+        // Epic for now.  Supports others. 
+        // Will appear on report in this casing but matches labels with lowercase version.
+        "report-on-label": 'Epic',
+        "proposed-limit": 0,
+        "accepted-limit": 0,
+        "in-progress-limit": 4,
+        "done-limit": -1
+    };
+}
+exports.getDefaultConfiguration = getDefaultConfiguration;
+function getDrillName(cardType, stage) {
+    return `limits-${cardType}-${stage}`.split(" ").join("-");
+}
+function process(config, issues, drillIn) {
+    let limitsData = {};
+    limitsData.data = {};
+    // epic, etc..
+    limitsData.cardType = config["report-on-label"];
+    let projData = rptLib.getProjectStageIssues(issues);
+    // proposed, in-progress, etc...
+    for (let stage in projData) {
+        let stageData = {};
+        let cards = projData[stage];
+        let cardsForType = limitsData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, limitsData.cardType.toLowerCase()));
+        stageData.items = cardsForType;
+        drillIn(getDrillName(limitsData.cardType, stage), `Issues for ${stage} ${limitsData.cardType}s`, cardsForType);
+        let limitKey = `${stage.toLocaleLowerCase()}-limit`;
+        stageData.limit = config[limitKey] || 0;
+        stageData.flag = stageData.limit > -1 && cardsForType.length > stageData.limit;
+        limitsData.data[stage] = stageData;
+    }
+    return limitsData;
+}
+exports.process = process;
+function renderMarkdown(targets, processedData) {
+    console.log(`Rendering for ${targets.length} targets`);
+    let stageData = processedData;
+    let lines = [];
+    // create a report for each type.  e.g. "Epic"
+    let typeLabel = stageData.cardType === '*' ? "" : stageData.cardType;
+    lines.push(`## :ship: ${typeLabel} Limits  `);
+    let rows = [];
+    for (let stageName in stageData.data) {
+        let stage = stageData.data[stageName];
+        let stageRow = {};
+        stageRow.stage = stageName;
+        // data folder is part of the contract here.  make a lib function to create this path
+        stageRow.count = `[${stage.items.length}](./${getDrillName(stageData.cardType, stageName)}.md)`;
+        if (stage.flag) {
+            stageRow.count += "  :triangular_flag_on_post:";
+        }
+        stageRow.limit = stage.limit >= 0 ? stage.limit.toString() : "";
+        rows.push(stageRow);
+    }
+    let table = tablemark(rows);
+    lines.push(table);
+    return lines.join(os.EOL);
+}
+exports.renderMarkdown = renderMarkdown;
+function renderHtml() {
+    // Not supported yet
+    return "";
+}
+exports.renderHtml = renderHtml;
+
+
+/***/ }),
+
 /***/ 441:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -394,180 +483,6 @@ module.exports = function (str, locale) {
   return upperCase(str.charAt(0), locale) + str.substr(1)
 }
 
-
-/***/ }),
-
-/***/ 538:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = exports.reportType = void 0;
-const project_reports_lib_1 = __webpack_require__(857);
-const rptLib = __importStar(__webpack_require__(857));
-const tablemark = __webpack_require__(609);
-const os = __importStar(__webpack_require__(87));
-let clone = __webpack_require__(820);
-const reportType = 'project';
-exports.reportType = reportType;
-/*
- * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
- * how focused the team is (e.g. how many efforts are going on)
- * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
- */
-function getDefaultConfiguration() {
-    return {
-        // Takes a single type since settings like daysAgo might be different by type.
-        // Can add multiple sections on report if you want more
-        "report-on-label": 'Epic',
-        // TODO: implement getting a shapshot of data n days ago
-        "daysAgo": 7,
-        "status-label-match": "(?:green|yellow|red)",
-        "last-updated-days-flag": 3.0,
-        "last-updated-scheme": "LastCommentPattern",
-        "last-updated-scheme-data": "^(#){1,4} update",
-    };
-}
-exports.getDefaultConfiguration = getDefaultConfiguration;
-let statusLevels = {
-    "": 0,
-    "red": 1,
-    "yellow": 2,
-    "blocked": 3,
-    "green": 4
-};
-// sort by status
-function sortCards(card1, card2) {
-    // Sort first on day
-    if (statusLevels[card1.status] > statusLevels[card2.status]) {
-        return 1;
-    }
-    else if (statusLevels[card1.status] < statusLevels[card2.status]) {
-        return -1;
-    }
-    else {
-        // if the status is the same
-        // subsort by hours in progress
-        if (card1.hoursInProgress < card2.hoursInProgress) {
-            return 1;
-        }
-        else if (card1.hoursInProgress > card2.hoursInProgress) {
-            return -1;
-        }
-        else {
-            return 0;
-        }
-    }
-}
-exports.sortCards = sortCards;
-function process(config, issues, drillIn) {
-    console.log("> in-progress::process");
-    let progressData = {};
-    progressData.cardType = config["report-on"] || config["report-on-label"];
-    let projData = rptLib.getProjectStageIssues(issues);
-    let cards = projData[project_reports_lib_1.ProjectStages.InProgress];
-    if (!cards) {
-        // if the column exists but has no cards, that's fine, it will no get here. 
-        // It would have to be a non existant column which is a config problem so fail.
-        throw new Error("In-Progress column does not exist");
-    }
-    console.log(`Getting cards for ${progressData.cardType}`);
-    let cardsForType = progressData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
-    // add status to each card from the status label
-    cardsForType.map((card) => {
-        console.log(`issue: ${card.html_url}`);
-        let labels = card.labels.map(label => label.name);
-        card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
-        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
-        let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
-        console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
-        card.status = statusLevels[status] ? status : "";
-        card.hoursInProgress = -1;
-        if (card.project_in_progress_at) {
-            card.hoursInProgress = rptLib.diffHours(new Date(card.project_in_progress_at), new Date());
-        }
-        return card;
-    });
-    cardsForType.sort(sortCards);
-    progressData.cards = cardsForType;
-    return progressData;
-}
-exports.process = process;
-function renderMarkdown(targets, processedData) {
-    console.log("> in-progress::renderMarkdown");
-    let progressData = processedData;
-    let lines = [];
-    let typeLabel = processedData.cardType === '*' ? "" : `${progressData.cardType}s`;
-    lines.push(`## :hourglass_flowing_sand: In Progress ${typeLabel}  `);
-    lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `);
-    lines.push("  ");
-    let rows = [];
-    for (let card of processedData.cards) {
-        let progressRow = {};
-        let statusEmoji = ":exclamation:";
-        switch (card.status.toLowerCase()) {
-            case "red":
-                statusEmoji = ":heart:";
-                break;
-            case "green":
-                statusEmoji = ":green_heart:";
-                break;
-            case "yellow":
-                statusEmoji = ":yellow_heart:";
-                break;
-        }
-        let assigned = card.assignee;
-        if (!assigned && card.assignees && card.assignees.length > 0) {
-            assigned = card.assignees[0];
-        }
-        progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
-        progressRow.title = `[${card.title}](${card.html_url})`;
-        progressRow.status = statusEmoji;
-        progressRow.daysLastUpdated = card.hoursLastUpdated > 0 ? (card.hoursLastUpdated / 24).toFixed(1) : '';
-        if (card.flagHoursLastUpdated) {
-            progressRow.daysLastUpdated += " :triangular_flag_on_post:";
-        }
-        progressRow.daysInProgress = card.hoursInProgress > 0 ? (card.hoursInProgress / 24).toFixed(1) : "";
-        rows.push(progressRow);
-    }
-    let table;
-    if (rows && rows.length > 0) {
-        table = tablemark(rows);
-    }
-    else {
-        table = `No ${progressData.cardType}s found.`;
-    }
-    lines.push(table);
-    lines.push("  ");
-    return lines.join(os.EOL);
-}
-exports.renderMarkdown = renderMarkdown;
-function renderHtml() {
-    // Not supported yet
-    return "";
-}
-exports.renderHtml = renderHtml;
-//# sourceMappingURL=project-in-progress.js.map
 
 /***/ }),
 

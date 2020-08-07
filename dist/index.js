@@ -5549,16 +5549,25 @@ const path = __importStar(__webpack_require__(622));
 const fs = __importStar(__webpack_require__(747));
 const util = __importStar(__webpack_require__(702));
 const yaml = __importStar(__webpack_require__(414));
-const github = __importStar(__webpack_require__(126));
+const url = __importStar(__webpack_require__(835));
+// import {GitHubClient} from './github'
 const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
 const drillInRpt = __importStar(__webpack_require__(67));
+const crawler_1 = __webpack_require__(750);
+const util_1 = __webpack_require__(702);
 let sanitize = __webpack_require__(834);
 let clone = __webpack_require__(97);
+//import { url } from 'inspector';
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Generating reports");
-        let configPath = path.join(process.env["GITHUB_WORKSPACE"], configYaml);
+        const workspacePath = process.env["GITHUB_WORKSPACE"];
+        if (!workspacePath) {
+            throw new Error("GITHUB_WORKSPACE not defined");
+        }
+        let configPath = path.join(workspacePath, configYaml);
+        let cachePath = path.join(workspacePath, "_reports", ".data");
+        util.mkdirP(cachePath);
         let config = yaml.load(fs.readFileSync(configPath, 'utf-8'));
         let snapshot = {};
         snapshot.datetime = new Date();
@@ -5571,16 +5580,10 @@ function generate(token, configYaml) {
         let minute = d.getUTCMinutes().toString().padStart(2, "0");
         let dt = `${year}-${month}-${day}_${hour}-${minute}`;
         snapshot.datetimeString = dt;
-        const workspacePath = process.env["GITHUB_WORKSPACE"];
-        if (!workspacePath) {
-            throw new Error("GITHUB_WORKSPACE not defined");
-        }
-        snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
-        // apply defaults
         snapshot.config.output = snapshot.config.output || "_reports";
-        // load up the projects, their columns and all the issue cards + events.
-        let projectsData = yield loadProjectsData(token, config);
-        console.log("loaded.");
+        snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
+        console.log(`Writing snapshot to ${snapshot.rootPath}`);
+        yield writeSnapshot(snapshot);
         // update report config details
         for (const report of config.reports) {
             report.timezoneOffset = report.timezoneOffset || -8;
@@ -5595,74 +5598,126 @@ function generate(token, configYaml) {
                 report: report
             });
         }
-        yield writeSnapshot(snapshot);
-        // hand that full data set to each report to render
-        for (const proj in projectsData) {
-            const projectData = projectsData[proj];
-            for (const report of config.reports) {
-                let output = "";
-                output += getReportHeading(report);
-                console.log();
-                console.log(`Generating ${report.name} for ${proj} ...`);
-                yield createReportPath(report);
-                for (const reportSection of report.sections) {
-                    output += os.EOL;
-                    let reportModule = `${reportSection.name}`;
-                    // if it's a relative path, find in the workflow repo relative path.
-                    // this allows for consume of action to create their own report sections
-                    // else look for built-ins
-                    console.log(`Report module ${reportModule}`);
-                    let reportModulePath;
-                    if (reportModule.startsWith("./")) {
-                        reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+        let crawlCfg;
+        if (typeof (config.targets) === 'string') {
+            throw new Error('crawl config external files not supported yet');
+        }
+        else {
+            crawlCfg = config.targets;
+        }
+        // apply defaults to targets
+        console.log("Applying target defaults");
+        for (let targetName in crawlCfg) {
+            let target = crawlCfg[targetName];
+            if (target.type === 'project') {
+                if (!target.columnMap) {
+                    target.columnMap = {};
+                }
+                let defaultPhases = ['Proposed', 'Accepted', 'In-Progress', 'Done'];
+                for (let phase of defaultPhases) {
+                    if (!target.columnMap[phase]) {
+                        target.columnMap[phase] = [phase];
                     }
-                    else {
-                        reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
+                }
+                // make sure "In Progress" (default in GH Kanban) is synonymous with In-Progress
+                if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
+                    target.columnMap['In-Progress'].push('In progress');
+                }
+            }
+        }
+        let crawler = new crawler_1.Crawler(token, cachePath);
+        for (const report of config.reports) {
+            let output = "";
+            // gather all the markdown files in the root to delete before writing new files
+            deleteFilesInPath(report.details.rootPath);
+            output += getReportHeading(report);
+            console.log();
+            console.log(`Generating ${report.name} ...`);
+            yield createReportPath(report);
+            for (const reportSection of report.sections) {
+                // We only support rollup of repo issues. 
+                // once we move ProjectData to a distinct set, we can support project data as well
+                // let projectData: ProjectData = null;
+                output += `&nbsp;  ${os.EOL}`;
+                let reportModule = `${reportSection.name}`;
+                // if it's a relative path, find in the workflow repo relative path.
+                // this allows for consume of action to create their own report sections
+                // else look for built-ins
+                console.log(`Report module ${reportModule}`);
+                let reportModulePath;
+                if (reportModule.startsWith("./")) {
+                    reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+                }
+                else {
+                    reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
+                }
+                console.log(`Loading: ${reportModulePath}`);
+                if (!fs.existsSync(reportModulePath)) {
+                    throw new Error(`Report not found: ${reportSection.name}`);
+                }
+                let reportGenerator = require(reportModulePath);
+                // overlay user settings over default settings 
+                let config = reportGenerator.getDefaultConfiguration();
+                for (let setting in reportSection.config || {}) {
+                    config[setting] = reportSection.config[setting];
+                }
+                // ----------------------------------------------------------------------
+                // Crawl targets data.  
+                // definition on section but fall back to report 
+                // ----------------------------------------------------------------------
+                let targetNames = reportSection.targets || report.targets;
+                let set = new util_1.DistinctSet(issue => issue.html_url);
+                let targets = [];
+                for (let targetName of targetNames) {
+                    console.log();
+                    console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`);
+                    console.log('-------------------------------------------------------------------------------');
+                    let target = crawlCfg[targetName];
+                    targets.push(target);
+                    if (reportGenerator.reportType !== "any" && reportGenerator.reportType !== target.type) {
+                        throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                     }
-                    console.log(`Loading: ${reportModulePath}`);
-                    if (!fs.existsSync(reportModulePath)) {
-                        throw new Error(`Report not found: ${reportSection.name}`);
-                    }
-                    let reportGenerator = require(reportModulePath);
-                    // overlay user settings over default settings 
-                    let config = reportGenerator.getDefaultConfiguration();
-                    for (let setting in reportSection.config || {}) {
-                        config[setting] = reportSection.config[setting];
-                    }
-                    console.log("Processing data ...");
-                    let drillIns = [];
-                    let drillInCb = (identifier, title, cards) => {
-                        drillIns.push({
-                            identifier: identifier,
-                            title: title,
-                            cards: cards
-                        });
-                    };
-                    let processed = reportGenerator.process(config, clone(projectData), drillInCb);
-                    yield writeSectionData(report, reportModule, config, processed);
+                    let data = yield crawler.crawl(target);
+                    console.log(`Adding ${data.length} issues to set ...`);
+                    set.add(data);
+                }
+                console.log(`Issues set has ${set.getItems().length}`);
+                console.log("Processing data ...");
+                let drillIns = [];
+                let drillInCb = (identifier, title, cards) => {
+                    drillIns.push({
+                        identifier: identifier,
+                        title: title,
+                        cards: cards
+                    });
+                };
+                let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
+                yield writeSectionData(report, reportModule, config, processed);
+                report.kind = report.kind || 'markdown';
+                if (report.kind === 'markdown') {
+                    console.log('Rendering markdown ...');
+                    // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+                    output += reportGenerator.renderMarkdown(targets, processed);
+                }
+                else {
+                    throw new Error(`Report kind ${report.kind} not supported`);
+                }
+                for (let drillIn of drillIns) {
+                    let drillInReport;
                     if (report.kind === 'markdown') {
-                        output += reportGenerator.renderMarkdown(projectData, processed);
+                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
                     }
                     else {
                         throw new Error(`Report kind ${report.kind} not supported`);
                     }
-                    for (let drillIn of drillIns) {
-                        let drillInReport;
-                        if (report.kind === 'markdown') {
-                            drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
-                        }
-                        else {
-                            throw new Error(`Report kind ${report.kind} not supported`);
-                        }
-                        yield writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
-                    }
+                    yield writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
                 }
-                console.log("Writing report");
-                writeReport(report, projectData, output);
-                console.log("Done.");
             }
-            console.log();
+            console.log("Writing report");
+            writeReport(report, crawler.getTargetData(), output);
+            console.log("Done.");
         }
+        console.log();
         return snapshot;
     });
 }
@@ -5678,6 +5733,17 @@ function getReportHeading(report) {
     }
     return lines.join(os.EOL);
 }
+function deleteFilesInPath(targetPath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log();
+        let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item));
+        existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
+        for (let file of existingRootFiles) {
+            console.log(`cleaning up ${file}`);
+            fs.unlinkSync(file);
+        }
+    });
+}
 function writeDrillIn(report, identifier, cards, contents) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(`Writing drill-in data for ${identifier} ...`);
@@ -5690,10 +5756,8 @@ function writeDrillIn(report, identifier, cards, contents) {
 function writeSnapshot(snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Writing snapshot data ...");
-        const genPath = path.join(snapshot.rootPath, ".gen");
-        if (!fs.existsSync(genPath)) {
-            fs.mkdirSync(genPath, { recursive: true });
-        }
+        const genPath = path.join(snapshot.rootPath, ".data");
+        util.mkdirP(genPath);
         const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
         console.log(`Writing to ${snapshotPath}`);
         fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
@@ -5705,69 +5769,27 @@ function createReportPath(report) {
         if (!fs.existsSync(report.details.fullPath)) {
             fs.mkdirSync(report.details.fullPath, { recursive: true });
         }
-        if (!fs.existsSync(report.details.dataPath)) {
-            fs.mkdirSync(report.details.dataPath, { recursive: true });
-        }
+        util.mkdirP(report.details.dataPath);
     });
 }
 function writeSectionData(report, name, settings, processed) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(`Writing section data for ${name}...`);
         const sectionPath = path.join(report.details.fullPath, "data", sanitize(name));
-        if (!fs.existsSync(sectionPath)) {
-            fs.mkdirSync(sectionPath, { recursive: true });
-        }
+        util.mkdirP(sectionPath);
         fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
         fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
     });
 }
-function writeReport(report, projectData, contents) {
+function writeReport(report, targetData, contents) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Writing the report ...");
         fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
         fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
-        fs.writeFileSync(path.join(report.details.dataPath, "_project.json"), JSON.stringify(projectData, null, 2));
-    });
-}
-function loadProjectsData(token, config) {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log("Querying project data ...");
-        let projMap = {};
-        for (const projHtmlUrl of config.projects) {
-            let proj = yield github.getProject(token, projHtmlUrl);
-            if (!proj) {
-                throw new Error(`Project not found: ${projHtmlUrl}`);
-            }
-            projMap[projHtmlUrl] = proj;
+        for (let target in targetData) {
+            let urlPath = url.parse(target).path.split("/").join("_");
+            fs.writeFileSync(path.join(report.details.dataPath, `target-${sanitize(urlPath)}.json`), JSON.stringify(targetData[target], null, 2));
         }
-        //console.log(JSON.stringify(projMap, null, 2));
-        for (const projectUrl of config.projects) {
-            let project = projMap[projectUrl];
-            project.columns = {};
-            let cols = yield github.getColumnsForProject(token, project);
-            cols.forEach((col) => {
-                projMap[projectUrl].columns[col.name] = col.id;
-            });
-            project.stages = {};
-            for (const key in config.columnMap) {
-                project.stages[key] = [];
-                let colNames = config.columnMap[key];
-                for (const colName of colNames) {
-                    let colId = projMap[projectUrl].columns[colName];
-                    let cards = yield github.getCardsForColumns(token, colId, colName);
-                    for (const card of cards) {
-                        // cached since real column could be mapped to two different mapped columns
-                        // read and build the event list once
-                        let issueCard = yield github.getIssueCard(token, card, project.id);
-                        if (issueCard) {
-                            util.processCard(issueCard, project.id, config);
-                            project.stages[key].push(issueCard);
-                        }
-                    }
-                }
-            }
-        }
-        return projMap;
     });
 }
 //# sourceMappingURL=generator.js.map
@@ -12356,140 +12378,80 @@ module.exports = (promise, onFinally) => {
 /***/ }),
 
 /***/ 702:
-/***/ (function(__unusedmodule, exports) {
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processCard = exports.getStageFromColumn = exports.getTimeForOffset = void 0;
+exports.DistinctSet = exports.mkdirP = exports.getTimeForOffset = void 0;
+const fs = __importStar(__webpack_require__(747));
 function getTimeForOffset(date, offset) {
     var utc = date.getTime() + (date.getTimezoneOffset() * 60000);
     var nd = new Date(utc + (3600000 * offset));
     return nd.toLocaleString();
 }
 exports.getTimeForOffset = getTimeForOffset;
-// cache the resolution of stage names for a column
-// a columns by stage names are the default and resolve immediately
-let _columnMap = {
-    "proposed": "Proposed",
-    "accepted": "Accepted",
-    "in-progress": "In-Progress",
-    "done": "Done",
-    "blocked": "Blocked"
-};
-function getStageFromColumn(column, config) {
-    column = column.toLowerCase();
-    if (_columnMap[column]) {
-        return _columnMap[column];
-    }
-    let resolvedStage = null;
-    for (let stageName in config.columnMap) {
-        // case insensitve match
-        for (let mappedColumn of config.columnMap[stageName]) {
-            let lowerColumn = mappedColumn.toLowerCase();
-            if (lowerColumn === column.toLowerCase()) {
-                resolvedStage = stageName;
-                break;
-            }
-        }
-        if (resolvedStage) {
-            break;
-        }
-    }
-    // cache the n^2 reverse case insensitive lookup.  it will never change for this run
-    if (resolvedStage) {
-        _columnMap[column] = resolvedStage;
-    }
-    return resolvedStage;
-}
-exports.getStageFromColumn = getStageFromColumn;
-let stageLevel = {
-    "None": 0,
-    "Proposed": 1,
-    "Accepted": 2,
-    "In-Progress": 3,
-    "Blocked": 4,
-    "Done": 5
-};
-// keep in order indexed by level above
-let stageAtNames = [
-    'none',
-    'project_proposed_at',
-    'project_accepted_at',
-    'project_in_progress_at',
-    'project_blocked_at',
-    'project_done_at'
-];
-// process a card in context of the project it's being added to
-// filter column events to the project being processed only since. this makes it easier on the report author
-// add stage name to column move events so report authors don't have to repeatedly to that
-function processCard(card, projectId, config) {
-    let filteredEvents = [];
-    // card events should be in order chronologically
-    let currentStage;
-    let doneTime;
-    let blockedTime;
-    let addedTime;
-    if (card.events) {
-        for (let event of card.events) {
-            // since we're adding this card to a projects / stage, let's filter out
-            // events for other project ids since an issue can be part of multiple boards
-            if (event.project_card && event.project_card.project_id !== projectId) {
-                continue;
-            }
-            let eventDateTime;
-            if (event.created_at) {
-                eventDateTime = event.created_at;
-            }
-            // TODO: should I clear all the stage_at datetimes if I see
-            //       removed_from_project event?
-            let toStage;
-            let toLevel;
-            let fromStage;
-            let fromLevel = 0;
-            if (event.project_card && event.project_card.column_name) {
-                if (!addedTime) {
-                    addedTime = eventDateTime;
-                }
-                toStage = event.project_card.stage_name = getStageFromColumn(event.project_card.column_name, config);
-                toLevel = stageLevel[toStage];
-                currentStage = toStage;
-            }
-            if (event.project_card && event.project_card.previous_column_name) {
-                fromStage = event.project_card.previous_stage_name = getStageFromColumn(event.project_card.previous_column_name, config);
-                fromLevel = stageLevel[fromStage];
-            }
-            // last occurence of moving to these columns from a lesser or no column
-            // example. if moved to accepted from proposed (or less), 
-            //      then in-progress (greater) and then back to accepted, first wins            
-            if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                if (toLevel > fromLevel) {
-                    card[stageAtNames[toLevel]] = eventDateTime;
-                }
-            }
-            if (toStage === 'Done') {
-                doneTime = eventDateTime;
-            }
-            if (toStage === 'Blocked') {
-                blockedTime = eventDateTime;
-            }
-            filteredEvents.push(event);
-        }
-        card.events = filteredEvents;
-        // done_at and blocked_at is only set if it's currently at that stage
-        if (currentStage === 'Done') {
-            card.project_done_at = doneTime;
-        }
-        if (currentStage === 'Blocked') {
-            card.project_blocked_at = blockedTime;
-        }
-        if (addedTime) {
-            card.project_added_at = addedTime;
-        }
-        card.project_stage = currentStage;
+function mkdirP(tgtPath) {
+    if (!fs.existsSync(tgtPath)) {
+        fs.mkdirSync(tgtPath, { recursive: true });
     }
 }
-exports.processCard = processCard;
+exports.mkdirP = mkdirP;
+class DistinctSet {
+    constructor(identifier) {
+        this.seen = new Set();
+        this.identifer = identifier;
+        this.items = [];
+    }
+    // returns whether any were added
+    add(data) {
+        let added = false;
+        if (Array.isArray(data)) {
+            for (let item of data) {
+                let res = this.add_item(item);
+                if (!added) {
+                    added = res;
+                }
+            }
+        }
+        else {
+            return this.add_item(data);
+        }
+        return added;
+    }
+    add_item(item) {
+        let id = this.identifer(item);
+        if (!this.seen.has(id)) {
+            this.items.push(item);
+            this.seen.add(id);
+            return true;
+        }
+        return false;
+    }
+    getItems() {
+        return this.items;
+    }
+}
+exports.DistinctSet = DistinctSet;
 //# sourceMappingURL=util.js.map
 
 /***/ }),
@@ -12571,6 +12533,7 @@ function run() {
         try {
             let token = core.getInput('token', { required: true });
             let configPath = core.getInput('configPath', { required: true });
+            console.log(`Generating reports for ${configPath} ...`);
             yield generator_1.generate(token, configPath);
         }
         catch (err) {
@@ -12719,6 +12682,291 @@ function sync (path, options) {
 /***/ (function(module) {
 
 module.exports = require("fs");
+
+/***/ }),
+
+/***/ 750:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Crawler = void 0;
+const github_1 = __webpack_require__(126);
+const util_1 = __webpack_require__(702);
+class Crawler {
+    constructor(token, cachePath) {
+        // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
+        this.targetMap = {};
+        this.github = new github_1.GitHubClient(token, cachePath);
+    }
+    crawl(target) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.targetMap[target.htmlUrl]) {
+                return this.targetMap[target.htmlUrl];
+            }
+            // TODO: eventually deprecate ProjectData and only have distinct set
+            let data;
+            if (target.type === 'project') {
+                let projectCrawler = new ProjectCrawler(this.github);
+                data = yield projectCrawler.crawl(target);
+            }
+            else if (target.type === 'repo') {
+                console.log(`crawling repo ${target.htmlUrl}`);
+                let repoCrawler = new RepoCrawler(this.github);
+                data = yield repoCrawler.crawl(target);
+            }
+            else {
+                throw new Error(`Unsupported target config: ${target.type}`);
+            }
+            this.targetMap[target.htmlUrl] = data;
+            return data;
+        });
+    }
+    getTargetData() {
+        return this.targetMap;
+    }
+}
+exports.Crawler = Crawler;
+class RepoCrawler {
+    constructor(client) {
+        this.github = client;
+    }
+    crawl(target) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Crawling project ${target.htmlUrl} ...`);
+            let set = new util_1.DistinctSet(issue => issue.number);
+            let res = yield this.github.getIssuesForRepo(target.htmlUrl);
+            let summaries = res.map(issue => this.summarizeIssue(issue));
+            console.log(`Crawled ${summaries.length} issues`);
+            set.add(summaries);
+            return set.getItems();
+        });
+    }
+    // walk events and rollup / summarize an issue for slicing and dicing.
+    summarizeIssue(issue) {
+        let summary = {};
+        summary.number = issue.number;
+        summary.title = issue.title;
+        summary.html_url = issue.html_url;
+        summary.labels = issue.labels;
+        // TODO: get events, comments and rollup up other "stage" data
+        return summary;
+    }
+}
+let stageLevel = {
+    "None": 0,
+    "Proposed": 1,
+    "Accepted": 2,
+    "In-Progress": 3,
+    "Done": 4
+};
+class ProjectCrawler {
+    constructor(client) {
+        // cache the resolution of stage names for a column
+        // a columns by stage names are the default and resolve immediately
+        this.columnMap = {
+            "proposed": "Proposed",
+            "accepted": "Accepted",
+            "in-progress": "In-Progress",
+            "done": "Done"
+        };
+        // keep in order indexed by level above
+        this.stageAtNames = [
+            'none',
+            'project_proposed_at',
+            'project_accepted_at',
+            'project_in_progress_at',
+            'project_done_at'
+        ];
+        this.github = client;
+    }
+    crawl(target) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Crawling project ${target.htmlUrl} ...`);
+            let issues = [];
+            let columns = {};
+            let projectData = yield this.github.getProject(target.htmlUrl);
+            if (!projectData) {
+                throw new Error(`Could not find project ${target.htmlUrl}`);
+            }
+            let cols = yield this.github.getColumnsForProject(projectData);
+            cols.forEach((col) => {
+                columns[col.name] = col.id;
+            });
+            let mappedColumns = [];
+            for (const key in target.columnMap) {
+                let colNames = target.columnMap[key];
+                if (!colNames || !Array.isArray) {
+                    throw new Error(`Invalid config. column map for ${key} is not an array`);
+                }
+                mappedColumns = mappedColumns.concat(colNames);
+            }
+            let seenUnmappedColumns = [];
+            for (const key in target.columnMap) {
+                console.log(`Processing stage ${key}`);
+                let colNames = target.columnMap[key];
+                for (const colName of colNames) {
+                    let colId = columns[colName];
+                    // it's possible the column name is a previous column name
+                    if (!colId) {
+                        continue;
+                    }
+                    let cards = yield this.github.getCardsForColumns(colId, colName);
+                    for (const card of cards) {
+                        // called as each event is processed 
+                        // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
+                        // this will help diagnose a potential config issue much faster
+                        let eventCallback = (event) => {
+                            let mentioned = [];
+                            if (event.project_card && event.project_card.column_name) {
+                                mentioned.push(event.project_card.column_name);
+                            }
+                            if (event.project_card && event.project_card.previous_column_name) {
+                                mentioned.push(event.project_card.previous_column_name);
+                            }
+                            for (let mention of mentioned) {
+                                if (mappedColumns.indexOf(mention) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
+                                    seenUnmappedColumns.push(mention);
+                                }
+                            }
+                        };
+                        // cached since real column could be mapped to two different mapped columns
+                        // read and build the event list once
+                        let issueCard = yield this.github.getIssueForCard(card, projectData.id);
+                        if (issueCard) {
+                            this.processCard(issueCard, projectData.id, target, eventCallback);
+                            if (!issueCard["project_stage"]) {
+                                // TODO: add these to an anomolies report via callback
+                                // report consumers don't read actions output and they need to react
+                                console.log(`WARNING: project_stage not set for ${issueCard.html_url}`);
+                                issueCard["project_stage"] = "Missing";
+                            }
+                            //projectData.stages[key].push(issueCard);
+                            issues.push(issueCard);
+                        }
+                    }
+                }
+            }
+            console.log("Done processing.");
+            console.log();
+            if (seenUnmappedColumns.length > 0) {
+                console.log();
+                console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
+                seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`);
+                console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
+                console.log();
+            }
+            return issues;
+        });
+    }
+    // process a card in context of the project it's being added to
+    // filter column events to the project being processed only since. this makes it easier on the report author
+    // add stage name to column move events so report authors don't have to repeatedly to that
+    processCard(card, projectId, target, eventCallback) {
+        if (!projectId) {
+            throw new Error('projectId not set');
+        }
+        let filteredEvents = [];
+        // card events should be in order chronologically
+        let currentStage;
+        let doneTime;
+        let blockedTime;
+        let addedTime;
+        if (card.events) {
+            for (let event of card.events) {
+                // since we're adding this card to a projects / stage, let's filter out
+                // events for other project ids since an issue can be part of multiple boards
+                if (event.project_card && event.project_card.project_id !== projectId) {
+                    continue;
+                }
+                eventCallback(event);
+                let eventDateTime;
+                if (event.created_at) {
+                    eventDateTime = event.created_at;
+                }
+                // TODO: should I clear all the stage_at datetimes if I see
+                //       removed_from_project event?
+                let toStage;
+                let toLevel;
+                let fromStage;
+                let fromLevel = 0;
+                if (event.project_card && event.project_card.column_name) {
+                    if (!addedTime) {
+                        addedTime = eventDateTime;
+                    }
+                    toStage = event.project_card.stage_name = this.getStageFromColumn(event.project_card.column_name, target);
+                    toLevel = stageLevel[toStage];
+                    currentStage = toStage;
+                }
+                if (event.project_card && event.project_card.previous_column_name) {
+                    fromStage = event.project_card.previous_stage_name = this.getStageFromColumn(event.project_card.previous_column_name, target);
+                    fromLevel = stageLevel[fromStage];
+                }
+                // last occurence of moving to these columns from a lesser or no column
+                // example. if moved to accepted from proposed (or less), 
+                //      then in-progress (greater) and then back to accepted, first wins            
+                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
+                    if (toLevel > fromLevel) {
+                        card[this.stageAtNames[toLevel]] = eventDateTime;
+                        console.log(`${this.stageAtNames[toLevel]}: ${eventDateTime}`);
+                    }
+                }
+                if (toStage === 'Done') {
+                    doneTime = eventDateTime;
+                }
+                filteredEvents.push(event);
+            }
+            card.events = filteredEvents;
+            // done_at and blocked_at is only set if it's currently at that stage
+            if (currentStage === 'Done') {
+                card.project_done_at = doneTime;
+                console.log(`project_done_at: ${card.project_done_at}`);
+            }
+            if (addedTime) {
+                card.project_added_at = addedTime;
+                console.log(`project_added_at: ${card.project_added_at}`);
+            }
+            card.project_stage = currentStage;
+            console.log(`project_stage: ${card.project_stage}`);
+        }
+    }
+    getStageFromColumn(column, target) {
+        column = column.toLowerCase();
+        if (this.columnMap[column]) {
+            return this.columnMap[column];
+        }
+        let resolvedStage = null;
+        for (let stageName in target.columnMap) {
+            // case insensitve match
+            for (let mappedColumn of target.columnMap[stageName]) {
+                let lowerColumn = mappedColumn.toLowerCase();
+                if (lowerColumn === column.toLowerCase()) {
+                    resolvedStage = stageName;
+                    break;
+                }
+            }
+            if (resolvedStage) {
+                break;
+            }
+        }
+        // cache the n^2 reverse case insensitive lookup.  it will never change for this run
+        if (resolvedStage) {
+            this.columnMap[column] = resolvedStage;
+        }
+        return resolvedStage;
+    }
+}
+//# sourceMappingURL=crawler.js.map
 
 /***/ }),
 

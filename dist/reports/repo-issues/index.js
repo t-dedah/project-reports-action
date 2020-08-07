@@ -40,7 +40,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(123);
+/******/ 		return __webpack_require__(582);
 /******/ 	};
 /******/
 /******/ 	// run startup
@@ -53,24 +53,6 @@ module.exports =
 /***/ (function(module) {
 
 module.exports = require("os");
-
-/***/ }),
-
-/***/ 123:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-// this report is left for compat.  use project-in-progress instead.
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
-const project_in_progress_1 = __webpack_require__(538);
-Object.defineProperty(exports, "reportType", { enumerable: true, get: function () { return project_in_progress_1.reportType; } });
-Object.defineProperty(exports, "getDefaultConfiguration", { enumerable: true, get: function () { return project_in_progress_1.getDefaultConfiguration; } });
-Object.defineProperty(exports, "process", { enumerable: true, get: function () { return project_in_progress_1.process; } });
-Object.defineProperty(exports, "renderMarkdown", { enumerable: true, get: function () { return project_in_progress_1.renderMarkdown; } });
-Object.defineProperty(exports, "renderHtml", { enumerable: true, get: function () { return project_in_progress_1.renderHtml; } });
-
 
 /***/ }),
 
@@ -397,7 +379,7 @@ module.exports = function (str, locale) {
 
 /***/ }),
 
-/***/ 538:
+/***/ 582:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -422,13 +404,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = exports.reportType = void 0;
-const project_reports_lib_1 = __webpack_require__(857);
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
 const rptLib = __importStar(__webpack_require__(857));
 const tablemark = __webpack_require__(609);
 const os = __importStar(__webpack_require__(87));
 let clone = __webpack_require__(820);
-const reportType = 'project';
+const reportType = 'repo';
 exports.reportType = reportType;
 /*
  * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
@@ -437,128 +418,51 @@ exports.reportType = reportType;
  */
 function getDefaultConfiguration() {
     return {
-        // Takes a single type since settings like daysAgo might be different by type.
-        // Can add multiple sections on report if you want more
-        "report-on-label": 'Epic',
-        // TODO: implement getting a shapshot of data n days ago
-        "daysAgo": 7,
-        "status-label-match": "(?:green|yellow|red)",
-        "last-updated-days-flag": 3.0,
-        "last-updated-scheme": "LastCommentPattern",
-        "last-updated-scheme-data": "^(#){1,4} update",
+        "breakdown-by-labels": ['bug', 'security', 'documentation']
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
-let statusLevels = {
-    "": 0,
-    "red": 1,
-    "yellow": 2,
-    "blocked": 3,
-    "green": 4
-};
-// sort by status
-function sortCards(card1, card2) {
-    // Sort first on day
-    if (statusLevels[card1.status] > statusLevels[card2.status]) {
-        return 1;
-    }
-    else if (statusLevels[card1.status] < statusLevels[card2.status]) {
-        return -1;
-    }
-    else {
-        // if the status is the same
-        // subsort by hours in progress
-        if (card1.hoursInProgress < card2.hoursInProgress) {
-            return 1;
-        }
-        else if (card1.hoursInProgress > card2.hoursInProgress) {
-            return -1;
-        }
-        else {
-            return 0;
-        }
-    }
+;
+function getDrillName(label, identifier) {
+    return `issues-${label}-${identifier}`.split(" ").join("-");
 }
-exports.sortCards = sortCards;
 function process(config, issues, drillIn) {
-    console.log("> in-progress::process");
-    let progressData = {};
-    progressData.cardType = config["report-on"] || config["report-on-label"];
-    let projData = rptLib.getProjectStageIssues(issues);
-    let cards = projData[project_reports_lib_1.ProjectStages.InProgress];
-    if (!cards) {
-        // if the column exists but has no cards, that's fine, it will no get here. 
-        // It would have to be a non existant column which is a config problem so fail.
-        throw new Error("In-Progress column does not exist");
+    console.log("Processing issues");
+    let breakdown = {};
+    breakdown.identifier = (new Date()).getTime() / 1000;
+    breakdown.issues = {};
+    for (let label of config["breakdown-by-labels"]) {
+        let slice = rptLib.filterByLabel(issues, label);
+        breakdown.issues[label] = clone(slice);
+        drillIn(getDrillName(label, breakdown.identifier), `Issues for ${label}`, slice);
     }
-    console.log(`Getting cards for ${progressData.cardType}`);
-    let cardsForType = progressData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
-    // add status to each card from the status label
-    cardsForType.map((card) => {
-        console.log(`issue: ${card.html_url}`);
-        let labels = card.labels.map(label => label.name);
-        card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
-        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
-        let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
-        console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
-        card.status = statusLevels[status] ? status : "";
-        card.hoursInProgress = -1;
-        if (card.project_in_progress_at) {
-            card.hoursInProgress = rptLib.diffHours(new Date(card.project_in_progress_at), new Date());
-        }
-        return card;
-    });
-    cardsForType.sort(sortCards);
-    progressData.cards = cardsForType;
-    return progressData;
+    return breakdown;
 }
 exports.process = process;
 function renderMarkdown(targets, processedData) {
-    console.log("> in-progress::renderMarkdown");
-    let progressData = processedData;
+    let breakdown = processedData;
     let lines = [];
-    let typeLabel = processedData.cardType === '*' ? "" : `${progressData.cardType}s`;
-    lines.push(`## :hourglass_flowing_sand: In Progress ${typeLabel}  `);
-    lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `);
-    lines.push("  ");
+    let linksHeading = '';
+    for (let target of targets) {
+        let props = rptLib.repoPropsFromUrl(target.htmlUrl);
+        linksHeading += `[${props.repo}](${target.htmlUrl}), `;
+    }
+    // chop final delimiter
+    linksHeading = linksHeading.substr(0, linksHeading.length - 2);
+    lines.push(`## Issues for ${linksHeading}`);
+    // create a report for each type.  e.g. "Epic"
+    // let typeLabel = wipData.cardType === '*'? "": wipData.cardType;
+    // lines.push(`## :ship: ${typeLabel} Limits  `);
     let rows = [];
-    for (let card of processedData.cards) {
-        let progressRow = {};
-        let statusEmoji = ":exclamation:";
-        switch (card.status.toLowerCase()) {
-            case "red":
-                statusEmoji = ":heart:";
-                break;
-            case "green":
-                statusEmoji = ":green_heart:";
-                break;
-            case "yellow":
-                statusEmoji = ":yellow_heart:";
-                break;
-        }
-        let assigned = card.assignee;
-        if (!assigned && card.assignees && card.assignees.length > 0) {
-            assigned = card.assignees[0];
-        }
-        progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
-        progressRow.title = `[${card.title}](${card.html_url})`;
-        progressRow.status = statusEmoji;
-        progressRow.daysLastUpdated = card.hoursLastUpdated > 0 ? (card.hoursLastUpdated / 24).toFixed(1) : '';
-        if (card.flagHoursLastUpdated) {
-            progressRow.daysLastUpdated += " :triangular_flag_on_post:";
-        }
-        progressRow.daysInProgress = card.hoursInProgress > 0 ? (card.hoursInProgress / 24).toFixed(1) : "";
-        rows.push(progressRow);
+    for (let label in breakdown.issues) {
+        let row = {};
+        row.label = `\`${label}\``;
+        // data folder is part of the contract here.  make a lib function to create this path
+        row.count = `[${breakdown.issues[label].length}](./${getDrillName(label, breakdown.identifier)}.md)`;
+        rows.push(row);
     }
-    let table;
-    if (rows && rows.length > 0) {
-        table = tablemark(rows);
-    }
-    else {
-        table = `No ${progressData.cardType}s found.`;
-    }
+    let table = tablemark(rows);
     lines.push(table);
-    lines.push("  ");
     return lines.join(os.EOL);
 }
 exports.renderMarkdown = renderMarkdown;
@@ -567,7 +471,7 @@ function renderHtml() {
     return "";
 }
 exports.renderHtml = renderHtml;
-//# sourceMappingURL=project-in-progress.js.map
+
 
 /***/ }),
 

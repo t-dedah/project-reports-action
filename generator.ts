@@ -2,22 +2,30 @@ import * as path from 'path'
 import * as fs from 'fs'
 import * as util from './util'
 import * as yaml from 'js-yaml'
-import * as github from './github'
+import * as url from 'url';
+// import {GitHubClient} from './github'
 import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
-import * as cp from 'child_process';
+import {Crawler} from './crawler';
+import {DistinctSet} from './util';
 
 let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
-import { GeneratorConfiguration, IssueCard, ReportSnapshot, ReportConfig, ProjectsData, ProjectData, ProjectReportBuilder, ReportDetails } from './interfaces'
-
+import { CrawlingConfig, GeneratorConfiguration, ProjectIssue, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails, IssueSummary, CrawlingTarget } from './interfaces'
+//import { url } from 'inspector';
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
-    console.log("Generating reports");
+    const workspacePath = process.env["GITHUB_WORKSPACE"];
+    if (!workspacePath) {
+        throw new Error("GITHUB_WORKSPACE not defined");
+    }
 
-    let configPath = path.join(process.env["GITHUB_WORKSPACE"], configYaml);
+    let configPath = path.join(workspacePath, configYaml);
+    let cachePath = path.join(workspacePath, "_reports", ".data");
+    util.mkdirP(cachePath);
+
     let config = <GeneratorConfiguration>yaml.load(fs.readFileSync(configPath, 'utf-8'))
 
     let snapshot = <ReportSnapshot>{};
@@ -31,19 +39,12 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     let minute = d.getUTCMinutes().toString().padStart(2, "0");
     let dt: string = `${year}-${month}-${day}_${hour}-${minute}`;
     snapshot.datetimeString = dt;  
-    
-    const workspacePath = process.env["GITHUB_WORKSPACE"];
-    if (!workspacePath) {
-        throw new Error("GITHUB_WORKSPACE not defined");
-    }    
+
+    snapshot.config.output = snapshot.config.output || "_reports";
     snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
 
-    // apply defaults
-    snapshot.config.output = snapshot.config.output || "_reports";
-
-    // load up the projects, their columns and all the issue cards + events.
-    let projectsData: ProjectsData = await loadProjectsData(token, config);
-    console.log("loaded.");
+    console.log(`Writing snapshot to ${snapshot.rootPath}`);
+    await writeSnapshot(snapshot);
 
     // update report config details
     for (const report of config.reports) {
@@ -62,91 +63,158 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         });
     }
 
-    await writeSnapshot(snapshot);
+    let crawlCfg: CrawlingConfig;
+    if (typeof(config.targets) === 'string') {
+        throw new Error('crawl config external files not supported yet');
+    }
+    else {
+        crawlCfg = <CrawlingConfig>config.targets;
+    }
 
-    // hand that full data set to each report to render
-    for (const proj in projectsData) {
-        const projectData = projectsData[proj];
+    // apply defaults to targets
+    console.log("Applying target defaults");
+    for (let targetName in crawlCfg) {
+        let target = crawlCfg[targetName];
+        if (target.type === 'project') {
+            if (!target.columnMap) {
+                target.columnMap = {};
+            }
 
-        for (const report of config.reports) {
-            let output = "";
-
-            output += getReportHeading(report);
-            console.log();
-            console.log(`Generating ${report.name} for ${proj} ...`);
-            await createReportPath(report);
-
-            for (const reportSection of report.sections) {
-                output += os.EOL;
-
-                let reportModule = `${reportSection.name}`;
-
-                // if it's a relative path, find in the workflow repo relative path.
-                // this allows for consume of action to create their own report sections
-                // else look for built-ins
-                console.log(`Report module ${reportModule}`);
-                let reportModulePath;
-
-                if (reportModule.startsWith("./")) {
-                    reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+            let defaultPhases = ['Proposed', 'Accepted', 'In-Progress', 'Done'];
+            for (let phase of defaultPhases) {
+                if (!target.columnMap[phase]) {
+                    target.columnMap[phase] = [ phase ];
                 }
-                else {
-                    reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
+            }
+
+            // make sure "In Progress" (default in GH Kanban) is synonymous with In-Progress
+            if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
+                target.columnMap['In-Progress'].push('In progress');
+            }
+        }
+    }
+
+    let crawler: Crawler = new Crawler(token, cachePath);
+
+    for (const report of config.reports) {
+        let output = "";
+
+        // gather all the markdown files in the root to delete before writing new files
+        deleteFilesInPath(report.details.rootPath);
+
+        output += getReportHeading(report);
+        console.log();
+        console.log(`Generating ${report.name} ...`);
+        await createReportPath(report);
+
+        for (const reportSection of report.sections) {
+
+            // We only support rollup of repo issues. 
+            // once we move ProjectData to a distinct set, we can support project data as well
+            // let projectData: ProjectData = null;
+
+            output += `&nbsp;  ${os.EOL}`;
+
+            let reportModule = `${reportSection.name}`;
+
+            // if it's a relative path, find in the workflow repo relative path.
+            // this allows for consume of action to create their own report sections
+            // else look for built-ins
+            console.log(`Report module ${reportModule}`);
+            let reportModulePath;
+
+            if (reportModule.startsWith("./")) {
+                reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+            }
+            else {
+                reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
+            }
+
+            console.log(`Loading: ${reportModulePath}`);
+
+            if (!fs.existsSync(reportModulePath)) {
+                throw new Error(`Report not found: ${reportSection.name}`);
+            }
+
+            let reportGenerator = require(reportModulePath) as ProjectReportBuilder;
+
+            // overlay user settings over default settings 
+            let config = reportGenerator.getDefaultConfiguration();
+            for (let setting in reportSection.config || {}) {
+                config[setting] = reportSection.config[setting];
+            }
+
+            // ----------------------------------------------------------------------
+            // Crawl targets data.  
+            // definition on section but fall back to report 
+            // ----------------------------------------------------------------------
+            let targetNames = reportSection.targets || report.targets;
+
+            let set = new DistinctSet(issue => issue.html_url);
+            
+            let targets: CrawlingTarget[] = [];
+            for (let targetName of targetNames) {
+                console.log()
+                console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`)
+                console.log('-------------------------------------------------------------------------------')
+                let target = crawlCfg[targetName];
+                targets.push(target);
+
+                if (reportGenerator.reportType !== "any" && reportGenerator.reportType !== target.type) {
+                    throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                 }
 
-                console.log(`Loading: ${reportModulePath}`);
+                let data: IssueSummary[] = await crawler.crawl(target);
+                console.log(`Adding ${data.length} issues to set ...`);
+                set.add(data);
+            }
 
-                if (!fs.existsSync(reportModulePath)) {
-                    throw new Error(`Report not found: ${reportSection.name}`);
-                }
+            console.log(`Issues set has ${set.getItems().length}`);
+            
+            console.log("Processing data ...")
 
-                let reportGenerator = require(reportModulePath) as ProjectReportBuilder;
+            let drillIns = [];
+            let drillInCb = (identifier: string, title: string, cards: ProjectIssue[]) => {
+                drillIns.push({
+                    identifier: identifier,
+                    title: title,
+                    cards: cards
+                })
+            }
 
-                // overlay user settings over default settings 
-                let config = reportGenerator.getDefaultConfiguration();
-                for (let setting in reportSection.config || {}) {
-                    config[setting] = reportSection.config[setting];
-                }
+            let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
 
-                console.log("Processing data ...")
+            await writeSectionData(report, reportModule, config, processed);
 
-                let drillIns = [];
-                let drillInCb = (identifier: string, title: string, cards: IssueCard[]) => {
-                    drillIns.push({
-                        identifier: identifier,
-                        title: title,
-                        cards: cards
-                    })
-                }
+            report.kind = report.kind || 'markdown';
+            
+            if (report.kind === 'markdown') {
+                console.log('Rendering markdown ...');
+                // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+                output += reportGenerator.renderMarkdown(targets, processed);
+            }
+            else {
+                throw new Error(`Report kind ${report.kind} not supported`);
+            }
 
-                let processed = reportGenerator.process(config, clone(projectData), drillInCb);
-                await writeSectionData(report, reportModule, config, processed);
-
+            for (let drillIn of drillIns) {
+                let drillInReport: string;
                 if (report.kind === 'markdown') {
-                    output += reportGenerator.renderMarkdown(projectData, processed);
+                    drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
                 }
                 else {
                     throw new Error(`Report kind ${report.kind} not supported`);
                 }
 
-                for (let drillIn of drillIns) {
-                    let drillInReport: string;
-                    if (report.kind === 'markdown') {
-                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
-                    }
-                    else {
-                        throw new Error(`Report kind ${report.kind} not supported`);
-                    }
-
-                    await writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
-                }
+                await writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
             }
-            console.log("Writing report");
-            writeReport(report, projectData, output);
-            console.log("Done.");
         }
-        console.log();
+
+        console.log("Writing report");
+        writeReport(report, crawler.getTargetData(), output);
+        console.log("Done.");
     }
+    console.log();
 
     return snapshot;
 }
@@ -165,7 +233,17 @@ function getReportHeading(report: ReportConfig) {
     return lines.join(os.EOL);
 }
 
-async function writeDrillIn(report: ReportConfig, identifier: string, cards: IssueCard[], contents: string) {
+async function deleteFilesInPath(targetPath: string) {
+    console.log();
+    let existingRootFiles = fs.readdirSync(targetPath).map( item => path.join(targetPath, item));
+    existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
+    for (let file of existingRootFiles) {
+        console.log(`cleaning up ${file}`);
+        fs.unlinkSync(file);
+    }    
+}
+
+async function writeDrillIn(report: ReportConfig, identifier: string, cards: ProjectIssue[], contents: string) {
     console.log(`Writing drill-in data for ${identifier} ...`);
     fs.writeFileSync(path.join(report.details.dataPath, `${identifier}.json`), JSON.stringify(cards, null, 2));
     fs.writeFileSync(path.join(report.details.rootPath, `${identifier}.md`), contents);
@@ -175,10 +253,8 @@ async function writeDrillIn(report: ReportConfig, identifier: string, cards: Iss
 // creates directory structure for the reports and hands back the root path to write reports in
 async function writeSnapshot(snapshot: ReportSnapshot) {
     console.log("Writing snapshot data ...");
-    const genPath = path.join(snapshot.rootPath, ".gen");
-    if (!fs.existsSync(genPath)) {
-        fs.mkdirSync(genPath, { recursive: true });
-    }
+    const genPath = path.join(snapshot.rootPath, ".data");
+    util.mkdirP(genPath);
 
     const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
     console.log(`Writing to ${snapshotPath}`);
@@ -192,74 +268,27 @@ async function createReportPath(report: ReportConfig) {
         fs.mkdirSync(report.details.fullPath, { recursive: true });
     }
 
-    if (!fs.existsSync(report.details.dataPath)) {
-        fs.mkdirSync(report.details.dataPath, { recursive: true });
-    }    
+    util.mkdirP(report.details.dataPath);
 }
 
 async function writeSectionData(report: ReportConfig, name: string, settings: any, processed: any) {
     console.log(`Writing section data for ${name}...`);
     const sectionPath = path.join(report.details.fullPath, "data", sanitize(name));
-    if (!fs.existsSync(sectionPath)) {
-        fs.mkdirSync(sectionPath, { recursive: true });
-    }
+    util.mkdirP(sectionPath);
 
     fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
     fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
 }
 
-async function writeReport(report: ReportConfig, projectData: ProjectData, contents: string) {
+async function writeReport(report: ReportConfig, targetData: any, contents: string) {
     console.log("Writing the report ...");
     fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
     fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
-    fs.writeFileSync(path.join(report.details.dataPath, "_project.json"), JSON.stringify(projectData, null, 2));
+    for (let target in targetData) {
+        let urlPath = url.parse(target).path.split("/").join("_");
+        fs.writeFileSync(path.join(report.details.dataPath, `target-${sanitize(urlPath)}.json`), JSON.stringify(targetData[target], null, 2));
+    }
+    
 }
 
-async function loadProjectsData(token: string, config: GeneratorConfiguration): Promise<ProjectsData> {
-    console.log("Querying project data ...")
-    let projMap = <ProjectsData>{};
-    for (const projHtmlUrl of config.projects) {
-        let proj = await github.getProject(token, projHtmlUrl);
-        if (!proj) {
-            throw new Error(`Project not found: ${projHtmlUrl}`);
-        }
 
-        projMap[projHtmlUrl] = proj;
-    }
-
-    //console.log(JSON.stringify(projMap, null, 2));
-
-    for (const projectUrl of config.projects) {
-        let project: ProjectData = projMap[projectUrl];
-
-        project.columns = {}
-        let cols = await github.getColumnsForProject(token, project);
-        cols.forEach((col) => {
-            projMap[projectUrl].columns[col.name] = col.id;
-        })
-
-        project.stages = {}
-        for (const key in config.columnMap) {
-            project.stages[key] = [];
-
-            let colNames = config.columnMap[key];
-            for (const colName of colNames) {
-                let colId = projMap[projectUrl].columns[colName];
-
-                let cards = await github.getCardsForColumns(token, colId, colName);
-
-                for (const card of cards) {
-                    // cached since real column could be mapped to two different mapped columns
-                    // read and build the event list once
-                    let issueCard = await github.getIssueCard(token, card, project.id);
-                    if (issueCard) {
-                        util.processCard(issueCard, project.id, config);
-                        project.stages[key].push(issueCard);
-                    }
-                }
-            }
-        }
-    }
-
-    return projMap;
-}
