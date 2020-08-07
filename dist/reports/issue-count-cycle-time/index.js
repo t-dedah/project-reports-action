@@ -645,12 +645,16 @@ function process(config, issues, drillIn) {
         let cards = projData["Done"];
         let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
         // add cycle time to each card in this type.
-        cards.map((card) => {
+        cardsForType.map((card) => {
             card.cycletime = calculateCycleTime(card);
             return card;
         });
+        console.log(`There are [${cardsForType.length}] cards in done state`);
+        cardsForType.map((card) => {
+            console.log(`card is : ${card.title}, cycletime is ${card.cycletime}`);
+        });
         stageData.title = cardType;
-        stageData.count = cards.length;
+        stageData.count = cardsForType.length;
         stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0);
         let limitKey = `${cardType.toLocaleLowerCase().replace(/\s/g, "-")}-cycletime-limit`;
         stageData.limit = config[limitKey] || 0;
@@ -670,7 +674,7 @@ function renderMarkdown(projData, processedData) {
         let ctRow = {};
         ctRow.labels = `\`${cardType}\``;
         ctRow.count = stageData.count;
-        ctRow.cycleTimeInDays = ` ${stageData.cycletime.toPrecision(2)} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
+        ctRow.cycleTimeInDays = ` ${stageData.cycletime.toFixed(2)} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
         ctRow.limit = stageData.limit;
         rows.push(ctRow);
     }
@@ -687,23 +691,8 @@ exports.renderMarkdown = renderMarkdown;
 //
 function calculateCycleTime(card) {
     // cycle time starts at Accepted, ends at Done.
-    let accepted_time = null;
-    let done_time = null;
-    card.events.forEach((event) => {
-        if (event.event == "added_to_project") {
-            if (event.project_card.stage_name == "Accepted") {
-                accepted_time = new Date(event.created_at);
-            }
-        }
-        else if (event.event == "moved_columns_in_project") {
-            if (event.project_card.stage_name == "Accepted") {
-                accepted_time = new Date(event.created_at);
-            }
-            else if (event.project_card.stage_name == "Done") {
-                done_time = new Date(event.created_at);
-            }
-        }
-    });
+    let accepted_time = new Date(card.project_added_at);
+    let done_time = new Date(card.project_done_at);
     if (accepted_time == null || done_time == null) {
         return 0;
     }
