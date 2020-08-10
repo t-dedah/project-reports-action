@@ -1,6 +1,6 @@
-import {ProjectIssue, CrawlingTarget} from '../interfaces';
+import {CrawlingTarget} from '../interfaces';
 import * as rptLib from '../project-reports-lib';
-import {ProjectStageIssues} from '../project-reports-lib';
+import {ProjectIssue, ProjectStageIssues} from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
 

@@ -1,8 +1,11 @@
-import {ProjectIssue, CrawlingTarget} from '../interfaces';
-import {ProjectStages, ProjectStageIssues} from '../project-reports-lib';
+import {CrawlingTarget} from '../interfaces';
+import {ProjectIssue, ProjectStages, ProjectStageIssues} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
+import moment = require('moment');
+
+let now = moment();
 
 let clone = require('clone');
 
@@ -37,7 +40,9 @@ export interface IssueCardEx extends ProjectIssue {
     status: string;
     hoursLastUpdated: number;
     flagHoursLastUpdated: boolean;
+    lastUpdatedAgo: string;
     hoursInProgress: number;
+    inProgressSince: string;
 }
 
 let statusLevels = {
@@ -90,14 +95,20 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
     cardsForType.map((card: IssueCardEx) => {
         console.log(`issue: ${card.html_url}`);
         let labels = card.labels.map(label => label.name);
-        card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
-        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
+        
+        let lastUpdatedDate = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
+        card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : "";
+        let daysSinceUpdate = lastUpdatedDate ? now.diff(lastUpdatedDate, 'days') : -1;
+        card.flagHoursLastUpdated = daysSinceUpdate < 0 || daysSinceUpdate > config["last-updated-days-flag"];
+        
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
         console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
         card.status = statusLevels[status] ? status : "";
         card.hoursInProgress = -1; 
         if (card.project_in_progress_at) {
-            card.hoursInProgress = rptLib.diffHours(new Date(card.project_in_progress_at), new Date());
+            let then = moment(card.project_in_progress_at);
+            card.hoursInProgress = now.diff(then, 'hours', true);
+            card.inProgressSince = now.to(then);
         }
 
         return card;
@@ -114,8 +125,8 @@ interface ProgressRow {
     assigned: string,
     title: string,
     status: string,
-    daysInProgress: string,    
-    daysLastUpdated: string,
+    inProgress: string,    
+    lastUpdated: string,
 }
 
 export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
@@ -152,12 +163,12 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
         progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
         progressRow.title = `[${card.title}](${card.html_url})`;
         progressRow.status = statusEmoji;
-        progressRow.daysLastUpdated = card.hoursLastUpdated > 0 ? (card.hoursLastUpdated/24).toFixed(1) : '';
+        progressRow.lastUpdated = card.lastUpdatedAgo;  //card.hoursLastUpdated > 0 ? (card.hoursLastUpdated/24).toFixed(1) : '';
         if (card.flagHoursLastUpdated) {
-            progressRow.daysLastUpdated += " :triangular_flag_on_post:";
+            progressRow.lastUpdated += " :triangular_flag_on_post:";
         }
         
-        progressRow.daysInProgress = card.hoursInProgress > 0 ? (card.hoursInProgress/24).toFixed(1) : "";
+        progressRow.inProgress = card.inProgressSince; //card.hoursInProgress > 0 ? (card.hoursInProgress/24).toFixed(1) : "";
 
         rows.push(progressRow);
     }

@@ -1,4 +1,5 @@
-import {IssueSummary, CrawlingTarget, CrawlingConfig} from '../interfaces';
+import {CrawlingTarget, CrawlingConfig} from '../interfaces';
+import {IssueList, ProjectIssue} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -21,21 +22,21 @@ export function getDefaultConfiguration(): any {
 
 export interface IssueLabelBreakdown {
     identifier: number, 
-    issues: {[label: string]: IssueSummary[]}
+    issues: {[label: string]: ProjectIssue[]}
 };
 
 function getDrillName(label: string, identifier: number): string {
     return `issues-${label}-${identifier}`.split(" ").join("-");
 }
 
-export function process(config: any, issues: IssueSummary[], drillIn: (identifier: string, title: string, cards: IssueSummary[]) => void): any {
+export function process(config: any, issues: IssueList, drillIn: (identifier: string, title: string, issues: ProjectIssue[]) => void): any {
     console.log("Processing issues");
     let breakdown = <IssueLabelBreakdown>{};
     breakdown.identifier = (new Date()).getTime() / 1000;
 
     breakdown.issues = {};
     for (let label of config["breakdown-by-labels"]) {
-        let slice = rptLib.filterByLabel(issues, label);
+        let slice = rptLib.filterByLabel(issues.getItems(), label);
         breakdown.issues[label] = clone(slice);
         drillIn(getDrillName(label, breakdown.identifier), `Issues for ${label}`, slice);
     }
