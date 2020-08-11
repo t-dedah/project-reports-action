@@ -1,6 +1,6 @@
 import {ProjectIssue, IssueList} from '../project-reports-lib';
-import * as limits from '../reports/limits';
-import {LimitsData} from '../reports/limits';
+import * as limits from '../reports/project-limits';
+import {LimitsData} from '../reports/project-limits';
 
 let projectData: ProjectIssue[] = require('./project-data.test.json');
 

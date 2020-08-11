@@ -1,5 +1,5 @@
 import * as url from 'url' 
-import * as clone from 'clone';
+import clone = require('clone');
 import moment = require('moment');
 import { IssueLabelBreakdown } from './reports/repo-issues';
 
@@ -201,8 +201,9 @@ let stageLevel = {
 
 export class IssueList {
     seen;
-    identifer;
+    identifier;
     items: ProjectIssue[];
+    processed: ProjectIssue[];
 
     // keep in order indexed by level above
     // TODO: unify both to avoid out of sync problems
@@ -216,12 +217,13 @@ export class IssueList {
 
     constructor(identifier: (item) => any) {
         this.seen = new Map();
-        this.identifer = identifier;
+        this.identifier = identifier;
         this.items = [];
     }
 
     // returns whether any were added
     public add(data: any | any[]): boolean {
+        this.processed = null;
         let added = false;
         if (Array.isArray(data)) {
             for (let item of data) {
@@ -237,7 +239,7 @@ export class IssueList {
     }
 
     private add_item(item: any): boolean {
-        let id = this.identifer(item);
+        let id = this.identifier(item);
 
         if (!this.seen.has(id)) {
             this.items.push(item);
@@ -249,16 +251,21 @@ export class IssueList {
     }
 
     public getItem(identifier: any): ProjectIssue {
-        return this.seen[this.identifer];
+        return this.seen.get(identifier);
     }
 
     public getItems(): ProjectIssue[] {
+        if (this.processed) {
+            return this.processed;
+        }
+
         // call process
         for (let item of this.items) {
             this.processStages(item);    
         }
 
-        return this.items;
+        this.processed = this.items;
+        return this.processed;
     }
 
     //
@@ -267,17 +274,16 @@ export class IssueList {
     // and reprocesses the stages.
     // If the issue doesn't exist in the list, returns null
     //
-    public getItemAgo(identifier: any, amount: number, unit: 'days' | 'hours' ): ProjectIssue {
-        let issue = this.getItem(this.identifer);
+    public getItemAsof(identifier: any, datetime: string | Date ): ProjectIssue {
+        console.log(`getting asof ${datetime} : ${identifier}`);
+        let issue = this.getItem(identifier);
 
         if (!issue) {
             return issue;
         }
 
-        // TODO: clear and replay closed events.  what else?
-
         issue = clone(issue);
-        let momentAgo = moment().subtract(amount, unit);        
+        let momentAgo = moment(datetime);        
 
         // clear everything we're going to re-apply
         issue.labels = [];
@@ -287,14 +293,15 @@ export class IssueList {
         delete issue.project_accepted_at;
         delete issue.project_done_at;
         delete issue.project_stage;
+        delete issue.closed_at;
         
         // stages and labels
         let filteredEvents: IssueEvent[] = [];
-        let labelMap: { [name: string]: IssueLabel };
+        let labelMap: { [name: string]: IssueLabel } = {};
 
         if (issue.events) {
             for (let event of issue.events) {
-                if (momentAgo.isBefore(event.created_at)) {
+                if (moment(event.created_at).isAfter(momentAgo)) {
                     continue;
                 }
 
@@ -306,9 +313,18 @@ export class IssueList {
                 else if (event.event === 'unlabeled') {
                     delete labelMap[event.label.name];
                 }
+
+                if (event.event === 'closed') {
+                    issue.closed_at = event.created_at;
+                }
+
+                if (event.event === 'reopened') {
+                    delete issue.closed_at;
+                }
             }
         }
         issue.events = filteredEvents;
+
         for (let labelName in labelMap) {
             issue.labels.push(labelMap[labelName]);
         }
@@ -318,9 +334,11 @@ export class IssueList {
         // comments
         let filteredComments: IssueComment[] = [];
         for (let comment of issue.comments) {
-            if (momentAgo.isBefore(comment.created_at)) {
-                filteredComments.push(comment);
+            if (moment(comment.created_at).isAfter(momentAgo)) {
+                continue;
             }
+
+            filteredComments.push(comment);
         }
         issue.comments = filteredComments;
 
@@ -332,6 +350,7 @@ export class IssueList {
     // Call initially and then call again if events are filtered (get issue asof)
     //
     private processStages(issue: ProjectIssue): void {
+        console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage: string;
         let doneTime: Date;
@@ -346,9 +365,6 @@ export class IssueList {
                     eventDateTime = event.created_at;
                 }
 
-                if (event.event === 'labeled') {
-                    
-                }
                 //
                 // Process Project Stages
                 //
@@ -386,7 +402,12 @@ export class IssueList {
                 if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         issue[this.stageAtNames[toLevel]] = eventDateTime;
-                        console.log(`${this.stageAtNames[toLevel]}: ${eventDateTime}`);
+                    }
+                    //moving back, clear the stage at dates up to fromLevel
+                    else if (toLevel < fromLevel) {
+                        for (let i = toLevel + 1; i <= fromLevel; i++) {
+                            delete issue[this.stageAtNames[i]];
+                        }
                     } 
                 }
 

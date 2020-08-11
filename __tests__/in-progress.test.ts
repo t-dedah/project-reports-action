@@ -1,6 +1,6 @@
 import {ProjectIssue, IssueList} from '../project-reports-lib';
-import * as inProgress from '../reports/in-progress';
-import {ProgressData, IssueCardEx} from '../reports/in-progress';
+import * as inProgress from '../reports/project-in-progress';
+import {ProgressData, IssueCardEx} from '../reports/project-in-progress';
 
 let projectData: ProjectIssue[] = require('./project-data.test.json');
 
@@ -49,7 +49,6 @@ describe('project-in-progress', () => {
         let cards: IssueCardEx[] = processed.cards;
         expect(cards.length).toBe(4);
 
-        console.log(cards[0], null, 2);
         // spot check a card
         expect(cards[0]).toBeDefined();
         expect(cards[0].title).toBe("gRPC generation");

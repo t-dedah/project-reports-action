@@ -579,7 +579,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
-const clone = __importStar(__webpack_require__(97));
+const clone = __webpack_require__(97);
 const moment = __webpack_require__(431);
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
@@ -682,11 +682,12 @@ class IssueList {
             'project_done_at'
         ];
         this.seen = new Map();
-        this.identifer = identifier;
+        this.identifier = identifier;
         this.items = [];
     }
     // returns whether any were added
     add(data) {
+        this.processed = null;
         let added = false;
         if (Array.isArray(data)) {
             for (let item of data) {
@@ -702,7 +703,7 @@ class IssueList {
         return added;
     }
     add_item(item) {
-        let id = this.identifer(item);
+        let id = this.identifier(item);
         if (!this.seen.has(id)) {
             this.items.push(item);
             this.seen.set(id, item);
@@ -711,14 +712,18 @@ class IssueList {
         return false;
     }
     getItem(identifier) {
-        return this.seen[this.identifer];
+        return this.seen.get(identifier);
     }
     getItems() {
+        if (this.processed) {
+            return this.processed;
+        }
         // call process
         for (let item of this.items) {
             this.processStages(item);
         }
-        return this.items;
+        this.processed = this.items;
+        return this.processed;
     }
     //
     // Gets an issue from a number of days, hours ago.
@@ -726,14 +731,14 @@ class IssueList {
     // and reprocesses the stages.
     // If the issue doesn't exist in the list, returns null
     //
-    getItemAgo(identifier, amount, unit) {
-        let issue = this.getItem(this.identifer);
+    getItemAsof(identifier, datetime) {
+        console.log(`getting asof ${datetime} : ${identifier}`);
+        let issue = this.getItem(identifier);
         if (!issue) {
             return issue;
         }
-        // TODO: clear and replay closed events.  what else?
         issue = clone(issue);
-        let momentAgo = moment().subtract(amount, unit);
+        let momentAgo = moment(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
         delete issue.project_added_at;
@@ -742,12 +747,13 @@ class IssueList {
         delete issue.project_accepted_at;
         delete issue.project_done_at;
         delete issue.project_stage;
+        delete issue.closed_at;
         // stages and labels
         let filteredEvents = [];
-        let labelMap;
+        let labelMap = {};
         if (issue.events) {
             for (let event of issue.events) {
-                if (momentAgo.isBefore(event.created_at)) {
+                if (moment(event.created_at).isAfter(momentAgo)) {
                     continue;
                 }
                 filteredEvents.push(event);
@@ -756,6 +762,12 @@ class IssueList {
                 }
                 else if (event.event === 'unlabeled') {
                     delete labelMap[event.label.name];
+                }
+                if (event.event === 'closed') {
+                    issue.closed_at = event.created_at;
+                }
+                if (event.event === 'reopened') {
+                    delete issue.closed_at;
                 }
             }
         }
@@ -767,9 +779,10 @@ class IssueList {
         // comments
         let filteredComments = [];
         for (let comment of issue.comments) {
-            if (momentAgo.isBefore(comment.created_at)) {
-                filteredComments.push(comment);
+            if (moment(comment.created_at).isAfter(momentAgo)) {
+                continue;
             }
+            filteredComments.push(comment);
         }
         issue.comments = filteredComments;
         return issue;
@@ -779,6 +792,7 @@ class IssueList {
     // Call initially and then call again if events are filtered (get issue asof)
     //
     processStages(issue) {
+        console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage;
         let doneTime;
@@ -789,8 +803,6 @@ class IssueList {
                 let eventDateTime;
                 if (event.created_at) {
                     eventDateTime = event.created_at;
-                }
-                if (event.event === 'labeled') {
                 }
                 //
                 // Process Project Stages
@@ -823,7 +835,12 @@ class IssueList {
                 if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         issue[this.stageAtNames[toLevel]] = eventDateTime;
-                        console.log(`${this.stageAtNames[toLevel]}: ${eventDateTime}`);
+                    }
+                    //moving back, clear the stage at dates up to fromLevel
+                    else if (toLevel < fromLevel) {
+                        for (let i = toLevel + 1; i <= fromLevel; i++) {
+                            delete issue[this.stageAtNames[i]];
+                        }
                     }
                 }
                 if (toStage === 'Done') {
