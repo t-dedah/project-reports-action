@@ -6903,10 +6903,11 @@ function getDefaultConfiguration() {
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
-function process(config, issues, drillIn) {
+function process(config, issueList, drillIn) {
     let cycleTimeData = {};
     // merge defaults and overriden config.
     config = Object.assign({}, getDefaultConfiguration(), config);
+    let issues = issueList.getItems();
     let projData = rptLib.getProjectStageIssues(issues);
     for (let cardType of config["report-on-label"]) {
         let stageData = {};

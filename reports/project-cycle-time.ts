@@ -1,5 +1,5 @@
 import {ProjectData} from '../interfaces';
-import {ProjectIssue} from '../project-reports-lib';
+import {ProjectIssue, IssueList} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -36,10 +36,12 @@ export function getDefaultConfiguration(): any {
     };
 }
 
-export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
   let cycleTimeData = <CycleTimeData>{};
   // merge defaults and overriden config.
   config = Object.assign({}, getDefaultConfiguration(), config);
+
+  let issues = issueList.getItems();
   let projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(issues);
   for (let cardType of config["report-on-label"]) {
       let stageData = <CycleTimeStageData>{};
