@@ -1,4 +1,4 @@
-import {ProjectIssue} from '../interfaces';
+import {ProjectIssue, IssueList} from '../project-reports-lib';
 import * as inProgress from '../reports/in-progress';
 import {ProgressData, IssueCardEx} from '../reports/in-progress';
 
@@ -38,8 +38,10 @@ describe('project-in-progress', () => {
             drillIns.push(identifier);
         }
 
-        let processed = inProgress.process(config, projectData, drillIn) as ProgressData;
-        // console.log(JSON.stringify(processed, null, 2));
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);
+        let processed = inProgress.process(config, list, drillIn) as ProgressData;
+        //console.log(JSON.stringify(processed, null, 2));
 
         expect(processed).toBeDefined();
         expect(processed.cardType).toBe('Epic');
@@ -47,15 +49,18 @@ describe('project-in-progress', () => {
         let cards: IssueCardEx[] = processed.cards;
         expect(cards.length).toBe(4);
 
+        console.log(cards[0], null, 2);
         // spot check a card
         expect(cards[0]).toBeDefined();
         expect(cards[0].title).toBe("gRPC generation");
-        expect(cards[0].hoursLastUpdated).toBe(-1);
+        expect(cards[0].flagHoursLastUpdated).toBeTruthy();
+        expect(cards[0].inProgressSince).toContain('days ago');
         expect(cards[0].hoursInProgress).toBeGreaterThan(120);
 
         expect(cards[1]).toBeDefined();
         expect(cards[1].title).toBe("Initial Web UI");
-        expect(cards[1].hoursLastUpdated).toBeGreaterThan(100);
+        expect(cards[0].flagHoursLastUpdated).toBeTruthy();
+        expect(cards[0].inProgressSince).toContain('days ago');
         expect(cards[1].hoursInProgress).toBeGreaterThan(160);
     });
     
@@ -65,7 +70,9 @@ describe('project-in-progress', () => {
             drillIns.push(identifier);
         }
 
-        let processed = inProgress.process(config, projectData, drillIn) as IssueCardEx[];
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);
+        let processed = inProgress.process(config, list, drillIn) as IssueCardEx[];
         expect(processed).toBeDefined();
 
         let markdown = inProgress.renderMarkdown([], processed);

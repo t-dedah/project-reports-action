@@ -29,14 +29,16 @@ function getDrillName(label: string, identifier: number): string {
     return `issues-${label}-${identifier}`.split(" ").join("-");
 }
 
-export function process(config: any, issues: IssueList, drillIn: (identifier: string, title: string, issues: ProjectIssue[]) => void): any {
+export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, issues: ProjectIssue[]) => void): any {
     console.log("Processing issues");
+
     let breakdown = <IssueLabelBreakdown>{};
     breakdown.identifier = (new Date()).getTime() / 1000;
-
     breakdown.issues = {};
+
+    let issues = issueList.getItems();
     for (let label of config["breakdown-by-labels"]) {
-        let slice = rptLib.filterByLabel(issues.getItems(), label);
+        let slice = rptLib.filterByLabel(issues, label);
         breakdown.issues[label] = clone(slice);
         drillIn(getDrillName(label, breakdown.identifier), `Issues for ${label}`, slice);
     }

@@ -183,7 +183,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 })
             }
 
-            let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
+            let processed = reportGenerator.process(config, clone(set), drillInCb);
 
             await writeSectionData(report, reportModule, config, processed);
 

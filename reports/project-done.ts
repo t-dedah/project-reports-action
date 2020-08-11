@@ -1,5 +1,5 @@
 import {CrawlingTarget} from '../interfaces';
-import {ProjectIssue} from '../project-reports-lib';
+import {ProjectIssue, IssueList} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -31,7 +31,7 @@ export type CompletedCards = {
 }
 
 
-export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     console.log("> project-done::process");
     let completedCards = <CompletedCards>{};
 
@@ -46,7 +46,9 @@ export function process(config: any, issues: ProjectIssue[], drillIn: (identifie
     let doneDaysAgo = now.diff(config['daysAgo'] || 7, 'days', true);
 
     console.log(`Getting cards for ${completedCards.cardType}`);
-    let cardsForType = completedCards.cardType === '*'? clone(issues) : clone(rptLib.filterByLabel(issues, completedCards.cardType.toLowerCase()) as ProjectIssue[]);
+    
+    let issues = issueList.getItems();
+    let cardsForType = completedCards.cardType === '*'? issues : rptLib.filterByLabel(issues, completedCards.cardType.toLowerCase()) as ProjectIssue[];
 
     completedCards.cards = cardsForType.filter(issue => issue["project_done_at"] && doneDaysAgo > flagDaysAgo);
 

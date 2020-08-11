@@ -257,7 +257,7 @@ export class IssueList {
         for (let item of this.items) {
             this.processStages(item);    
         }
-        
+
         return this.items;
     }
 
@@ -274,6 +274,9 @@ export class IssueList {
             return issue;
         }
 
+        // TODO: clear and replay closed events.  what else?
+
+        issue = clone(issue);
         let momentAgo = moment().subtract(amount, unit);        
 
         // clear everything we're going to re-apply

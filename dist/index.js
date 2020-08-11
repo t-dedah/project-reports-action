@@ -6279,7 +6279,7 @@ function generate(token, configYaml) {
                         cards: cards
                     });
                 };
-                let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
+                let processed = reportGenerator.process(config, clone(set), drillInCb);
                 yield writeSectionData(report, reportModule, config, processed);
                 report.kind = report.kind || 'markdown';
                 if (report.kind === 'markdown') {
@@ -6573,6 +6573,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
+const clone = __importStar(__webpack_require__(97));
 const moment = __webpack_require__(482);
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
@@ -6724,6 +6725,8 @@ class IssueList {
         if (!issue) {
             return issue;
         }
+        // TODO: clear and replay closed events.  what else?
+        issue = clone(issue);
         let momentAgo = moment().subtract(amount, unit);
         // clear everything we're going to re-apply
         issue.labels = [];

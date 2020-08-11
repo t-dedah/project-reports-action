@@ -1,5 +1,5 @@
 import {CrawlingTarget} from '../interfaces';
-import {ProjectIssue, ProjectStages, ProjectStageIssues} from '../project-reports-lib';
+import {ProjectIssue, IssueList, ProjectStages, ProjectStageIssues} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
@@ -38,7 +38,6 @@ export type ProgressData = {
 
 export interface IssueCardEx extends ProjectIssue {
     status: string;
-    hoursLastUpdated: number;
     flagHoursLastUpdated: boolean;
     lastUpdatedAgo: string;
     hoursInProgress: number;
@@ -74,12 +73,13 @@ export function sortCards(card1: IssueCardEx, card2: IssueCardEx) {
     }
 } 
 
-export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     console.log("> in-progress::process");
     let progressData = <ProgressData>{};
 
     progressData.cardType = config["report-on"] || config["report-on-label"];
 
+    let issues = issueList.getItems();
     let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
     let cards = projData[ProjectStages.InProgress];
     if (!cards) {

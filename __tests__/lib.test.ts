@@ -1,7 +1,6 @@
 import * as rptLib from '../project-reports-lib'
 
-import {ProjectIssue} from '../interfaces';
-import {IssueList} from '../project-reports-lib';
+import {IssueList, ProjectIssue} from '../project-reports-lib';
 
 let testCards:ProjectIssue[] = [
     <ProjectIssue>{
@@ -112,22 +111,22 @@ describe('report-lib', () => {
 
   it('gets last comment updated_at value', async () => {
     let d = rptLib.getLastCommentPattern(card, "^(#){1,4} update");
-    expect(d).toBeGreaterThan(10.0);
+    expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z')
   });  
 
   it('does not gets last comment for no match', async () => {
     let d = rptLib.getLastCommentPattern(card, "^(#){1,4} none match");
-    expect(d).toBe(-1);
+    expect(d).toBeFalsy();
   });
 
   it('does not gets last comment if no comments', async () => {
     let d = rptLib.getLastCommentPattern(<ProjectIssue>{comments:[]}, "^(#){1,4} update");
-    expect(d).toBe(-1);
+    expect(d).toBeFalsy();
   });  
 
   it('gets last comment updated_at value from dataFromCard', async () => {
     let d = rptLib.dataFromCard(card, "LastCommentPattern", "^(#){1,4} update");
-    expect(d).toBeGreaterThan(10.0);
+    expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z');
   });
   
   it('depdupes distinct items', async () => {
