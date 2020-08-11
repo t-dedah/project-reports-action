@@ -102,6 +102,10 @@ function getDefaultConfiguration() {
         "last-updated-days-flag": 3.0,
         "last-updated-scheme": "LastCommentPattern",
         "last-updated-scheme-data": "^(#){1,4} update",
+        // last status a week before this wednesday (last wednesday)
+        "status-day": "Wednesday",
+        "previous-days-ago": 7,
+        "previous-hour-utc": 17,
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -150,6 +154,8 @@ function process(config, issueList, drillIn) {
     }
     console.log(`Getting cards for ${progressData.cardType}`);
     let cardsForType = progressData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
+    let previousMoment = now.day(config['status-day']).subtract(config['previous-days-ago'], 'days').utc().hour(config['previous-hour-utc']);
+    console.log(`Previous status moment: ${previousMoment}`);
     // add status to each card from the status label
     cardsForType.map((card) => {
         console.log(`issue: ${card.html_url}`);
@@ -158,9 +164,13 @@ function process(config, issueList, drillIn) {
         card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : "";
         let daysSinceUpdate = lastUpdatedDate ? now.diff(lastUpdatedDate, 'days') : -1;
         card.flagHoursLastUpdated = daysSinceUpdate < 0 || daysSinceUpdate > config["last-updated-days-flag"];
+        let previousCard = issueList.getItemAsof(card.html_url, previousMoment.toDate());
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
         console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
+        let previousStatus = rptLib.getStringFromLabel(previousCard, new RegExp(config["status-label-match"])).toLowerCase();
+        console.log(`previousStatus: '${previousStatus}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
         card.status = statusLevels[status] ? status : "";
+        card.previousStatus = statusLevels[previousStatus] ? previousStatus : "";
         card.hoursInProgress = -1;
         if (card.project_in_progress_at) {
             let then = moment(card.project_in_progress_at);
@@ -174,6 +184,22 @@ function process(config, issueList, drillIn) {
     return progressData;
 }
 exports.process = process;
+// TODO: we could make this configurable
+function getStatusEmoji(status) {
+    let statusEmoji = ":exclamation:";
+    switch (status.toLowerCase()) {
+        case "red":
+            statusEmoji = ":heart:";
+            break;
+        case "green":
+            statusEmoji = ":green_heart:";
+            break;
+        case "yellow":
+            statusEmoji = ":yellow_heart:";
+            break;
+    }
+    return statusEmoji;
+}
 function renderMarkdown(targets, processedData) {
     console.log("> in-progress::renderMarkdown");
     let progressData = processedData;
@@ -185,25 +211,14 @@ function renderMarkdown(targets, processedData) {
     let rows = [];
     for (let card of processedData.cards) {
         let progressRow = {};
-        let statusEmoji = ":exclamation:";
-        switch (card.status.toLowerCase()) {
-            case "red":
-                statusEmoji = ":heart:";
-                break;
-            case "green":
-                statusEmoji = ":green_heart:";
-                break;
-            case "yellow":
-                statusEmoji = ":yellow_heart:";
-                break;
-        }
         let assigned = card.assignee;
         if (!assigned && card.assignees && card.assignees.length > 0) {
             assigned = card.assignees[0];
         }
         progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
         progressRow.title = `[${card.title}](${card.html_url})`;
-        progressRow.status = statusEmoji;
+        progressRow.status = getStatusEmoji(card.status);
+        progressRow.previous = getStatusEmoji(card.previousStatus);
         progressRow.lastUpdated = card.lastUpdatedAgo; //card.hoursLastUpdated > 0 ? (card.hoursLastUpdated/24).toFixed(1) : '';
         if (card.flagHoursLastUpdated) {
             progressRow.lastUpdated += " :triangular_flag_on_post:";

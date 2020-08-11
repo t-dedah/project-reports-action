@@ -39,12 +39,6 @@ reports:
           in-progress-limit: 2
           count-label-match: "(\\d+)-dev"
       - name: "project-cycle-time"
-      - name: "limits"
-        config: 
-          report-on-label: 'Epic'
-          accepted-limit: 2
-          in-progress-limit: 2
-          count-label-match: "(\\d+)-dev"
       - name: "project-in-progress"
         config:
           report-on: 'Epic'
