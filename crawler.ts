@@ -1,6 +1,7 @@
 import {GitHubClient} from './github';
 import {IssueList, ProjectIssue, IssueEvent} from './project-reports-lib';
 import {CrawlingTarget} from './interfaces';
+import {URL} from 'url';
 
 export class Crawler {
     // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
@@ -152,17 +153,22 @@ class ProjectCrawler {
 
                     // cached since real column could be mapped to two different mapped columns
                     // read and build the event list once
+                    
                     let issueCard = await this.github.getIssueForCard(card, projectData.id);
                     if (issueCard) {
                         this.processCard(issueCard, projectData.id, target, eventCallback);
-                        // if (!issueCard["project_stage"]) {
-                        //     // TODO: add these to an anomolies report via callback
-                        //     // report consumers don't read actions output and they need to react
-                        //     console.log(`WARNING: project_stage not set for ${issueCard.html_url}`);
-                        //     issueCard["project_stage"] = "Missing";
-                        // }
-                        //projectData.stages[key].push(issueCard);
                         issues.push(issueCard);
+                    }
+                    else {
+                        let contents = card["note"];
+                        try {
+                            new URL(contents);
+                            console.log(contents);
+                            console.log("WWARNING: card found that is not an issue but has contents of an issues url that is not part of the project");
+                        }
+                        catch{
+                            console.log(`ignoring note: ${contents}`);
+                        }
                     }
                 }
             }

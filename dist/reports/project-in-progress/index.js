@@ -144,13 +144,12 @@ function process(config, issueList, drillIn) {
     console.log("> in-progress::process");
     let progressData = {};
     progressData.cardType = config["report-on"] || config["report-on-label"];
+    progressData.cards = [];
     let issues = issueList.getItems();
     let projData = rptLib.getProjectStageIssues(issues);
     let cards = projData[project_reports_lib_1.ProjectStages.InProgress];
     if (!cards) {
-        // if the column exists but has no cards, that's fine, it will no get here. 
-        // It would have to be a non existant column which is a config problem so fail.
-        throw new Error("In-Progress column does not exist");
+        return progressData;
     }
     console.log(`Getting cards for ${progressData.cardType}`);
     let cardsForType = progressData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));

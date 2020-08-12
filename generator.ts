@@ -95,6 +95,9 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         }
     }
 
+    console.log('crawlConfig');
+    console.log(JSON.stringify(crawlCfg, null, 2));    
+
     let crawler: Crawler = new Crawler(token, cachePath);
 
     for (const report of config.reports) {
@@ -236,6 +239,10 @@ function getReportHeading(report: ReportConfig) {
 
 async function deleteFilesInPath(targetPath: string) {
     console.log();
+    if (!fs.existsSync(targetPath)) {
+        return;
+    }
+
     let existingRootFiles = fs.readdirSync(targetPath).map( item => path.join(targetPath, item));
     existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
     for (let file of existingRootFiles) {

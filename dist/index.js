@@ -6213,6 +6213,8 @@ function generate(token, configYaml) {
                 }
             }
         }
+        console.log('crawlConfig');
+        console.log(JSON.stringify(crawlCfg, null, 2));
         let crawler = new crawler_1.Crawler(token, cachePath);
         for (const report of config.reports) {
             let output = "";
@@ -6324,6 +6326,9 @@ function getReportHeading(report) {
 function deleteFilesInPath(targetPath) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log();
+        if (!fs.existsSync(targetPath)) {
+            return;
+        }
         let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item));
         existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
         for (let file of existingRootFiles) {
@@ -19971,6 +19976,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Crawler = void 0;
 const github_1 = __webpack_require__(970);
 const project_reports_lib_1 = __webpack_require__(369);
+const url_1 = __webpack_require__(835);
 class Crawler {
     constructor(token, cachePath) {
         // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
@@ -20098,14 +20104,18 @@ class ProjectCrawler {
                         let issueCard = yield this.github.getIssueForCard(card, projectData.id);
                         if (issueCard) {
                             this.processCard(issueCard, projectData.id, target, eventCallback);
-                            // if (!issueCard["project_stage"]) {
-                            //     // TODO: add these to an anomolies report via callback
-                            //     // report consumers don't read actions output and they need to react
-                            //     console.log(`WARNING: project_stage not set for ${issueCard.html_url}`);
-                            //     issueCard["project_stage"] = "Missing";
-                            // }
-                            //projectData.stages[key].push(issueCard);
                             issues.push(issueCard);
+                        }
+                        else {
+                            let contents = card["note"];
+                            try {
+                                new url_1.URL(contents);
+                                console.log(contents);
+                                console.log("WWARNING: card found that is not an issue but has contents of an issues url that is not part of the project");
+                            }
+                            catch (_a) {
+                                console.log(`ignoring note: ${contents}`);
+                            }
                         }
                     }
                 }

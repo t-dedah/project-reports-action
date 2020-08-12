@@ -80,17 +80,16 @@ export function sortCards(card1: IssueCardEx, card2: IssueCardEx) {
 
 export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     console.log("> in-progress::process");
-    let progressData = <ProgressData>{};
 
+    let progressData = <ProgressData>{};
     progressData.cardType = config["report-on"] || config["report-on-label"];
+    progressData.cards = [];
 
     let issues = issueList.getItems();
     let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
     let cards = projData[ProjectStages.InProgress];
     if (!cards) {
-        // if the column exists but has no cards, that's fine, it will no get here. 
-        // It would have to be a non existant column which is a config problem so fail.
-        throw new Error("In-Progress column does not exist");
+        return progressData;
     }
 
     console.log(`Getting cards for ${progressData.cardType}`);
