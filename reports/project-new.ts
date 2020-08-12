@@ -43,13 +43,13 @@ export function process(config: any, issueList: IssueList, drillIn: (identifier:
     }
     newCards.daysAgo = daysAgo;
 
-    let addedDaysAgo = now.diff(config['daysAgo'] || 7, 'days', true);
+    let daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days');
     
-    console.log(`Getting cards for ${newCards.cardType} added > ${addedDaysAgo}`);
+    console.log(`Getting cards for ${newCards.cardType} added > ${daysAgoMoment}`);
 
     let issues = issueList.getItems();
     let cardsForType = newCards.cardType === '*'? issues : rptLib.filterByLabel(issues, newCards.cardType.toLowerCase()) as ProjectIssue[];
-    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && addedDaysAgo > daysAgo);
+    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && moment(issue["project_added_at"]).isAfter(daysAgoMoment));
 
     return newCards;
 }

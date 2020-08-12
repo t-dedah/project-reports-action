@@ -37,20 +37,20 @@ export function process(config: any, issueList: IssueList, drillIn: (identifier:
 
     completedCards.cardType = config["report-on"] || config["report-on-label"];
 
-    let flagDaysAgo = config['daysAgo'] || 7;
-    if (isNaN(flagDaysAgo)) {
+    let daysAgo = config['daysAgo'] || 7;
+    if (isNaN(daysAgo)) {
         throw new Error("daysAgo is not a number");
     }
-    completedCards.daysAgo = flagDaysAgo;
+    completedCards.daysAgo = daysAgo;
 
-    let doneDaysAgo = now.diff(config['daysAgo'] || 7, 'days', true);
+    let daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days');
 
     console.log(`Getting cards for ${completedCards.cardType}`);
     
     let issues = issueList.getItems();
     let cardsForType = completedCards.cardType === '*'? issues : rptLib.filterByLabel(issues, completedCards.cardType.toLowerCase()) as ProjectIssue[];
 
-    completedCards.cards = cardsForType.filter(issue => issue["project_done_at"] && doneDaysAgo > flagDaysAgo);
+    completedCards.cards = cardsForType.filter(issue => issue["project_done_at"] && moment(issue["project_done_at"]).isAfter(daysAgoMoment));
 
     return completedCards;
 }

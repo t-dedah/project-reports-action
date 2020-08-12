@@ -446,11 +446,11 @@ function process(config, issueList, drillIn) {
         throw new Error("daysAgo is not a number");
     }
     newCards.daysAgo = daysAgo;
-    let addedDaysAgo = now.diff(config['daysAgo'] || 7, 'days', true);
-    console.log(`Getting cards for ${newCards.cardType} added > ${addedDaysAgo}`);
+    let daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days');
+    console.log(`Getting cards for ${newCards.cardType} added > ${daysAgoMoment}`);
     let issues = issueList.getItems();
     let cardsForType = newCards.cardType === '*' ? issues : rptLib.filterByLabel(issues, newCards.cardType.toLowerCase());
-    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && addedDaysAgo > daysAgo);
+    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && moment(issue["project_added_at"]).isAfter(daysAgoMoment));
     return newCards;
 }
 exports.process = process;
