@@ -649,13 +649,10 @@ function process(config, issues, drillIn) {
             card.cycletime = calculateCycleTime(card);
             return card;
         });
-        console.log(`There are [${cardsForType.length}] cards in done state`);
-        cardsForType.map((card) => {
-            console.log(`card is : ${card.title}, cycletime is ${card.cycletime}`);
-        });
         stageData.title = cardType;
         stageData.count = cardsForType.length;
-        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0);
+        // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
+        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0) / cardsForType.length;
         let limitKey = `${cardType.toLocaleLowerCase().replace(/\s/g, "-")}-cycletime-limit`;
         stageData.limit = config[limitKey] || 0;
         stageData.flag = stageData.limit > -1 && stageData.cycletime > stageData.limit;
