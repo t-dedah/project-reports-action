@@ -12,7 +12,10 @@ let config: any = {
     "wip-label-match": "(\\d+)-dev",
     "last-updated-days-flag": 3.0,
     "last-updated-scheme": "LastCommentPattern", 
-    "last-updated-scheme-data": "^(#){1,4} [Uu]pdate",   
+    "last-updated-scheme-data": "^(#){1,4} [Uu]pdate",
+    "status-day": "Wednesday",
+    "previous-days-ago": 7,
+    "previous-hour-utc": 17,       
   };
 
 describe('project-in-progress', () => {
@@ -78,7 +81,7 @@ describe('project-in-progress', () => {
         expect(markdown).toBeDefined();
         // console.log(markdown);
         expect(markdown).toContain("## :hourglass_flowing_sand: In Progress Epics");
-        expect(markdown).toContain("| [gRPC generation](https://github.com/bryanmacfarlane/quotes-feed/issues/16)  | :exclamation: |  :triangular_flag_on_post:");
-        expect(markdown).toContain("| [Initial Frontend](https://github.com/bryanmacfarlane/quotes-feed/issues/14) | :green_heart: |");
+        expect(markdown).toContain("| [gRPC generation](https://github.com/bryanmacfarlane/quotes-feed/issues/16)  | :exclamation: | :exclamation: |  :triangular_flag_on_post:");
+        expect(markdown).toContain("| [Initial Frontend](https://github.com/bryanmacfarlane/quotes-feed/issues/14) | :green_heart: | :green_heart: | in 3 days :triangular_flag_on_post:");
     });    
 });
