@@ -10,7 +10,7 @@
 
 > Early personal experiment.  Do not rely on this.  Changing rapidly.
 
-An action to generate reports like this ffor a GitHub project board.  Customizable and extensible.
+An action to generate reports like this for a GitHub project board.  Customizable and extensible.
 
 ![sample](./docs/sample.png)
 

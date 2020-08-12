@@ -1,4 +1,4 @@
-import {ProjectIssue} from '../interfaces';
+import {ProjectIssue, IssueList} from '../project-reports-lib';
 import * as projectNew from '../reports/project-new';
 import {NewCards} from '../reports/project-new';
 
@@ -32,7 +32,9 @@ describe('project-new', () => {
             drillIns.push(identifier);
         }
 
-        let processed = projectNew.process(config, projectData, drillIn) as NewCards;
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);        
+        let processed = projectNew.process(config, list, drillIn) as NewCards;
         //console.log(JSON.stringify(processed, null, 2));
 
         expect(processed).toBeDefined();
@@ -50,7 +52,9 @@ describe('project-new', () => {
             drillIns.push(identifier);
         }
 
-        let processed = projectNew.process(config, projectData, drillIn) as NewCards;
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);        
+        let processed = projectNew.process(config, list, drillIn) as NewCards;
         expect(processed).toBeDefined();
 
         let markdown = projectNew.renderMarkdown([], processed);

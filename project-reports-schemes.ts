@@ -1,4 +1,4 @@
-import {ProjectIssue} from './interfaces';
+import {ProjectIssue} from './project-reports-lib';
 
 export function dataFromCard(card: ProjectIssue, filterBy: string, data: string): any {
     
@@ -11,7 +11,7 @@ export function dataFromCard(card: ProjectIssue, filterBy: string, data: string)
 }
 
 //
-// returns hours since last comment with a body matching a pattern
+// returns last updated using last comment with a body matching a pattern
 //
 export function getLastCommentPattern(card: ProjectIssue, pattern: string): any {
     if (!card.comments) {
@@ -21,9 +21,9 @@ export function getLastCommentPattern(card: ProjectIssue, pattern: string): any 
     let re = new RegExp(pattern);
     let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
     
-    return comment ? diffHours(new Date(comment["updated_at"]), new Date()) : -1;
+    return comment ? comment["updated_at"] : null;
 }
 
-export function diffHours(date1: Date, date2: Date): number {
-    return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
-}
+// export function diffHours(date1: Date, date2: Date): number {
+//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
+// }

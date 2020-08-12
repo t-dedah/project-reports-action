@@ -1,8 +1,11 @@
-import {ProjectIssue, CrawlingTarget} from '../interfaces';
-import {ProjectStages, ProjectStageIssues} from '../project-reports-lib';
+import {CrawlingTarget} from '../interfaces';
+import {ProjectIssue, IssueList} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
+import moment = require('moment');
+
+let now = moment();
 
 let clone = require('clone');
 
@@ -28,24 +31,25 @@ export type NewCards = {
 }
 
 
-export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     console.log("> project-new::process");
     let newCards = <NewCards>{};
 
     newCards.cardType = config["report-on"] || config["report-on-label"];
 
-    let daysAgo = config['daysAgo'];
+    let daysAgo = config['daysAgo'] || 7;
     if (isNaN(daysAgo)) {
         throw new Error("daysAgo is not a number");
     }
     newCards.daysAgo = daysAgo;
 
-    var dateAgo = new Date();
-    dateAgo.setDate(dateAgo.getDate() - config['daysAgo']);
+    let daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days');
+    
+    console.log(`Getting cards for ${newCards.cardType} added > ${daysAgoMoment}`);
 
-    console.log(`Getting cards for ${newCards.cardType} added > ${dateAgo}`);
-    let cardsForType = newCards.cardType === '*'? clone(issues) : clone(rptLib.filterByLabel(issues, newCards.cardType.toLowerCase()) as ProjectIssue[]);
-    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && new Date(issue["project_added_at"]) > dateAgo);
+    let issues = issueList.getItems();
+    let cardsForType = newCards.cardType === '*'? issues : rptLib.filterByLabel(issues, newCards.cardType.toLowerCase()) as ProjectIssue[];
+    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && moment(issue["project_added_at"]).isAfter(daysAgoMoment));
 
     return newCards;
 }
@@ -77,7 +81,7 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
 
         newRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
         newRow.title = `[${card.title}](${card.html_url})`;
-        newRow.added = new Date(card["project_added_at"]).toDateString();
+        newRow.added = now.to(moment(card["project_added_at"]));
 
         rows.push(newRow);
     }

@@ -1,4 +1,4 @@
-import {ProjectIssue} from '../interfaces';
+import {ProjectIssue} from '../project-reports-lib';
 //const tablemark = require('tablemark')
 import * as os from 'os';
 

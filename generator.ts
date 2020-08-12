@@ -8,13 +8,14 @@ import * as os from 'os';
 import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
 import {Crawler} from './crawler';
-import {DistinctSet} from './util';
+import * as lib from './project-reports-lib'
+import moment = require('moment');
 
 let sanitize = require('sanitize-filename');
 let clone = require('clone');
 
-import { CrawlingConfig, GeneratorConfiguration, ProjectIssue, ReportSnapshot, ReportConfig, ProjectData, ProjectReportBuilder, ReportDetails, IssueSummary, CrawlingTarget } from './interfaces'
-//import { url } from 'inspector';
+import {IssueList, ProjectIssue} from './project-reports-lib';
+import { CrawlingConfig, CrawlingTarget, GeneratorConfiguration, ReportSnapshot, ReportConfig, ProjectReportBuilder, ReportDetails } from './interfaces'
 
 export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
     const workspacePath = process.env["GITHUB_WORKSPACE"];
@@ -51,7 +52,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         report.timezoneOffset = report.timezoneOffset || -8;
 
         report.details = <ReportDetails>{
-            time: util.getTimeForOffset(snapshot.datetime, report.timezoneOffset)
+            time: moment().utcOffset(report.timezoneOffset).format("dddd, MMMM Do YYYY, h:mm:ss a")
         }
         report.details.rootPath = path.join(snapshot.rootPath, sanitize(report.name));
         report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString);
@@ -80,8 +81,8 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 target.columnMap = {};
             }
 
-            let defaultPhases = ['Proposed', 'Accepted', 'In-Progress', 'Done'];
-            for (let phase of defaultPhases) {
+            let defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
+            for (let phase of defaultStages) {
                 if (!target.columnMap[phase]) {
                     target.columnMap[phase] = [ phase ];
                 }
@@ -93,6 +94,9 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             }
         }
     }
+
+    console.log('crawlConfig');
+    console.log(JSON.stringify(crawlCfg, null, 2));    
 
     let crawler: Crawler = new Crawler(token, cachePath);
 
@@ -150,7 +154,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             // ----------------------------------------------------------------------
             let targetNames = reportSection.targets || report.targets;
 
-            let set = new DistinctSet(issue => issue.html_url);
+            let set = new IssueList(issue => issue.html_url);
             
             let targets: CrawlingTarget[] = [];
             for (let targetName of targetNames) {
@@ -164,7 +168,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                     throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                 }
 
-                let data: IssueSummary[] = await crawler.crawl(target);
+                let data: ProjectIssue[] = await crawler.crawl(target);
                 console.log(`Adding ${data.length} issues to set ...`);
                 set.add(data);
             }
@@ -182,7 +186,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 })
             }
 
-            let processed = reportGenerator.process(config, clone(set.getItems()), drillInCb);
+            let processed = reportGenerator.process(config, clone(set), drillInCb);
 
             await writeSectionData(report, reportModule, config, processed);
 
@@ -235,6 +239,10 @@ function getReportHeading(report: ReportConfig) {
 
 async function deleteFilesInPath(targetPath: string) {
     console.log();
+    if (!fs.existsSync(targetPath)) {
+        return;
+    }
+
     let existingRootFiles = fs.readdirSync(targetPath).map( item => path.join(targetPath, item));
     existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
     for (let file of existingRootFiles) {

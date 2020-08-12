@@ -40,7 +40,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(539);
+/******/ 		return __webpack_require__(208);
 /******/ 	};
 /******/ 	// initialize runtime
 /******/ 	runtime(__webpack_require__);
@@ -386,6 +386,110 @@ module.exports = function (str, locale) {
   }
 
   return str.toLowerCase()
+}
+
+
+/***/ }),
+
+/***/ 208:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
+const rptLib = __importStar(__webpack_require__(369));
+const tablemark = __webpack_require__(611);
+const os = __importStar(__webpack_require__(87));
+const moment = __webpack_require__(431);
+const reportType = 'project';
+exports.reportType = reportType;
+function getDefaultConfiguration() {
+    return {
+        "report-on-label": ["feature", "epic"],
+        "feature-cycletime-limit": 0,
+        "epic-cycletime-limit": 1
+    };
+}
+exports.getDefaultConfiguration = getDefaultConfiguration;
+function process(config, issueList, drillIn) {
+    let cycleTimeData = {};
+    // merge defaults and overriden config.
+    config = Object.assign({}, getDefaultConfiguration(), config);
+    let issues = issueList.getItems();
+    let projData = rptLib.getProjectStageIssues(issues);
+    for (let cardType of config["report-on-label"]) {
+        let stageData = {};
+        let cards = projData["Done"];
+        let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
+        // add cycle time to each card in this type.
+        cardsForType.map((card) => {
+            card.cycletime = calculateCycleTime(card);
+            return card;
+        });
+        stageData.title = cardType;
+        stageData.count = cardsForType.length;
+        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0);
+        let limitKey = `${cardType.toLocaleLowerCase().replace(/\s/g, "-")}-cycletime-limit`;
+        stageData.limit = config[limitKey] || 0;
+        stageData.flag = stageData.limit > -1 && stageData.cycletime > stageData.limit;
+        cycleTimeData[cardType] = stageData;
+    }
+    return cycleTimeData;
+}
+exports.process = process;
+function renderMarkdown(projData, processedData) {
+    let cycleTimeData = processedData;
+    let lines = [];
+    let rows = [];
+    lines.push(`## Issue Count & Cycle Time `);
+    for (let cardType in cycleTimeData) {
+        const stageData = cycleTimeData[cardType];
+        let ctRow = {};
+        ctRow.labels = `\`${cardType}\``;
+        ctRow.count = stageData.count;
+        ctRow.cycleTimeInDays = ` ${stageData.cycletime.toFixed(2)} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
+        ctRow.limit = stageData.limit;
+        rows.push(ctRow);
+    }
+    let table = tablemark(rows);
+    lines.push(table);
+    return lines.join(os.EOL);
+}
+exports.renderMarkdown = renderMarkdown;
+//
+// Calculate cycle time for a card
+// The time, in days, a unit of work spends between the first day it is actively being worked on until the day it is closed.
+// In this case, since a project card has events, we look for the event that moved or added a card to the "Accepted" column
+// and subtract it from the time that the card moved to the `Done` column.
+//
+function calculateCycleTime(card) {
+    // cycle time starts at Accepted, ends at Done.
+    let accepted_time = new Date(card.project_added_at);
+    let done_time = new Date(card.project_done_at);
+    if (accepted_time == null || done_time == null) {
+        return 0;
+    }
+    return moment(done_time).diff(moment(accepted_time), 'days', true);
 }
 
 
@@ -6545,109 +6649,6 @@ function width(text, max){
 
 	return i > u ? i : u
 }
-
-
-/***/ }),
-
-/***/ 539:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
-const rptLib = __importStar(__webpack_require__(369));
-const tablemark = __webpack_require__(611);
-const os = __importStar(__webpack_require__(87));
-const moment = __webpack_require__(431);
-let clone = __webpack_require__(97);
-let now = moment();
-const reportType = 'project';
-exports.reportType = reportType;
-/*
- * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
- * how focused the team is (e.g. how many efforts are going on)
- * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
- */
-function getDefaultConfiguration() {
-    return {
-        "report-on-label": 'Epic',
-        "daysAgo": 7
-    };
-}
-exports.getDefaultConfiguration = getDefaultConfiguration;
-function process(config, issueList, drillIn) {
-    console.log("> project-done::process");
-    let completedCards = {};
-    completedCards.cardType = config["report-on"] || config["report-on-label"];
-    let daysAgo = config['daysAgo'] || 7;
-    if (isNaN(daysAgo)) {
-        throw new Error("daysAgo is not a number");
-    }
-    completedCards.daysAgo = daysAgo;
-    let daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days');
-    console.log(`Getting cards for ${completedCards.cardType}`);
-    let issues = issueList.getItems();
-    let cardsForType = completedCards.cardType === '*' ? issues : rptLib.filterByLabel(issues, completedCards.cardType.toLowerCase());
-    completedCards.cards = cardsForType.filter(issue => issue["project_done_at"] && moment(issue["project_done_at"]).isAfter(daysAgoMoment));
-    return completedCards;
-}
-exports.process = process;
-function renderMarkdown(targets, processedData) {
-    console.log("> project-done::renderMarkdown");
-    let completedCards = processedData;
-    let lines = [];
-    let typeLabel = processedData.cardType === '*' ? "" : `${completedCards.cardType}s`;
-    lines.push(`## :checkered_flag: Completed ${typeLabel} last ${completedCards.daysAgo} days  `);
-    lines.push("  ");
-    let rows = [];
-    for (let card of processedData.cards) {
-        let doneRow = {};
-        let assigned = card.assignee;
-        if (!assigned && card.assignees && card.assignees.length > 0) {
-            assigned = card.assignees[0];
-        }
-        doneRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
-        doneRow.title = `[${card.title}](${card.html_url})`;
-        doneRow.completed = now.to(moment(card["project_done_at"]));
-        rows.push(doneRow);
-    }
-    let table;
-    if (rows && rows.length > 0) {
-        table = tablemark(rows);
-    }
-    else {
-        table = `No ${completedCards.cardType}s found.`;
-    }
-    lines.push(table);
-    lines.push("  ");
-    return lines.join(os.EOL);
-}
-exports.renderMarkdown = renderMarkdown;
-function renderHtml() {
-    // Not supported yet
-    return "";
-}
-exports.renderHtml = renderHtml;
 
 
 /***/ }),

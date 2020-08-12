@@ -1,6 +1,7 @@
-import {CrawlingTarget, ProjectData, ProjectIssue, IssueSummary, IssueEvent} from './interfaces';
 import {GitHubClient} from './github';
-import {DistinctSet} from './util';
+import {IssueList, ProjectIssue, IssueEvent} from './project-reports-lib';
+import {CrawlingTarget} from './interfaces';
+import {URL} from 'url';
 
 export class Crawler {
     // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
@@ -11,13 +12,13 @@ export class Crawler {
         this.github = new GitHubClient(token, cachePath);
     }
 
-    async crawl(target: CrawlingTarget): Promise<IssueSummary[]> {
+    async crawl(target: CrawlingTarget): Promise<ProjectIssue[]> {
         if (this.targetMap[target.htmlUrl]) {
             return this.targetMap[target.htmlUrl];
         }
 
         // TODO: eventually deprecate ProjectData and only have distinct set
-        let data: IssueSummary[];
+        let data: ProjectIssue[];
         if (target.type === 'project') {
             let projectCrawler = new ProjectCrawler(this.github);
             data = await projectCrawler.crawl(target);
@@ -50,7 +51,7 @@ class RepoCrawler {
     public async crawl(target: CrawlingTarget): Promise<any[]> {
         console.log(`Crawling project ${target.htmlUrl} ...`);
 
-        let set = new DistinctSet(issue => issue.number);
+        let set = new IssueList(issue => issue.number);
         let res = await this.github.getIssuesForRepo(target.htmlUrl);
         let summaries = res.map(issue => this.summarizeIssue(issue));
         console.log(`Crawled ${summaries.length} issues`);
@@ -60,8 +61,8 @@ class RepoCrawler {
     }
 
     // walk events and rollup / summarize an issue for slicing and dicing.
-    private summarizeIssue(issue): IssueSummary {
-        let summary = <IssueSummary>{};
+    private summarizeIssue(issue): ProjectIssue {
+        let summary = <ProjectIssue>{};
         summary.number = issue.number;
         summary.title = issue.title;
         summary.html_url = issue.html_url;
@@ -70,15 +71,6 @@ class RepoCrawler {
         return summary;
     }
 }
-
-let stageLevel = {
-    "None": 0,
-    "Proposed": 1,
-    "Accepted": 2,
-    "In-Progress": 3,
-    "Done": 4
-}
-
 
 class ProjectCrawler {
     github: GitHubClient;
@@ -91,15 +83,6 @@ class ProjectCrawler {
         "in-progress": "In-Progress",
         "done": "Done"
     }
-
-    // keep in order indexed by level above
-    stageAtNames = [
-        'none',
-        'project_proposed_at',
-        'project_accepted_at',
-        'project_in_progress_at',
-        'project_done_at'
-    ]
 
     constructor(client: GitHubClient) {
         this.github = client;
@@ -170,17 +153,22 @@ class ProjectCrawler {
 
                     // cached since real column could be mapped to two different mapped columns
                     // read and build the event list once
+                    
                     let issueCard = await this.github.getIssueForCard(card, projectData.id);
                     if (issueCard) {
                         this.processCard(issueCard, projectData.id, target, eventCallback);
-                        if (!issueCard["project_stage"]) {
-                            // TODO: add these to an anomolies report via callback
-                            // report consumers don't read actions output and they need to react
-                            console.log(`WARNING: project_stage not set for ${issueCard.html_url}`);
-                            issueCard["project_stage"] = "Missing";
-                        }
-                        //projectData.stages[key].push(issueCard);
                         issues.push(issueCard);
+                    }
+                    else {
+                        let contents = card["note"];
+                        try {
+                            new URL(contents);
+                            console.log(contents);
+                            console.log("WWARNING: card found that is not an issue but has contents of an issues url that is not part of the project");
+                        }
+                        catch{
+                            console.log(`ignoring note: ${contents}`);
+                        }
                     }
                 }
             }
@@ -199,9 +187,10 @@ class ProjectCrawler {
         return issues;
     }
 
-    // process a card in context of the project it's being added to
-    // filter column events to the project being processed only since. this makes it easier on the report author
-    // add stage name to column move events so report authors don't have to repeatedly to that
+    //
+    // Add logical stages to the events.
+    // filter out events not for the project being crawled (issue can belond to multiple boards)
+    //
     public processCard(card: ProjectIssue, projectId: number, target: CrawlingTarget, eventCallback: (event: IssueEvent) => void): void {
         if (!projectId) {
             throw new Error('projectId not set');
@@ -225,65 +214,25 @@ class ProjectCrawler {
 
                 eventCallback(event);
 
-                let eventDateTime: Date;
-                if (event.created_at) {
-                    eventDateTime = event.created_at;
-                }
-
-                // TODO: should I clear all the stage_at datetimes if I see
-                //       removed_from_project event?
-
-                let toStage: string;
-                let toLevel: number;
-                let fromStage: string;
-                let fromLevel: number = 0;
-
                 if (event.project_card && event.project_card.column_name) {
-                    if (!addedTime) {
-                        addedTime = eventDateTime;
+                    let stage = this.getStageFromColumn(event.project_card.column_name, target);
+                    if (!stage) {
+                        console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
                     }
-
-                    toStage = event.project_card.stage_name = this.getStageFromColumn(event.project_card.column_name, target);
-                    toLevel = stageLevel[toStage];
-                    currentStage = toStage;
+                    event.project_card.stage_name =  stage || "Unmapped";
                 }
         
                 if (event.project_card && event.project_card.previous_column_name) {
-                    fromStage = event.project_card.previous_stage_name = this.getStageFromColumn(event.project_card.previous_column_name, target);
-                    fromLevel = stageLevel[fromStage];
-                }
-
-                // last occurence of moving to these columns from a lesser or no column
-                // example. if moved to accepted from proposed (or less), 
-                //      then in-progress (greater) and then back to accepted, first wins            
-                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                    if (toLevel > fromLevel) {
-                        card[this.stageAtNames[toLevel]] = eventDateTime;
-                        console.log(`${this.stageAtNames[toLevel]}: ${eventDateTime}`);
-                    } 
-                }
-
-                if (toStage === 'Done') {
-                    doneTime = eventDateTime;
+                    let previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target)
+                    if (!previousStage) {
+                        console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
+                    }                    
+                    event.project_card.previous_stage_name =  previousStage || "Unmapped";
                 }
 
                 filteredEvents.push(event);
             }
             card.events = filteredEvents;
-
-            // done_at and blocked_at is only set if it's currently at that stage
-            if (currentStage === 'Done') {
-                card.project_done_at = doneTime;
-                console.log(`project_done_at: ${card.project_done_at}`);
-            }
-
-            if (addedTime) {
-                card.project_added_at = addedTime;
-                console.log(`project_added_at: ${card.project_added_at}`);
-            }
-
-            card.project_stage = currentStage;
-            console.log(`project_stage: ${card.project_stage}`);
         }
     } 
     

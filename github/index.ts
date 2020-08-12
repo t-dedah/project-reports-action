@@ -1,8 +1,8 @@
 const { Octokit } = require('@octokit/rest');
 import * as url from 'url' 
-import {ProjectData, ProjectIssue, IssueEvent, IssueSummary, IssueComment, IssueParameters} from '../interfaces'
+import {ProjectData} from '../interfaces'
 import * as restCache from './octokit-rest-cache';
-import {DistinctSet} from '../util';
+import {IssueList, ProjectIssue, IssueEvent, IssueComment} from '../project-reports-lib';
 
 function DateOrNull(date: string): Date {
     return date ? new Date(date) : null;
@@ -189,8 +189,8 @@ export class GitHubClient {
     //   2. Get cycle time (time opened to closed etc.)
     //
     // https://developer.github.com/v3/issues/#parameters-3
-    async getIssuesForRepo(repoUrl: string, daysAgo: number = 7): Promise<any[]> {
-        let set = new DistinctSet(issue => issue.number);
+    async getIssuesForRepo(repoUrl: string, daysAgo: number = 7): Promise<ProjectIssue[]> {
+        let set = new IssueList(issue => issue.number);
 
         let rUrl = new url.URL(repoUrl);
         let parts = rUrl.pathname.split('/').filter(e => e);
