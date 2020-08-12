@@ -6201,8 +6201,8 @@ function generate(token, configYaml) {
                 if (!target.columnMap) {
                     target.columnMap = {};
                 }
-                let defaultPhases = ['Proposed', 'Accepted', 'In-Progress', 'Done'];
-                for (let phase of defaultPhases) {
+                let defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
+                for (let phase of defaultStages) {
                     if (!target.columnMap[phase]) {
                         target.columnMap[phase] = [phase];
                     }
@@ -6667,7 +6667,8 @@ let stageLevel = {
     "Proposed": 1,
     "Accepted": 2,
     "In-Progress": 3,
-    "Done": 4
+    "Done": 4,
+    "Unmapped": 5
 };
 class IssueList {
     constructor(identifier) {
@@ -6815,7 +6816,7 @@ class IssueList {
                         addedTime = eventDateTime;
                     }
                     if (!event.project_card.stage_name) {
-                        throw new Error("stage_name should have been set already");
+                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
                     }
                     toStage = event.project_card.stage_name;
                     toLevel = stageLevel[toStage];
@@ -6823,7 +6824,7 @@ class IssueList {
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
-                        throw new Error("previous_stage_name should have been set already");
+                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
                     }
                     fromStage = event.project_card.previous_stage_name;
                     fromLevel = stageLevel[fromStage];
@@ -20155,10 +20156,18 @@ class ProjectCrawler {
                 }
                 eventCallback(event);
                 if (event.project_card && event.project_card.column_name) {
-                    event.project_card.stage_name = this.getStageFromColumn(event.project_card.column_name, target);
+                    let stage = this.getStageFromColumn(event.project_card.column_name, target);
+                    if (!stage) {
+                        console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
+                    }
+                    event.project_card.stage_name = stage || "Unmapped";
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
-                    event.project_card.previous_stage_name = this.getStageFromColumn(event.project_card.previous_column_name, target);
+                    let previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target);
+                    if (!previousStage) {
+                        console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
+                    }
+                    event.project_card.previous_stage_name = previousStage || "Unmapped";
                 }
                 filteredEvents.push(event);
             }

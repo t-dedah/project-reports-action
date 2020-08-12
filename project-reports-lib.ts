@@ -196,7 +196,8 @@ let stageLevel = {
     "Proposed": 1,
     "Accepted": 2,
     "In-Progress": 3,
-    "Done": 4
+    "Done": 4,
+    "Unmapped": 5
 }
 
 export class IssueList {
@@ -379,7 +380,7 @@ export class IssueList {
                     }
 
                     if (!event.project_card.stage_name) {
-                        throw new Error("stage_name should have been set already");
+                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
                     }
 
                     toStage = event.project_card.stage_name;
@@ -389,7 +390,7 @@ export class IssueList {
         
                 if (event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
-                        throw new Error("previous_stage_name should have been set already");
+                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
                     }
 
                     fromStage = event.project_card.previous_stage_name;

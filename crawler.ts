@@ -215,11 +215,19 @@ class ProjectCrawler {
                 eventCallback(event);
 
                 if (event.project_card && event.project_card.column_name) {
-                    event.project_card.stage_name = this.getStageFromColumn(event.project_card.column_name, target);
+                    let stage = this.getStageFromColumn(event.project_card.column_name, target);
+                    if (!stage) {
+                        console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
+                    }
+                    event.project_card.stage_name =  stage || "Unmapped";
                 }
         
                 if (event.project_card && event.project_card.previous_column_name) {
-                    event.project_card.previous_stage_name = this.getStageFromColumn(event.project_card.previous_column_name, target);
+                    let previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target)
+                    if (!previousStage) {
+                        console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
+                    }                    
+                    event.project_card.previous_stage_name =  previousStage || "Unmapped";
                 }
 
                 filteredEvents.push(event);

@@ -81,8 +81,8 @@ export async function generate(token: string, configYaml: string): Promise<Repor
                 target.columnMap = {};
             }
 
-            let defaultPhases = ['Proposed', 'Accepted', 'In-Progress', 'Done'];
-            for (let phase of defaultPhases) {
+            let defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
+            for (let phase of defaultStages) {
                 if (!target.columnMap[phase]) {
                     target.columnMap[phase] = [ phase ];
                 }
