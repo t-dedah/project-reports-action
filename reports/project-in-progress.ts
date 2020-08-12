@@ -95,7 +95,7 @@ export function process(config: any, issueList: IssueList, drillIn: (identifier:
     console.log(`Getting cards for ${progressData.cardType}`);
     let cardsForType = progressData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()) as IssueCardEx[]);
 
-    let previousMoment = now.day(config['status-day']).subtract(config['previous-days-ago'], 'days').utc().hour(config['previous-hour-utc']);
+    let previousMoment = moment().day(config['status-day']).subtract(config['previous-days-ago'], 'days').utc().hour(config['previous-hour-utc']);
     console.log(`Previous status moment: ${previousMoment}`);
 
     // add status to each card from the status label
@@ -104,7 +104,11 @@ export function process(config: any, issueList: IssueList, drillIn: (identifier:
         let labels = card.labels.map(label => label.name);
         
         let lastUpdatedDate = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
+        console.log(`last updated: ${lastUpdatedDate}`);
+
         card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : "";
+        console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`);
+
         let daysSinceUpdate = lastUpdatedDate ? now.diff(lastUpdatedDate, 'days') : -1;
         card.flagHoursLastUpdated = daysSinceUpdate < 0 || daysSinceUpdate > config["last-updated-days-flag"];
         
@@ -184,12 +188,12 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
         progressRow.title = `[${card.title}](${card.html_url})`;
         progressRow.status = getStatusEmoji(card.status);
         progressRow.previous = getStatusEmoji(card.previousStatus);
-        progressRow.lastUpdated = card.lastUpdatedAgo;  //card.hoursLastUpdated > 0 ? (card.hoursLastUpdated/24).toFixed(1) : '';
+        progressRow.lastUpdated = card.lastUpdatedAgo; 
         if (card.flagHoursLastUpdated) {
             progressRow.lastUpdated += " :triangular_flag_on_post:";
         }
         
-        progressRow.inProgress = card.inProgressSince; //card.hoursInProgress > 0 ? (card.hoursInProgress/24).toFixed(1) : "";
+        progressRow.inProgress = card.inProgressSince;
 
         rows.push(progressRow);
     }
