@@ -84,7 +84,7 @@ export function renderMarkdown(projData: ProjectData, processedData: any): strin
     let ctRow = <CycleTimeRow>{};
     ctRow.labels = `\`${cardType}\``;
     ctRow.count = stageData.count;
-    ctRow.cycleTimeInDays = ` ${stageData.cycletime.toFixed(2)} ${stageData.flag ? ":triangular_flag_on_post:": ""}`;
+    ctRow.cycleTimeInDays = ` ${stageData.cycletime ? stageData.cycletime.toFixed(2):""} ${stageData.flag ? ":triangular_flag_on_post:": ""}`;
     ctRow.limit = stageData.limit;
     rows.push(ctRow);
   }
