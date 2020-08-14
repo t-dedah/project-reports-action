@@ -1,6 +1,6 @@
-import {ProjectIssue} from '../interfaces';
-import * as inProgress from '../reports/in-progress';
-import {ProgressData, IssueCardEx} from '../reports/in-progress';
+import {ProjectIssue, IssueList} from '../project-reports-lib';
+import * as inProgress from '../reports/project-in-progress';
+import {ProgressData, IssueCardEx} from '../reports/project-in-progress';
 
 let projectData: ProjectIssue[] = require('./project-data.test.json');
 
@@ -12,7 +12,10 @@ let config: any = {
     "wip-label-match": "(\\d+)-dev",
     "last-updated-days-flag": 3.0,
     "last-updated-scheme": "LastCommentPattern", 
-    "last-updated-scheme-data": "^(#){1,4} [Uu]pdate",   
+    "last-updated-scheme-data": "^(#){1,4} [Uu]pdate",
+    "status-day": "Wednesday",
+    "previous-days-ago": 7,
+    "previous-hour-utc": 17,       
   };
 
 describe('project-in-progress', () => {
@@ -38,8 +41,10 @@ describe('project-in-progress', () => {
             drillIns.push(identifier);
         }
 
-        let processed = inProgress.process(config, projectData, drillIn) as ProgressData;
-        // console.log(JSON.stringify(processed, null, 2));
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);
+        let processed = inProgress.process(config, list, drillIn) as ProgressData;
+        //console.log(JSON.stringify(processed, null, 2));
 
         expect(processed).toBeDefined();
         expect(processed.cardType).toBe('Epic');
@@ -50,12 +55,14 @@ describe('project-in-progress', () => {
         // spot check a card
         expect(cards[0]).toBeDefined();
         expect(cards[0].title).toBe("gRPC generation");
-        expect(cards[0].hoursLastUpdated).toBe(-1);
+        expect(cards[0].flagHoursLastUpdated).toBeTruthy();
+        expect(cards[0].inProgressSince).toContain('days ago');
         expect(cards[0].hoursInProgress).toBeGreaterThan(120);
 
         expect(cards[1]).toBeDefined();
         expect(cards[1].title).toBe("Initial Web UI");
-        expect(cards[1].hoursLastUpdated).toBeGreaterThan(100);
+        expect(cards[0].flagHoursLastUpdated).toBeTruthy();
+        expect(cards[0].inProgressSince).toContain('days ago');
         expect(cards[1].hoursInProgress).toBeGreaterThan(160);
     });
     
@@ -65,14 +72,16 @@ describe('project-in-progress', () => {
             drillIns.push(identifier);
         }
 
-        let processed = inProgress.process(config, projectData, drillIn) as IssueCardEx[];
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);
+        let processed = inProgress.process(config, list, drillIn) as IssueCardEx[];
         expect(processed).toBeDefined();
 
         let markdown = inProgress.renderMarkdown([], processed);
         expect(markdown).toBeDefined();
         // console.log(markdown);
         expect(markdown).toContain("## :hourglass_flowing_sand: In Progress Epics");
-        expect(markdown).toContain("| [gRPC generation](https://github.com/bryanmacfarlane/quotes-feed/issues/16)  | :exclamation: |  :triangular_flag_on_post:");
-        expect(markdown).toContain("| [Initial Frontend](https://github.com/bryanmacfarlane/quotes-feed/issues/14) | :green_heart: |");
+        expect(markdown).toContain("| [gRPC generation](https://github.com/bryanmacfarlane/quotes-feed/issues/16)  | :exclamation: | :exclamation: |  :triangular_flag_on_post:");
+        expect(markdown).toContain("| [Initial Frontend](https://github.com/bryanmacfarlane/quotes-feed/issues/14) | :green_heart: | :green_heart:");
     });    
 });

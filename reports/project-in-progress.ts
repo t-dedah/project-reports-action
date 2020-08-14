@@ -1,8 +1,11 @@
-import {ProjectIssue, CrawlingTarget} from '../interfaces';
-import {ProjectStages, ProjectStageIssues} from '../project-reports-lib';
+import {CrawlingTarget} from '../interfaces';
+import {ProjectIssue, IssueList, ProjectStages, ProjectStageIssues} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
+import moment = require('moment');
+
+let now = moment();
 
 let clone = require('clone');
 
@@ -24,7 +27,11 @@ export function getDefaultConfiguration(): any {
         "status-label-match": "(?:green|yellow|red)",
         "last-updated-days-flag": 3.0,
         "last-updated-scheme": "LastCommentPattern", 
-        "last-updated-scheme-data": "^(#){1,4} update",       
+        "last-updated-scheme-data": "^(#){1,4} update",
+        // last status a week before this wednesday (last wednesday)
+        "status-day": "Wednesday",
+        "previous-days-ago": 7,
+        "previous-hour-utc": 17,
     };
 }
 
@@ -35,9 +42,11 @@ export type ProgressData = {
 
 export interface IssueCardEx extends ProjectIssue {
     status: string;
-    hoursLastUpdated: number;
+    previousStatus: string;
     flagHoursLastUpdated: boolean;
+    lastUpdatedAgo: string;
     hoursInProgress: number;
+    inProgressSince: string;
 }
 
 let statusLevels = {
@@ -69,35 +78,55 @@ export function sortCards(card1: IssueCardEx, card2: IssueCardEx) {
     }
 } 
 
-export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     console.log("> in-progress::process");
+
     let progressData = <ProgressData>{};
-
     progressData.cardType = config["report-on"] || config["report-on-label"];
+    progressData.cards = [];
 
+    let issues = issueList.getItems();
     let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
     let cards = projData[ProjectStages.InProgress];
     if (!cards) {
-        // if the column exists but has no cards, that's fine, it will no get here. 
-        // It would have to be a non existant column which is a config problem so fail.
-        throw new Error("In-Progress column does not exist");
+        return progressData;
     }
 
     console.log(`Getting cards for ${progressData.cardType}`);
     let cardsForType = progressData.cardType === '*'? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()) as IssueCardEx[]);
 
+    let previousMoment = moment().day(config['status-day']).subtract(config['previous-days-ago'], 'days').utc().hour(config['previous-hour-utc']);
+    console.log(`Previous status moment: ${previousMoment}`);
+
     // add status to each card from the status label
     cardsForType.map((card: IssueCardEx) => {
         console.log(`issue: ${card.html_url}`);
         let labels = card.labels.map(label => label.name);
-        card.hoursLastUpdated = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
-        card.flagHoursLastUpdated = card.hoursLastUpdated < 0 || card.hoursLastUpdated / 24 > config["last-updated-days-flag"];
+        
+        let lastUpdatedDate = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
+        console.log(`last updated: ${lastUpdatedDate}`);
+
+        card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : "";
+        console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`);
+
+        let daysSinceUpdate = lastUpdatedDate ? now.diff(lastUpdatedDate, 'days') : -1;
+        card.flagHoursLastUpdated = daysSinceUpdate < 0 || daysSinceUpdate > config["last-updated-days-flag"];
+        
+        let previousCard = issueList.getItemAsof(card.html_url, previousMoment.toDate());
+
         let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
         console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
+
+        let previousStatus = rptLib.getStringFromLabel(previousCard, new RegExp(config["status-label-match"])).toLowerCase();
+        console.log(`previousStatus: '${previousStatus}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
+
         card.status = statusLevels[status] ? status : "";
+        card.previousStatus = statusLevels[previousStatus] ? previousStatus : "";
         card.hoursInProgress = -1; 
         if (card.project_in_progress_at) {
-            card.hoursInProgress = rptLib.diffHours(new Date(card.project_in_progress_at), new Date());
+            let then = moment(card.project_in_progress_at);
+            card.hoursInProgress = now.diff(then, 'hours', true);
+            card.inProgressSince = now.to(then);
         }
 
         return card;
@@ -114,8 +143,24 @@ interface ProgressRow {
     assigned: string,
     title: string,
     status: string,
-    daysInProgress: string,    
-    daysLastUpdated: string,
+    previous: string,
+    inProgress: string,    
+    lastUpdated: string,
+}
+
+// TODO: we could make this configurable
+function getStatusEmoji(status: string) {
+    let statusEmoji = ":exclamation:";
+    switch (status.toLowerCase()) {
+        case "red": 
+            statusEmoji = ":heart:"; break;
+        case "green":
+            statusEmoji = ":green_heart:"; break;
+        case "yellow":
+            statusEmoji = ":yellow_heart:"; break;
+    }
+
+    return statusEmoji;
 }
 
 export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
@@ -134,16 +179,6 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
     for (let card of processedData.cards) {
         let progressRow = <ProgressRow>{};
 
-        let statusEmoji = ":exclamation:";
-        switch (card.status.toLowerCase()) {
-            case "red": 
-                statusEmoji = ":heart:"; break;
-            case "green":
-                statusEmoji = ":green_heart:"; break;
-            case "yellow":
-                statusEmoji = ":yellow_heart:"; break;
-        }
-
         let assigned= card.assignee;
         if (!assigned && card.assignees && card.assignees.length > 0) {
             assigned = card.assignees[0];
@@ -151,13 +186,14 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
 
         progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
         progressRow.title = `[${card.title}](${card.html_url})`;
-        progressRow.status = statusEmoji;
-        progressRow.daysLastUpdated = card.hoursLastUpdated > 0 ? (card.hoursLastUpdated/24).toFixed(1) : '';
+        progressRow.status = getStatusEmoji(card.status);
+        progressRow.previous = getStatusEmoji(card.previousStatus);
+        progressRow.lastUpdated = card.lastUpdatedAgo; 
         if (card.flagHoursLastUpdated) {
-            progressRow.daysLastUpdated += " :triangular_flag_on_post:";
+            progressRow.lastUpdated += " :triangular_flag_on_post:";
         }
         
-        progressRow.daysInProgress = card.hoursInProgress > 0 ? (card.hoursInProgress/24).toFixed(1) : "";
+        progressRow.inProgress = card.inProgressSince;
 
         rows.push(progressRow);
     }

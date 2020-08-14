@@ -1,6 +1,6 @@
-import {ProjectIssue} from '../interfaces';
-import * as limits from '../reports/limits';
-import {LimitsData} from '../reports/limits';
+import {ProjectIssue, IssueList} from '../project-reports-lib';
+import * as limits from '../reports/project-limits';
+import {LimitsData} from '../reports/project-limits';
 
 let projectData: ProjectIssue[] = require('./project-data.test.json');
 
@@ -36,9 +36,12 @@ describe('report-lib', () => {
             drillIns.push(identifier);
         }
 
-        let processed = limits.process(config, projectData, drillIn) as LimitsData;
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);
+        let processed = limits.process(config, list, drillIn) as LimitsData;
         //console.log(JSON.stringify(processed, null, 2));
 
+        
         let data = processed.data;
         expect(processed).toBeDefined();
         expect(data).toBeDefined();
@@ -61,7 +64,9 @@ describe('report-lib', () => {
             drillIns.push(identifier);
         }
 
-        let processed = limits.process(config, projectData, drillIn) as LimitsData;
+        let list: IssueList = new IssueList(issue => issue.html_url);
+        list.add(projectData);
+        let processed = limits.process(config, list, drillIn) as LimitsData;
         expect(processed).toBeDefined();
         expect(drillIns.length).toBe(4);
 

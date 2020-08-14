@@ -1,6 +1,9 @@
 import * as rptLib from '../project-reports-lib'
 
-import {ProjectIssue} from '../interfaces';
+import {IssueList, ProjectIssue} from '../project-reports-lib';
+import { hasUncaughtExceptionCaptureCallback } from 'process';
+
+let projectData: ProjectIssue[] = require('./project-data.test.json');
 
 let testCards:ProjectIssue[] = [
     <ProjectIssue>{
@@ -111,21 +114,182 @@ describe('report-lib', () => {
 
   it('gets last comment updated_at value', async () => {
     let d = rptLib.getLastCommentPattern(card, "^(#){1,4} update");
-    expect(d).toBeGreaterThan(10.0);
+    expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z')
   });  
 
   it('does not gets last comment for no match', async () => {
     let d = rptLib.getLastCommentPattern(card, "^(#){1,4} none match");
-    expect(d).toBe(-1);
+    expect(d).toBeFalsy();
   });
 
   it('does not gets last comment if no comments', async () => {
     let d = rptLib.getLastCommentPattern(<ProjectIssue>{comments:[]}, "^(#){1,4} update");
-    expect(d).toBe(-1);
+    expect(d).toBeFalsy();
   });  
 
   it('gets last comment updated_at value from dataFromCard', async () => {
     let d = rptLib.dataFromCard(card, "LastCommentPattern", "^(#){1,4} update");
-    expect(d).toBeGreaterThan(10.0);
+    expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z');
+  });
+  
+  it('depdupes distinct items', async () => {
+    let set = new IssueList(issue => issue.number);
+    expect(set).toBeDefined();
+    expect(set.getItems().length).toBe(0);
+
+    let added = set.add({name: "one", number: 1});
+    expect(added).toBeTruthy();
+    expect(set.getItems().length).toBe(1);
+
+    added = set.add({name: "two", number: 2});
+    expect(added).toBeTruthy();
+    expect(set.getItems().length).toBe(2);
+
+    added = set.add({name: "dupe", number: 1});
+    expect(added).toBeFalsy();
+    expect(set.getItems().length).toBe(2);
+
+    added = set.add([{name: "three", number: 3}, {name: "four", number: 4}, {name: "dupe", number: 1}])
+    expect(added).toBeTruthy();
+    expect(set.getItems().length).toBe(4);
+    
+  //   expect(filtered[0].title).toBe('twothree');
+  //   expect(filtered[1].title).toBe('other');
+  });
+
+  it('depdupes distinct items by url string', async () => {
+    let set = new IssueList(issue => `${issue.html_url}`);
+    expect(set).toBeDefined();
+    expect(set.getItems().length).toBe(0);
+    //
+    let added = set.add({name: "one", number: 1, html_url: "https://github.com/bryanmacfarlane/quotes-feed/issues/1"});
+    expect(added).toBeTruthy();
+    expect(set.getItems().length).toBe(1);
+
+    added = set.add({name: "two", number: 1, html_url: "https://github.com/bryanmacfarlane/quotes-feed/issues/2"});
+    expect(added).toBeTruthy();
+    expect(set.getItems().length).toBe(2);
+
+    added = set.add({name: "dupe", number: 1, html_url: "https://github.com/bryanmacfarlane/quotes-feed/issues/1"});
+    expect(added).toBeFalsy();
+    expect(set.getItems().length).toBe(2);
+    
+    // add another with the same id but different url
+    added = set.add({name: "other-one", number: 1, html_url: "https://github.com/bryanmacfarlane/sanenode/issues/1"});
+    expect(added).toBeTruthy();
+    expect(set.getItems().length).toBe(3);
+  });
+  
+  it('can getItem from IssueList', async () => {
+    let list = new IssueList(issue => issue.html_url);
+    list.add(projectData);
+    let issue = list.getItem("https://github.com/bryanmacfarlane/quotes-feed/issues/8");
+    
+    expect(issue).toBeDefined();
+  });
+  
+  it('can getItem asof datetime', async () => {
+    let list = new IssueList(issue => issue.html_url);
+    list.add(projectData);
+    let url = "https://github.com/bryanmacfarlane/quotes-feed/issues/8";
+    let issue = list.getItem(url);
+
+    // latest
+    expect(issue).toBeDefined();
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBe("2020-07-14T19:54:58Z");
+    expect(issue.project_in_progress_at).toBe("2020-07-14T19:59:45Z");
+    expect(issue.project_done_at).toBe("2020-07-14T21:14:27Z");
+    expect(issue.project_added_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.closed_at).toBe("2020-07-20T18:38:51.000Z")
+    expect(issue.project_stage).toBe("Done");
+
+    // became issue, proposed: 2020-07-14T19:49:10Z
+    // get at that time
+    issue = list.getItemAsof(url, "2020-07-14T19:49:10Z");
+    expect(issue.project_stage).toBe("Proposed");
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBeFalsy();
+    expect(issue.project_in_progress_at).toBeFalsy();
+    expect(issue.project_done_at).toBeFalsy();
+    expect(issue.closed_at).toBeFalsy();
+    expect(issue.labels.length).toBe(0);
+    
+    // accepted: 2020-07-14T19:49:19Z
+    // get slightly after that time
+    issue = list.getItemAsof(url, "2020-07-14T19:49:20Z");
+    expect(issue.project_stage).toBe("Accepted");
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBe("2020-07-14T19:49:19Z");
+    expect(issue.project_in_progress_at).toBeFalsy();
+    expect(issue.project_done_at).toBeFalsy();
+    expect(issue.closed_at).toBeFalsy();
+    expect(issue.labels.length).toBe(0);
+    
+    // back to proposed: 2020-07-14T19:49:36Z
+    issue = list.getItemAsof(url, new Date("2020-07-14T19:49:36Z"));
+    expect(issue.project_stage).toBe("Proposed");
+    // original proposed date
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBeFalsy();
+    expect(issue.project_in_progress_at).toBeFalsy();
+    expect(issue.project_done_at).toBeFalsy();
+    expect(issue.closed_at).toBeFalsy();
+    expect(issue.labels.length).toBe(0);
+
+    // back to accepted: 2020-07-14T19:54:58Z
+    issue = list.getItemAsof(url, new Date("2020-07-14T19:54:58Z"));
+    expect(issue.project_stage).toBe("Accepted");
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBe("2020-07-14T19:54:58Z");
+    expect(issue.project_in_progress_at).toBeFalsy();
+    expect(issue.project_done_at).toBeFalsy();
+    expect(issue.closed_at).toBeFalsy();
+    expect(issue.labels.length).toBe(0);
+
+    // in-progress: 2020-07-14T19:59:45Z
+    // get exact as Date
+    issue = list.getItemAsof(url, new Date("2020-07-14T19:59:45Z"));
+    expect(issue.project_stage).toBe("In-Progress");
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBe("2020-07-14T19:54:58Z");
+    expect(issue.project_in_progress_at).toBe("2020-07-14T19:59:45Z");
+    expect(issue.project_done_at).toBeFalsy();
+    expect(issue.closed_at).toBeFalsy();
+    expect(issue.labels.length).toBe(0);
+
+    // done: 2020-07-14T21:14:27Z
+    // data slightly after
+    issue = list.getItemAsof(url, new Date("2020-07-14T21:15:00Z"));
+    expect(issue.project_stage).toBe("Done");
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBe("2020-07-14T19:54:58Z");
+    expect(issue.project_in_progress_at).toBe("2020-07-14T19:59:45Z");
+    expect(issue.project_done_at).toBe("2020-07-14T21:14:27Z");
+    expect(issue.closed_at).toBeFalsy();
+    expect(issue.labels.length).toBe(0);
+
+    // closed: 2020-07-15T04:28:13Z
+    issue = list.getItemAsof(url, "2020-07-15T04:28:13Z");
+    expect(issue.closed_at).toBe("2020-07-15T04:28:13Z");
+
+    // labeled: feature, 1-dev 2020-07-19T19:38:58Z
+    issue = list.getItemAsof(url, "2020-07-19T19:38:58Z");
+    expect(issue.labels.length).toBe(2);
+
+    // reopened: 2020-07-20T18:38:28Z
+    issue = list.getItemAsof(url, "2020-07-20T18:38:28Z");
+    expect(issue.closed_at).toBeFalsy();
+
+    // closed: 2020-07-20T18:38:51Z
+    issue = list.getItemAsof(url, "2020-07-20T18:38:51Z");
+    expect(issue.closed_at).toBe("2020-07-20T18:38:51Z");
+    expect(issue.project_proposed_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_accepted_at).toBe("2020-07-14T19:54:58Z");
+    expect(issue.project_in_progress_at).toBe("2020-07-14T19:59:45Z");
+    expect(issue.project_done_at).toBe("2020-07-14T21:14:27Z");
+    expect(issue.project_added_at).toBe("2020-07-14T19:49:10Z");
+    expect(issue.project_stage).toBe("Done");    
+
   });  
 });

@@ -1,6 +1,6 @@
-import {ProjectIssue, CrawlingTarget} from '../interfaces';
+import {CrawlingTarget} from '../interfaces';
 import * as rptLib from '../project-reports-lib';
-import {ProjectStageIssues} from '../project-reports-lib';
+import {ProjectIssue, IssueList, ProjectStageIssues} from '../project-reports-lib';
 const tablemark = require('tablemark')
 import * as os from 'os';
 
@@ -57,13 +57,14 @@ function getDrillName(cardType: string, stage: string): string {
     return `limits-${cardType}-${stage}`.split(" ").join("-");
 }
 
-export function process(config: any, issues: ProjectIssue[], drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
+export function process(config: any, issueList: IssueList, drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void): any {
     let limitsData = <LimitsData>{};
     limitsData.data = {};
 
     // epic, etc..
     limitsData.cardType = config["report-on-label"];
 
+    let issues = issueList.getItems();
     let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues);
 
     // proposed, in-progress, etc...
