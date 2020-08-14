@@ -52,7 +52,7 @@ Add this step after the `project-reports-action` step.  Note that pull-requests 
 ```yaml
     steps:
 ...
-      - if: ${{ github.event_name != 'pull_request' }}
+      - if: ${{ github.ref == 'refs/heads/master' }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com     
