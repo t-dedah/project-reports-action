@@ -58,7 +58,7 @@ export function process(config: any, issueList: IssueList, drillIn: (identifier:
       stageData.count = cardsForType.length;
       if (cardsForType.length > 0) {
         // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
-        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0) ||  / cardsForType.length;
+        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0) / cardsForType.length;
       } else {
         stageData.cycletime = 0;
       }

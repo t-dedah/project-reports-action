@@ -6302,8 +6302,8 @@ exports.reportType = reportType;
 function getDefaultConfiguration() {
     return {
         "report-on-label": ["feature", "epic"],
-        "feature-cycletime-limit": 0,
-        "epic-cycletime-limit": 1
+        "feature-cycletime-limit": 42,
+        "epic-cycletime-limit": 42
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -6324,8 +6324,13 @@ function process(config, issueList, drillIn) {
         });
         stageData.title = cardType;
         stageData.count = cardsForType.length;
-        // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
-        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0) / cardsForType.length;
+        if (cardsForType.length > 0) {
+            // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
+            stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0) / cardsForType.length;
+        }
+        else {
+            stageData.cycletime = 0;
+        }
         let limitKey = `${cardType.toLocaleLowerCase().replace(/\s/g, "-")}-cycletime-limit`;
         stageData.limit = config[limitKey] || 0;
         stageData.flag = stageData.limit > -1 && stageData.cycletime > stageData.limit;
