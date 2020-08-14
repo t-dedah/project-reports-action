@@ -6349,7 +6349,12 @@ function renderMarkdown(projData, processedData) {
         let ctRow = {};
         ctRow.labels = `\`${cardType}\``;
         ctRow.count = stageData.count;
-        ctRow.cycleTimeInDays = ` ${stageData.cycletime.toFixed(2)} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
+        if (stageData.cycletime > 0) {
+            ctRow.cycleTimeInDays = ` ${stageData.cycletime.toFixed(2)} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
+        }
+        else {
+            ctRow.cycleTimeInDays = "";
+        }
         ctRow.limit = stageData.limit;
         rows.push(ctRow);
     }
