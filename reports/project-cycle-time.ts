@@ -56,8 +56,12 @@ export function process(config: any, issueList: IssueList, drillIn: (identifier:
 
       stageData.title = cardType;
       stageData.count = cardsForType.length;
-      // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
-      stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0) / cardsForType.length;
+      if (cardsForType.length > 0) {
+        // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
+        stageData.cycletime = cardsForType.reduce((a, b) => a + (b["cycletime"] || 0), 0) ||  / cardsForType.length;
+      } else {
+        stageData.cycletime = 0;
+      }
 
       let limitKey = `${cardType.toLocaleLowerCase().replace(/\s/g , "-")}-cycletime-limit`;
       stageData.limit = config[limitKey] || 0;
