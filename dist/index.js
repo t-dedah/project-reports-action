@@ -20182,7 +20182,7 @@ class ProjectCrawler {
         let resolvedStage = null;
         for (let stageName in target.columnMap) {
             // case insensitve match
-            for (let mappedColumn of target.columnMap[stageName]) {
+            for (let mappedColumn of target.columnMap[stageName].filter(e => e)) {
                 let lowerColumn = mappedColumn.toLowerCase();
                 if (lowerColumn === column.toLowerCase()) {
                     resolvedStage = stageName;
