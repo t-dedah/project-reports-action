@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v2
-      - uses: bryanmacfarlane/project-reports-action@v1-alpha3
+      - uses: bryanmacfarlane/project-reports-action@v1-alpha4
         with: 
           token: ${{ secrets.PROJECT_TOKEN }}
           configPath: yourconfig.yml
@@ -56,8 +56,8 @@ Add this step after the `project-reports-action` step.  Note that pull-requests 
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com     
+          git pull origin master          
           git add ./_reports
-          git pull origin master
           git commit -a -m "adding reports"
           git push origin master
 ```
