@@ -31,8 +31,8 @@ export interface IssueCardCycleTime extends ProjectIssue {
 export function getDefaultConfiguration(): any {
     return <any>{
       "report-on-label": ["feature", "epic" ],
-      "feature-cycletime-limit": 0,
-      "epic-cycletime-limit": 1
+      "feature-cycletime-limit": 42,
+      "epic-cycletime-limit": 42
     };
 }
 
