@@ -20184,7 +20184,7 @@ class ProjectCrawler {
             // case insensitve match
             for (let mappedColumn of target.columnMap[stageName].filter(e => e)) {
                 let lowerColumn = mappedColumn.toLowerCase();
-                if (lowerColumn === column.toLowerCase()) {
+                if (lowerColumn.trim() === column.trim().toLowerCase()) {
                     resolvedStage = stageName;
                     break;
                 }
