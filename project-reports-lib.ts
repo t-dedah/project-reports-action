@@ -72,9 +72,32 @@ export function sumCardProperty(cards: ProjectIssue[], prop: string): number {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
 
+export function fuzzyMatch(content: string, match: string): boolean {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+
+    let isMatch =  true;
+    for (let matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+
 // Project issues keyed by the stage they are in
 export interface ProjectIssues {
     stages: { [key: string]: ProjectIssue[] }
+}
+
+export interface ProjectColumn {
+    cards_url: string,
+    id: number,
+    name: string,    
 }
 
 // stages more discoverable

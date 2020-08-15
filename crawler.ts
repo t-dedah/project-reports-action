@@ -1,5 +1,5 @@
 import {GitHubClient} from './github';
-import {IssueList, ProjectIssue, IssueEvent} from './project-reports-lib';
+import {IssueList, ProjectIssue, IssueEvent, ProjectColumn, fuzzyMatch} from './project-reports-lib';
 import {CrawlingTarget} from './interfaces';
 import {URL} from 'url';
 
@@ -77,7 +77,7 @@ class ProjectCrawler {
 
     // cache the resolution of stage names for a column
     // a columns by stage names are the default and resolve immediately
-    columnMap = {
+    resolvedColumns = {
         "proposed": "Proposed",
         "accepted": "Accepted",
         "in-progress": "In-Progress",
@@ -92,23 +92,23 @@ class ProjectCrawler {
         console.log(`Crawling project ${target.htmlUrl} ...`);
 
         let issues: ProjectIssue[] = [];
-        let columns: { [key: string]: number } = {};
+        // let columns: { [key: string]: number } = {};
 
         let projectData = await this.github.getProject(target.htmlUrl);
         if (!projectData) {
             throw new Error(`Could not find project ${target.htmlUrl}`);
         }
 
-        let cols = await this.github.getColumnsForProject(projectData);
-        cols.forEach((col) => {
-            columns[col.name] = col.id;
-        })
+        let columns: ProjectColumn[] = await this.github.getColumnsForProject(projectData);
+        // cols.forEach((col) => {
+        //     columns[col.name] = col.id;
+        // })
 
         let mappedColumns = [];
-        for (const key in target.columnMap) {
-            let colNames = target.columnMap[key];
+        for (const stageName in target.columnMap) {
+            let colNames = target.columnMap[stageName];
             if (!colNames || !Array.isArray) {
-                throw new Error(`Invalid config. column map for ${key} is not an array`);
+                throw new Error(`Invalid config. column map for ${stageName} is not an array`);
             }
 
             mappedColumns = mappedColumns.concat(colNames);
@@ -116,19 +116,20 @@ class ProjectCrawler {
 
         let seenUnmappedColumns: string[] = [];
 
-        for (const key in target.columnMap) {
-            console.log(`Processing stage ${key}`);
-            let colNames = target.columnMap[key];
+        // for (const key in target.columnMap) {
+        //     console.log(`Processing stage ${key}`);
+        //     let colNames = target.columnMap[key];
 
-            for (const colName of colNames) {
-                let colId = columns[colName];
+            for (const column of columns) {
+                console.log(`Processing column ${column.name} (${column.id})`);
+                // let colId = columns[colName];
 
                 // it's possible the column name is a previous column name
-                if (!colId) {
-                    continue;
-                }
+                // if (!colId) {
+                //     continue;
+                // }
 
-                let cards = await this.github.getCardsForColumns(colId, colName);
+                let cards = await this.github.getCardsForColumns(column.id);
 
                 for (const card of cards) {
                     // called as each event is processed 
@@ -145,7 +146,7 @@ class ProjectCrawler {
                         }                        
 
                         for (let mention of mentioned) {
-                            if (mappedColumns.indexOf(mention) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
+                            if (mappedColumns.indexOf(mention.trim()) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
                                 seenUnmappedColumns.push(mention);
                             }
                         }
@@ -172,7 +173,7 @@ class ProjectCrawler {
                     }
                 }
             }
-        }
+        //}
 
         console.log("Done processing.")
         console.log();
@@ -237,17 +238,15 @@ class ProjectCrawler {
     } 
     
     private getStageFromColumn(column: string, target: CrawlingTarget): string {
-        column = column.toLowerCase();
-        if (this.columnMap[column]) {
-            return this.columnMap[column];
+        if (this.resolvedColumns[column]) {
+            return this.resolvedColumns[column];
         }
 
         let resolvedStage = null;
         for (let stageName in target.columnMap) {
             // case insensitve match
             for (let mappedColumn of target.columnMap[stageName].filter(e => e)) {
-                let lowerColumn = mappedColumn.toLowerCase();
-                if (lowerColumn.trim() === column.trim().toLowerCase()) {
+                if (fuzzyMatch(column, mappedColumn)) {
                     resolvedStage = stageName;
                     break;
                 }
@@ -260,7 +259,7 @@ class ProjectCrawler {
 
         // cache the n^2 reverse case insensitive lookup.  it will never change for this run
         if (resolvedStage) {
-            this.columnMap[column] = resolvedStage;
+            this.resolvedColumns[column] = resolvedStage;
         }
 
         return resolvedStage;

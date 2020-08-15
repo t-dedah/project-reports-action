@@ -92,6 +92,10 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
                 target.columnMap['In-Progress'].push('In progress');
             }
+
+            for (let mapName in target.columnMap) {
+                target.columnMap[mapName] = target.columnMap[mapName].map(item => item.trim());
+            }
         }
     }
 

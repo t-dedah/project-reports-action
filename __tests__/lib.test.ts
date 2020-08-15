@@ -40,6 +40,23 @@ describe('report-lib', () => {
 
   afterAll(async () => {}, 100000);
 
+  it('fuzzy matches column names', async () => {
+
+    // fuzzy match
+    //                        are in this <== all these "words"
+    expect(rptLib.fuzzyMatch("In progress", "In progress")).toBeTruthy();
+    expect(rptLib.fuzzyMatch("In progress", " IN Progress.")).toBeTruthy();
+    expect(rptLib.fuzzyMatch("In-Progress: A Category", "in Progress")).toBeTruthy();
+    expect(rptLib.fuzzyMatch(" In-Progress 👩🏼‍💻👨🏽‍💻 ", "in progress!")).toBeTruthy();
+    expect(rptLib.fuzzyMatch("\tIn-Progress 👩🏼‍💻 ", " in...progress👨🏽‍💻")).toBeTruthy();
+
+    // should not fuzzy match
+    //                     are not in this <== all these "words"
+    expect(rptLib.fuzzyMatch("Into progress", "In progress")).toBeFalsy;
+    expect(rptLib.fuzzyMatch("In progress", "Into progress")).toBeFalsy;
+    expect(rptLib.fuzzyMatch("pre progress", "In progress")).toBeFalsy;
+  });  
+
   it('finds cards by label', async () => {
     let filtered = rptLib.filterByLabel(testCards, 'two')
     expect(filtered).toBeDefined();

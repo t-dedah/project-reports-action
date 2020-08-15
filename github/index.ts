@@ -2,7 +2,7 @@ const { Octokit } = require('@octokit/rest');
 import * as url from 'url' 
 import {ProjectData} from '../interfaces'
 import * as restCache from './octokit-rest-cache';
-import {IssueList, ProjectIssue, IssueEvent, IssueComment} from '../project-reports-lib';
+import {IssueList, ProjectIssue, ProjectColumn, IssueComment} from '../project-reports-lib';
 
 function DateOrNull(date: string): Date {
     return date ? new Date(date) : null;
@@ -102,12 +102,12 @@ export class GitHubClient {
         return proj;
     }
 
-    public async getColumnsForProject(project): Promise<any> { 
+    public async getColumnsForProject(project): Promise<ProjectColumn[]> { 
         let cols = await this.octokit.projects.listColumns({project_id: project.id});
         return cols.data;
     }
     
-    public async getCardsForColumns(colId: number, colName: string) {    
+    public async getCardsForColumns(colId: number) {    
         let cards = await this.octokit.projects.listCards({column_id: colId});
         return cards.data;
     }
