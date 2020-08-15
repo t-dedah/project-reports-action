@@ -474,7 +474,7 @@ function renderMarkdown(projData, processedData) {
         ctRow.labels = `\`${cardType}\``;
         ctRow.count = stageData.count;
         ctRow.cycleTimeInDays = ` ${stageData.cycletime ? stageData.cycletime.toFixed(2) : ""} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
-        ctRow.limit = stageData.limit;
+        ctRow.limit = stageData.limit >= 0 ? stageData.limit.toString() : "";
         rows.push(ctRow);
     }
     let table = tablemark(rows);

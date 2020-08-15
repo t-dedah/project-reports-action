@@ -6204,13 +6204,15 @@ function generate(token, configYaml) {
                 let defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
                 for (let phase of defaultStages) {
                     if (!target.columnMap[phase]) {
-                        target.columnMap[phase] = [phase];
+                        target.columnMap[phase] = [];
                     }
                 }
-                // make sure "In Progress" (default in GH Kanban) is synonymous with In-Progress
-                if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
-                    target.columnMap['In-Progress'].push('In progress');
-                }
+                target.columnMap['Proposed'].push('Proposed', 'Not Started');
+                target.columnMap['In-Progress'].push('In-Progress', 'In progress', 'InProgress', 'Started');
+                target.columnMap['Accepted'].push('Accepted', 'Approved', 'Up Next');
+                target.columnMap['Done'].push('Done', 'Completed', 'Complete');
+                // Add some common mappings
+                target.columnMap['Proposed'].push('Triage', 'Not Started');
                 for (let mapName in target.columnMap) {
                     target.columnMap[mapName] = target.columnMap[mapName].map(item => item.trim());
                 }
@@ -20090,16 +20092,9 @@ class ProjectCrawler {
                 mappedColumns = mappedColumns.concat(colNames);
             }
             let seenUnmappedColumns = [];
-            // for (const key in target.columnMap) {
-            //     console.log(`Processing stage ${key}`);
-            //     let colNames = target.columnMap[key];
             for (const column of columns) {
-                console.log(`Processing column ${column.name} (${column.id})`);
-                // let colId = columns[colName];
-                // it's possible the column name is a previous column name
-                // if (!colId) {
-                //     continue;
-                // }
+                console.log();
+                console.log(`>> Processing column ${column.name} (${column.id})`);
                 let cards = yield this.github.getCardsForColumns(column.id);
                 for (const card of cards) {
                     // called as each event is processed 
@@ -20139,7 +20134,6 @@ class ProjectCrawler {
                     }
                 }
             }
-            //}
             console.log("Done processing.");
             console.log();
             if (seenUnmappedColumns.length > 0) {
@@ -20160,6 +20154,9 @@ class ProjectCrawler {
         if (!projectId) {
             throw new Error('projectId not set');
         }
+        console.log();
+        console.log(`Processing card ${card.title}`);
+        console.log(card.html_url);
         let filteredEvents = [];
         // card events should be in order chronologically
         let currentStage;
@@ -20180,6 +20177,7 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
                     }
                     event.project_card.stage_name = stage || "Unmapped";
+                    console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`);
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     let previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target);
@@ -20187,6 +20185,7 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
                     }
                     event.project_card.previous_stage_name = previousStage || "Unmapped";
+                    console.log(`${event.created_at}: ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
                 }
                 filteredEvents.push(event);
             }
