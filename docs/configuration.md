@@ -34,6 +34,8 @@ targets:
 
 Give the config file a name (just used for logging etc).  Note: Might remove and just use path.
 
+Column mappings allow board columns to be mapped to logical stages.  The tool will also fuzzy match which means if you're inexact with casing, spaces, missing emojis etc., it will still match.  It breaks into alphanumeric words and matches all words in the mapping to words in the column name.  So, for example, an 'in progress' mapping will match an 'In-progress ' column.
+
 ### Output
 
 Output is the path where the reports and the data generated will be written.
