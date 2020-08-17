@@ -9,4 +9,4 @@ _reports
 dist/samples
 tag.sh
 
-samples/debug.yml
+samples/debug*.yml

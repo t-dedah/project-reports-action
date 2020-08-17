@@ -474,7 +474,7 @@ function renderMarkdown(projData, processedData) {
         ctRow.labels = `\`${cardType}\``;
         ctRow.count = stageData.count;
         ctRow.cycleTimeInDays = ` ${stageData.cycletime ? stageData.cycletime.toFixed(2) : ""} ${stageData.flag ? ":triangular_flag_on_post:" : ""}`;
-        ctRow.limit = stageData.limit;
+        ctRow.limit = stageData.limit >= 0 ? stageData.limit.toString() : "";
         rows.push(ctRow);
     }
     let table = tablemark(rows);
@@ -584,7 +584,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
 const clone = __webpack_require__(97);
 const moment = __webpack_require__(431);
@@ -646,6 +646,21 @@ function sumCardProperty(cards, prop) {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
 exports.sumCardProperty = sumCardProperty;
+function fuzzyMatch(content, match) {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+    let isMatch = true;
+    for (let matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+exports.fuzzyMatch = fuzzyMatch;
 // stages more discoverable
 exports.ProjectStages = {
     Proposed: "Proposed",

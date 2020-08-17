@@ -6204,12 +6204,17 @@ function generate(token, configYaml) {
                 let defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
                 for (let phase of defaultStages) {
                     if (!target.columnMap[phase]) {
-                        target.columnMap[phase] = [phase];
+                        target.columnMap[phase] = [];
                     }
                 }
-                // make sure "In Progress" (default in GH Kanban) is synonymous with In-Progress
-                if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
-                    target.columnMap['In-Progress'].push('In progress');
+                target.columnMap['Proposed'].push('Proposed', 'Not Started');
+                target.columnMap['In-Progress'].push('In-Progress', 'In progress', 'InProgress', 'Started');
+                target.columnMap['Accepted'].push('Accepted', 'Approved', 'Up Next');
+                target.columnMap['Done'].push('Done', 'Completed', 'Complete');
+                // Add some common mappings
+                target.columnMap['Proposed'].push('Triage', 'Not Started');
+                for (let mapName in target.columnMap) {
+                    target.columnMap[mapName] = target.columnMap[mapName].map(item => item.trim());
                 }
             }
         }
@@ -6576,7 +6581,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
 const clone = __webpack_require__(97);
 const moment = __webpack_require__(482);
@@ -6638,6 +6643,21 @@ function sumCardProperty(cards, prop) {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }
 exports.sumCardProperty = sumCardProperty;
+function fuzzyMatch(content, match) {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+    let isMatch = true;
+    for (let matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+exports.fuzzyMatch = fuzzyMatch;
 // stages more discoverable
 exports.ProjectStages = {
     Proposed: "Proposed",
@@ -20042,7 +20062,7 @@ class ProjectCrawler {
     constructor(client) {
         // cache the resolution of stage names for a column
         // a columns by stage names are the default and resolve immediately
-        this.columnMap = {
+        this.resolvedColumns = {
             "proposed": "Proposed",
             "accepted": "Accepted",
             "in-progress": "In-Progress",
@@ -20054,69 +20074,62 @@ class ProjectCrawler {
         return __awaiter(this, void 0, void 0, function* () {
             console.log(`Crawling project ${target.htmlUrl} ...`);
             let issues = [];
-            let columns = {};
+            // let columns: { [key: string]: number } = {};
             let projectData = yield this.github.getProject(target.htmlUrl);
             if (!projectData) {
                 throw new Error(`Could not find project ${target.htmlUrl}`);
             }
-            let cols = yield this.github.getColumnsForProject(projectData);
-            cols.forEach((col) => {
-                columns[col.name] = col.id;
-            });
+            let columns = yield this.github.getColumnsForProject(projectData);
+            // cols.forEach((col) => {
+            //     columns[col.name] = col.id;
+            // })
             let mappedColumns = [];
-            for (const key in target.columnMap) {
-                let colNames = target.columnMap[key];
+            for (const stageName in target.columnMap) {
+                let colNames = target.columnMap[stageName];
                 if (!colNames || !Array.isArray) {
-                    throw new Error(`Invalid config. column map for ${key} is not an array`);
+                    throw new Error(`Invalid config. column map for ${stageName} is not an array`);
                 }
                 mappedColumns = mappedColumns.concat(colNames);
             }
             let seenUnmappedColumns = [];
-            for (const key in target.columnMap) {
-                console.log(`Processing stage ${key}`);
-                let colNames = target.columnMap[key];
-                for (const colName of colNames) {
-                    let colId = columns[colName];
-                    // it's possible the column name is a previous column name
-                    if (!colId) {
-                        continue;
-                    }
-                    let cards = yield this.github.getCardsForColumns(colId, colName);
-                    for (const card of cards) {
-                        // called as each event is processed 
-                        // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
-                        // this will help diagnose a potential config issue much faster
-                        let eventCallback = (event) => {
-                            let mentioned = [];
-                            if (event.project_card && event.project_card.column_name) {
-                                mentioned.push(event.project_card.column_name);
-                            }
-                            if (event.project_card && event.project_card.previous_column_name) {
-                                mentioned.push(event.project_card.previous_column_name);
-                            }
-                            for (let mention of mentioned) {
-                                if (mappedColumns.indexOf(mention) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
-                                    seenUnmappedColumns.push(mention);
-                                }
-                            }
-                        };
-                        // cached since real column could be mapped to two different mapped columns
-                        // read and build the event list once
-                        let issueCard = yield this.github.getIssueForCard(card, projectData.id);
-                        if (issueCard) {
-                            this.processCard(issueCard, projectData.id, target, eventCallback);
-                            issues.push(issueCard);
+            for (const column of columns) {
+                console.log();
+                console.log(`>> Processing column ${column.name} (${column.id})`);
+                let cards = yield this.github.getCardsForColumns(column.id);
+                for (const card of cards) {
+                    // called as each event is processed 
+                    // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
+                    // this will help diagnose a potential config issue much faster
+                    let eventCallback = (event) => {
+                        let mentioned = [];
+                        if (event.project_card && event.project_card.column_name) {
+                            mentioned.push(event.project_card.column_name);
                         }
-                        else {
-                            let contents = card["note"];
-                            try {
-                                new url_1.URL(contents);
-                                console.log(contents);
-                                console.log("WWARNING: card found that is not an issue but has contents of an issues url that is not part of the project");
+                        if (event.project_card && event.project_card.previous_column_name) {
+                            mentioned.push(event.project_card.previous_column_name);
+                        }
+                        for (let mention of mentioned) {
+                            if (mappedColumns.indexOf(mention.trim()) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
+                                seenUnmappedColumns.push(mention);
                             }
-                            catch (_a) {
-                                console.log(`ignoring note: ${contents}`);
-                            }
+                        }
+                    };
+                    // cached since real column could be mapped to two different mapped columns
+                    // read and build the event list once
+                    let issueCard = yield this.github.getIssueForCard(card, projectData.id);
+                    if (issueCard) {
+                        this.processCard(issueCard, projectData.id, target, eventCallback);
+                        issues.push(issueCard);
+                    }
+                    else {
+                        let contents = card["note"];
+                        try {
+                            new url_1.URL(contents);
+                            console.log(contents);
+                            console.log("WWARNING: card found that is not an issue but has contents of an issues url that is not part of the project");
+                        }
+                        catch (_a) {
+                            console.log(`ignoring note: ${contents}`);
                         }
                     }
                 }
@@ -20141,6 +20154,9 @@ class ProjectCrawler {
         if (!projectId) {
             throw new Error('projectId not set');
         }
+        console.log();
+        console.log(`Processing card ${card.title}`);
+        console.log(card.html_url);
         let filteredEvents = [];
         // card events should be in order chronologically
         let currentStage;
@@ -20161,6 +20177,7 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
                     }
                     event.project_card.stage_name = stage || "Unmapped";
+                    console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`);
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     let previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target);
@@ -20168,6 +20185,7 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
                     }
                     event.project_card.previous_stage_name = previousStage || "Unmapped";
+                    console.log(`${event.created_at}: ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
                 }
                 filteredEvents.push(event);
             }
@@ -20175,16 +20193,14 @@ class ProjectCrawler {
         }
     }
     getStageFromColumn(column, target) {
-        column = column.toLowerCase();
-        if (this.columnMap[column]) {
-            return this.columnMap[column];
+        if (this.resolvedColumns[column]) {
+            return this.resolvedColumns[column];
         }
         let resolvedStage = null;
         for (let stageName in target.columnMap) {
             // case insensitve match
             for (let mappedColumn of target.columnMap[stageName].filter(e => e)) {
-                let lowerColumn = mappedColumn.toLowerCase();
-                if (lowerColumn.trim() === column.trim().toLowerCase()) {
+                if (project_reports_lib_1.fuzzyMatch(column, mappedColumn)) {
                     resolvedStage = stageName;
                     break;
                 }
@@ -20195,7 +20211,7 @@ class ProjectCrawler {
         }
         // cache the n^2 reverse case insensitive lookup.  it will never change for this run
         if (resolvedStage) {
-            this.columnMap[column] = resolvedStage;
+            this.resolvedColumns[column] = resolvedStage;
         }
         return resolvedStage;
     }
@@ -22365,7 +22381,7 @@ class GitHubClient {
             return cols.data;
         });
     }
-    getCardsForColumns(colId, colName) {
+    getCardsForColumns(colId) {
         return __awaiter(this, void 0, void 0, function* () {
             let cards = yield this.octokit.projects.listCards({ column_id: colId });
             return cards.data;

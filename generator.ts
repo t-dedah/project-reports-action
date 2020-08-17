@@ -84,13 +84,20 @@ export async function generate(token: string, configYaml: string): Promise<Repor
             let defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
             for (let phase of defaultStages) {
                 if (!target.columnMap[phase]) {
-                    target.columnMap[phase] = [ phase ];
+                    target.columnMap[phase] = [];
                 }
             }
 
-            // make sure "In Progress" (default in GH Kanban) is synonymous with In-Progress
-            if (target.columnMap['In-Progress'].indexOf('In progress') === -1) {
-                target.columnMap['In-Progress'].push('In progress');
+            target.columnMap['Proposed'].push('Proposed', 'Not Started')
+            target.columnMap['In-Progress'].push('In-Progress', 'In progress', 'InProgress', 'Started');
+            target.columnMap['Accepted'].push('Accepted', 'Approved', 'Up Next')
+            target.columnMap['Done'].push('Done', 'Completed', 'Complete');
+
+            // Add some common mappings
+            target.columnMap['Proposed'].push('Triage', 'Not Started')
+
+            for (let mapName in target.columnMap) {
+                target.columnMap[mapName] = target.columnMap[mapName].map(item => item.trim());
             }
         }
     }
