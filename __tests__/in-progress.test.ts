@@ -56,13 +56,13 @@ describe('project-in-progress', () => {
         expect(cards[0]).toBeDefined();
         expect(cards[0].title).toBe("gRPC generation");
         expect(cards[0].flagHoursLastUpdated).toBeTruthy();
-        expect(cards[0].inProgressSince).toContain('days ago');
+        expect(cards[0].inProgressSince).toContain('ago');
         expect(cards[0].hoursInProgress).toBeGreaterThan(120);
 
         expect(cards[1]).toBeDefined();
         expect(cards[1].title).toBe("Initial Web UI");
         expect(cards[0].flagHoursLastUpdated).toBeTruthy();
-        expect(cards[0].inProgressSince).toContain('days ago');
+        expect(cards[0].inProgressSince).toContain('ago');
         expect(cards[1].hoursInProgress).toBeGreaterThan(160);
     });
     
