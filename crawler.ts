@@ -92,7 +92,6 @@ class ProjectCrawler {
         console.log(`Crawling project ${target.htmlUrl} ...`);
 
         let issues: ProjectIssue[] = [];
-        // let columns: { [key: string]: number } = {};
 
         let projectData = await this.github.getProject(target.htmlUrl);
         if (!projectData) {
@@ -100,9 +99,6 @@ class ProjectCrawler {
         }
 
         let columns: ProjectColumn[] = await this.github.getColumnsForProject(projectData);
-        // cols.forEach((col) => {
-        //     columns[col.name] = col.id;
-        // })
 
         let mappedColumns = [];
         for (const stageName in target.columnMap) {
