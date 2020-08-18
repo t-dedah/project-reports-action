@@ -9,10 +9,9 @@ import * as mustache from 'mustache'
 import * as drillInRpt from './reports/drill-in'
 import {Crawler} from './crawler';
 import * as lib from './project-reports-lib'
-import moment = require('moment');
-
-let sanitize = require('sanitize-filename');
-let clone = require('clone');
+import moment from 'moment';
+import sanitize from 'sanitize-filename';
+import clone from 'clone';
 
 import {IssueList, ProjectIssue} from './project-reports-lib';
 import { CrawlingConfig, CrawlingTarget, GeneratorConfiguration, ReportSnapshot, ReportConfig, ProjectReportBuilder, ReportDetails } from './interfaces'

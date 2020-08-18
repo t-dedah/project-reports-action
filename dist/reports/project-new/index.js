@@ -415,14 +415,16 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
 const rptLib = __importStar(__webpack_require__(369));
-const tablemark = __webpack_require__(611);
+const tablemark_1 = __importDefault(__webpack_require__(611));
 const os = __importStar(__webpack_require__(87));
-const moment = __webpack_require__(431);
-let now = moment();
-let clone = __webpack_require__(97);
+const moment_1 = __importDefault(__webpack_require__(431));
+let now = moment_1.default();
 const reportType = 'project';
 exports.reportType = reportType;
 /*
@@ -446,11 +448,11 @@ function process(config, issueList, drillIn) {
         throw new Error("daysAgo is not a number");
     }
     newCards.daysAgo = daysAgo;
-    let daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days');
+    let daysAgoMoment = moment_1.default().subtract(config['daysAgo'] || 7, 'days');
     console.log(`Getting cards for ${newCards.cardType} added > ${daysAgoMoment}`);
     let issues = issueList.getItems();
     let cardsForType = newCards.cardType === '*' ? issues : rptLib.filterByLabel(issues, newCards.cardType.toLowerCase());
-    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && moment(issue["project_added_at"]).isAfter(daysAgoMoment));
+    newCards.cards = cardsForType.filter(issue => issue["project_added_at"] && moment_1.default(issue["project_added_at"]).isAfter(daysAgoMoment));
     return newCards;
 }
 exports.process = process;
@@ -470,12 +472,12 @@ function renderMarkdown(targets, processedData) {
         }
         newRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
         newRow.title = `[${card.title}](${card.html_url})`;
-        newRow.added = now.to(moment(card["project_added_at"]));
+        newRow.added = now.to(moment_1.default(card["project_added_at"]));
         rows.push(newRow);
     }
     let table;
     if (rows && rows.length > 0) {
-        table = tablemark(rows);
+        table = tablemark_1.default(rows);
     }
     else {
         table = `No ${newCards.cardType}s found.`;
@@ -576,11 +578,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
-const clone = __webpack_require__(97);
-const moment = __webpack_require__(431);
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(431));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
 function repoPropsFromUrl(htmlUrl) {
@@ -753,8 +758,8 @@ class IssueList {
         if (!issue) {
             return issue;
         }
-        issue = clone(issue);
-        let momentAgo = moment(datetime);
+        issue = clone_1.default(issue);
+        let momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
         delete issue.project_added_at;
@@ -769,7 +774,7 @@ class IssueList {
         let labelMap = {};
         if (issue.events) {
             for (let event of issue.events) {
-                if (moment(event.created_at).isAfter(momentAgo)) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
                     continue;
                 }
                 filteredEvents.push(event);
@@ -795,7 +800,7 @@ class IssueList {
         // comments
         let filteredComments = [];
         for (let comment of issue.comments) {
-            if (moment(comment.created_at).isAfter(momentAgo)) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
                 continue;
             }
             filteredComments.push(comment);
