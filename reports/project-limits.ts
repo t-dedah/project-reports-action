@@ -1,11 +1,9 @@
 import {CrawlingTarget} from '../interfaces';
 import * as rptLib from '../project-reports-lib';
 import {ProjectIssue, IssueList, ProjectStageIssues} from '../project-reports-lib';
-const tablemark = require('tablemark')
+import tablemark from 'tablemark';
 import * as os from 'os';
-
-let clone = require('clone');
-
+import clone from 'clone';
 
 const reportType = 'project';
 export {reportType};

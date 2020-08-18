@@ -1,4 +1,4 @@
-const { Octokit } = require('@octokit/rest');
+import {Octokit} from '@octokit/rest'
 import * as url from 'url' 
 import {ProjectData} from '../interfaces'
 import * as restCache from './octokit-rest-cache';

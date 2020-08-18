@@ -1,4 +1,4 @@
-let HttpsProxyAgent = require('https-proxy-agent');
+import {HttpsProxyAgent} from 'https-proxy-agent'
 
 import {IStore} from "./store";
 export {FileSystemStore} from "./store";

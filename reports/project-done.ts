@@ -1,11 +1,10 @@
 import {CrawlingTarget} from '../interfaces';
 import {ProjectIssue, IssueList} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
-const tablemark = require('tablemark')
+import tablemark from 'tablemark'
 import * as os from 'os';
-import moment = require('moment');
-
-let clone = require('clone');
+import moment from 'moment';
+import clone from 'clone';
 
 let now = moment();
 

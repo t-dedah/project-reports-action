@@ -470,12 +470,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
 const rptLib = __importStar(__webpack_require__(369));
-const tablemark = __webpack_require__(611);
+const tablemark_1 = __importDefault(__webpack_require__(611));
 const os = __importStar(__webpack_require__(87));
-let clone = __webpack_require__(97);
+const clone_1 = __importDefault(__webpack_require__(97));
 const reportType = 'repo';
 exports.reportType = reportType;
 /*
@@ -501,7 +504,7 @@ function process(config, issueList, drillIn) {
     let issues = issueList.getItems();
     for (let label of config["breakdown-by-labels"]) {
         let slice = rptLib.filterByLabel(issues, label);
-        breakdown.issues[label] = clone(slice);
+        breakdown.issues[label] = clone_1.default(slice);
         drillIn(getDrillName(label, breakdown.identifier), `Issues for ${label}`, slice);
     }
     return breakdown;
@@ -529,7 +532,7 @@ function renderMarkdown(targets, processedData) {
         row.count = `[${breakdown.issues[label].length}](./${getDrillName(label, breakdown.identifier)}.md)`;
         rows.push(row);
     }
-    let table = tablemark(rows);
+    let table = tablemark_1.default(rows);
     lines.push(table);
     return lines.join(os.EOL);
 }
@@ -570,11 +573,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
-const clone = __webpack_require__(97);
-const moment = __webpack_require__(431);
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(431));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
 function repoPropsFromUrl(htmlUrl) {
@@ -747,8 +753,8 @@ class IssueList {
         if (!issue) {
             return issue;
         }
-        issue = clone(issue);
-        let momentAgo = moment(datetime);
+        issue = clone_1.default(issue);
+        let momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
         delete issue.project_added_at;
@@ -763,7 +769,7 @@ class IssueList {
         let labelMap = {};
         if (issue.events) {
             for (let event of issue.events) {
-                if (moment(event.created_at).isAfter(momentAgo)) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
                     continue;
                 }
                 filteredEvents.push(event);
@@ -789,7 +795,7 @@ class IssueList {
         // comments
         let filteredComments = [];
         for (let comment of issue.comments) {
-            if (moment(comment.created_at).isAfter(momentAgo)) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
                 continue;
             }
             filteredComments.push(comment);

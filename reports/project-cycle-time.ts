@@ -1,9 +1,9 @@
 import {ProjectData} from '../interfaces';
 import {ProjectIssue, IssueList} from '../project-reports-lib';
 import * as rptLib from '../project-reports-lib';
-const tablemark = require('tablemark')
+import tablemark from 'tablemark'
 import * as os from 'os';
-import moment = require('moment');
+import moment from 'moment';
 
 const reportType = 'project';
 export {reportType};

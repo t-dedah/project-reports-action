@@ -1,6 +1,6 @@
 import * as url from 'url' 
-import clone = require('clone');
-import moment = require('moment');
+import clone from 'clone';
+import moment from 'moment';
 import { IssueLabelBreakdown } from './reports/repo-issues';
 
 // TODO: separate npm module.  for now it's a file till we flush out
