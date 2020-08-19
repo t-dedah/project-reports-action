@@ -10,3 +10,5 @@ dist/samples
 tag.sh
 
 samples/debug*.yml
+
+!.vscode/
