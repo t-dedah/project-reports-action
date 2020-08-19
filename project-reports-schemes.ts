@@ -5,7 +5,7 @@ export function dataFromCard(
   filterBy: string,
   data: string
 ): any {
-  let fn = module.exports[`get${filterBy}`]
+  const fn = module.exports[`get${filterBy}`]
   if (!fn) {
     throw new Error(`Invalid filter: ${filterBy}`)
   }
@@ -24,8 +24,8 @@ export function getLastCommentPattern(
     return ''
   }
 
-  let re = new RegExp(pattern)
-  let comment = card.comments.filter(comment => comment.body.match(re)).pop()
+  const re = new RegExp(pattern)
+  const comment = card.comments.filter(comment => comment.body.match(re)).pop()
 
   return comment ? comment['updated_at'] : null
 }

@@ -41,17 +41,17 @@ export function process(
   issueList: IssueList,
   drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void
 ): any {
-  let cycleTimeData = <CycleTimeData>{}
+  const cycleTimeData = <CycleTimeData>{}
   // merge defaults and overriden config.
   config = Object.assign({}, getDefaultConfiguration(), config)
 
-  let issues = issueList.getItems()
-  let projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(issues)
-  for (let cardType of config['report-on-label']) {
-    let stageData = <CycleTimeStageData>{}
-    let cards = projData['Done']
+  const issues = issueList.getItems()
+  const projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(issues)
+  for (const cardType of config['report-on-label']) {
+    const stageData = <CycleTimeStageData>{}
+    const cards = projData['Done']
 
-    let cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase())
+    const cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase())
     // add cycle time to each card in this type.
     cardsForType.map((card: IssueCardCycleTime) => {
       card.cycletime = calculateCycleTime(card)
@@ -69,7 +69,7 @@ export function process(
       stageData.cycletime = 0
     }
 
-    let limitKey = `${cardType
+    const limitKey = `${cardType
       .toLocaleLowerCase()
       .replace(/\s/g, '-')}-cycletime-limit`
     stageData.limit = config[limitKey] || 0
@@ -85,14 +85,14 @@ export function renderMarkdown(
   projData: ProjectData,
   processedData: any
 ): string {
-  let cycleTimeData = processedData as CycleTimeData
-  let lines: string[] = []
-  let rows: CycleTimeRow[] = []
+  const cycleTimeData = processedData as CycleTimeData
+  const lines: string[] = []
+  const rows: CycleTimeRow[] = []
 
   lines.push(`## Issue Count & Cycle Time `)
-  for (let cardType in cycleTimeData) {
+  for (const cardType in cycleTimeData) {
     const stageData = cycleTimeData[cardType]
-    let ctRow = <CycleTimeRow>{}
+    const ctRow = <CycleTimeRow>{}
     ctRow.labels = `\`${cardType}\``
     ctRow.count = stageData.count
     ctRow.cycleTimeInDays = ` ${
@@ -102,7 +102,7 @@ export function renderMarkdown(
     rows.push(ctRow)
   }
 
-  let table: string = tablemark(rows)
+  const table: string = tablemark(rows)
   lines.push(table)
   return lines.join(os.EOL)
 }
@@ -115,8 +115,8 @@ export function renderMarkdown(
 //
 function calculateCycleTime(card: ProjectIssue): number {
   // cycle time starts at Accepted, ends at Done.
-  let accepted_time: Date = new Date(card.project_added_at)
-  let done_time: Date = new Date(card.project_done_at)
+  const accepted_time: Date = new Date(card.project_added_at)
+  const done_time: Date = new Date(card.project_done_at)
 
   if (accepted_time == null || done_time == null) {
     return 0

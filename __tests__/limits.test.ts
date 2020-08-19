@@ -2,9 +2,9 @@ import {ProjectIssue, IssueList} from '../project-reports-lib'
 import * as limits from '../reports/project-limits'
 import {LimitsData} from '../reports/project-limits'
 
-let projectData: ProjectIssue[] = require('./project-data.test.json')
+const projectData: ProjectIssue[] = require('./project-data.test.json')
 
-let config: any = {
+const config: any = {
   'report-on-label': 'Epic',
   'proposed-limit': 2,
   'accepted-limit': 2,
@@ -27,8 +27,8 @@ describe('report-lib', () => {
   })
 
   it('process returns WipData', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -36,12 +36,12 @@ describe('report-lib', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = limits.process(config, list, drillIn) as LimitsData
+    const processed = limits.process(config, list, drillIn) as LimitsData
     //console.log(JSON.stringify(processed, null, 2));
 
-    let data = processed.data
+    const data = processed.data
     expect(processed).toBeDefined()
     expect(data).toBeDefined()
     // expect(processed["Epic"]).toBeDefined();
@@ -58,8 +58,8 @@ describe('report-lib', () => {
   })
 
   it('renderMarkdown renders valid markdown', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -67,13 +67,13 @@ describe('report-lib', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = limits.process(config, list, drillIn) as LimitsData
+    const processed = limits.process(config, list, drillIn) as LimitsData
     expect(processed).toBeDefined()
     expect(drillIns.length).toBe(4)
 
-    let markdown = limits.renderMarkdown([], processed)
+    const markdown = limits.renderMarkdown([], processed)
     expect(markdown).toBeDefined()
     expect(markdown).toContain('## :ship: Epic Limits')
     expect(markdown).toContain(

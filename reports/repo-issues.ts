@@ -35,13 +35,13 @@ export function process(
 ): any {
   console.log('Processing issues')
 
-  let breakdown = <IssueLabelBreakdown>{}
+  const breakdown = <IssueLabelBreakdown>{}
   breakdown.identifier = new Date().getTime() / 1000
   breakdown.issues = {}
 
-  let issues = issueList.getItems()
-  for (let label of config['breakdown-by-labels']) {
-    let slice = rptLib.filterByLabel(issues, label)
+  const issues = issueList.getItems()
+  for (const label of config['breakdown-by-labels']) {
+    const slice = rptLib.filterByLabel(issues, label)
     breakdown.issues[label] = clone(slice)
     drillIn(
       getDrillName(label, breakdown.identifier),
@@ -62,13 +62,13 @@ export function renderMarkdown(
   targets: CrawlingTarget[],
   processedData: any
 ): string {
-  let breakdown = processedData as IssueLabelBreakdown
+  const breakdown = processedData as IssueLabelBreakdown
 
-  let lines: string[] = []
+  const lines: string[] = []
 
-  let linksHeading: string = ''
-  for (let target of targets) {
-    let props = rptLib.repoPropsFromUrl(target.htmlUrl)
+  let linksHeading = ''
+  for (const target of targets) {
+    const props = rptLib.repoPropsFromUrl(target.htmlUrl)
     linksHeading += `[${props.repo}](${target.htmlUrl}), `
   }
   // chop final delimiter
@@ -80,9 +80,9 @@ export function renderMarkdown(
   // let typeLabel = wipData.cardType === '*'? "": wipData.cardType;
   // lines.push(`## :ship: ${typeLabel} Limits  `);
 
-  let rows: BreakdownRow[] = []
-  for (let label in breakdown.issues) {
-    let row = <BreakdownRow>{}
+  const rows: BreakdownRow[] = []
+  for (const label in breakdown.issues) {
+    const row = <BreakdownRow>{}
     row.label = `\`${label}\``
     // data folder is part of the contract here.  make a lib function to create this path
     row.count = `[${breakdown.issues[label].length}](./${getDrillName(
@@ -92,7 +92,7 @@ export function renderMarkdown(
     rows.push(row)
   }
 
-  let table: string = tablemark(rows)
+  const table: string = tablemark(rows)
   lines.push(table)
 
   return lines.join(os.EOL)

@@ -26,11 +26,11 @@ export class Crawler {
     // TODO: eventually deprecate ProjectData and only have distinct set
     let data: ProjectIssue[]
     if (target.type === 'project') {
-      let projectCrawler = new ProjectCrawler(this.github)
+      const projectCrawler = new ProjectCrawler(this.github)
       data = await projectCrawler.crawl(target)
     } else if (target.type === 'repo') {
       console.log(`crawling repo ${target.htmlUrl}`)
-      let repoCrawler = new RepoCrawler(this.github)
+      const repoCrawler = new RepoCrawler(this.github)
       data = await repoCrawler.crawl(target)
     } else {
       throw new Error(`Unsupported target config: ${target.type}`)
@@ -55,9 +55,9 @@ class RepoCrawler {
   public async crawl(target: CrawlingTarget): Promise<any[]> {
     console.log(`Crawling project ${target.htmlUrl} ...`)
 
-    let set = new IssueList(issue => issue.number)
-    let res = await this.github.getIssuesForRepo(target.htmlUrl)
-    let summaries = res.map(issue => this.summarizeIssue(issue))
+    const set = new IssueList(issue => issue.number)
+    const res = await this.github.getIssuesForRepo(target.htmlUrl)
+    const summaries = res.map(issue => this.summarizeIssue(issue))
     console.log(`Crawled ${summaries.length} issues`)
 
     set.add(summaries)
@@ -66,7 +66,7 @@ class RepoCrawler {
 
   // walk events and rollup / summarize an issue for slicing and dicing.
   private summarizeIssue(issue): ProjectIssue {
-    let summary = <ProjectIssue>{}
+    const summary = <ProjectIssue>{}
     summary.number = issue.number
     summary.title = issue.title
     summary.html_url = issue.html_url
@@ -95,20 +95,20 @@ class ProjectCrawler {
   public async crawl(target: CrawlingTarget): Promise<ProjectIssue[]> {
     console.log(`Crawling project ${target.htmlUrl} ...`)
 
-    let issues: ProjectIssue[] = []
+    const issues: ProjectIssue[] = []
 
-    let projectData = await this.github.getProject(target.htmlUrl)
+    const projectData = await this.github.getProject(target.htmlUrl)
     if (!projectData) {
       throw new Error(`Could not find project ${target.htmlUrl}`)
     }
 
-    let columns: ProjectColumn[] = await this.github.getColumnsForProject(
+    const columns: ProjectColumn[] = await this.github.getColumnsForProject(
       projectData
     )
 
     let mappedColumns = []
     for (const stageName in target.columnMap) {
-      let colNames = target.columnMap[stageName]
+      const colNames = target.columnMap[stageName]
       if (!colNames || !Array.isArray) {
         throw new Error(
           `Invalid config. column map for ${stageName} is not an array`
@@ -123,14 +123,14 @@ class ProjectCrawler {
       console.log()
       console.log(`>> Processing column ${column.name} (${column.id})`)
 
-      let cards = await this.github.getCardsForColumns(column.id)
+      const cards = await this.github.getCardsForColumns(column.id)
 
       for (const card of cards) {
         // called as each event is processed
         // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
         // this will help diagnose a potential config issue much faster
-        let eventCallback = (event: IssueEvent): void => {
-          let mentioned = []
+        const eventCallback = (event: IssueEvent): void => {
+          const mentioned = []
           if (event.project_card && event.project_card.column_name) {
             mentioned.push(event.project_card.column_name)
           }
@@ -139,7 +139,7 @@ class ProjectCrawler {
             mentioned.push(event.project_card.previous_column_name)
           }
 
-          for (let mention of mentioned) {
+          for (const mention of mentioned) {
             if (
               mappedColumns.indexOf(mention.trim()) === -1 &&
               seenUnmappedColumns.indexOf(mention) === -1
@@ -152,12 +152,12 @@ class ProjectCrawler {
         // cached since real column could be mapped to two different mapped columns
         // read and build the event list once
 
-        let issueCard = await this.github.getIssueForCard(card, projectData.id)
+        const issueCard = await this.github.getIssueForCard(card, projectData.id)
         if (issueCard) {
           this.processCard(issueCard, projectData.id, target, eventCallback)
           issues.push(issueCard)
         } else {
-          let contents = card['note']
+          const contents = card['note']
           try {
             new URL(contents)
             console.log(contents)
@@ -204,7 +204,7 @@ class ProjectCrawler {
     console.log(`Processing card ${card.title}`)
     console.log(card.html_url)
 
-    let filteredEvents = []
+    const filteredEvents = []
 
     // card events should be in order chronologically
     let currentStage: string
@@ -213,7 +213,7 @@ class ProjectCrawler {
     let addedTime: Date
 
     if (card.events) {
-      for (let event of card.events) {
+      for (const event of card.events) {
         // since we're adding this card to a projects / stage, let's filter out
         // events for other project ids since an issue can be part of multiple boards
         if (event.project_card && event.project_card.project_id !== projectId) {
@@ -223,7 +223,7 @@ class ProjectCrawler {
         eventCallback(event)
 
         if (event.project_card && event.project_card.column_name) {
-          let stage = this.getStageFromColumn(
+          const stage = this.getStageFromColumn(
             event.project_card.column_name,
             target
           )
@@ -239,7 +239,7 @@ class ProjectCrawler {
         }
 
         if (event.project_card && event.project_card.previous_column_name) {
-          let previousStage = this.getStageFromColumn(
+          const previousStage = this.getStageFromColumn(
             event.project_card.previous_column_name,
             target
           )
@@ -266,9 +266,9 @@ class ProjectCrawler {
     }
 
     let resolvedStage = null
-    for (let stageName in target.columnMap) {
+    for (const stageName in target.columnMap) {
       // case insensitve match
-      for (let mappedColumn of target.columnMap[stageName].filter(e => e)) {
+      for (const mappedColumn of target.columnMap[stageName].filter(e => e)) {
         if (fuzzyMatch(column, mappedColumn)) {
           resolvedStage = stageName
           break

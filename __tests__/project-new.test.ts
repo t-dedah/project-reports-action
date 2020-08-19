@@ -2,9 +2,9 @@ import {ProjectIssue, IssueList} from '../project-reports-lib'
 import * as projectNew from '../reports/project-new'
 import {NewCards} from '../reports/project-new'
 
-let projectData: ProjectIssue[] = require('./project-data.test.json')
+const projectData: ProjectIssue[] = require('./project-data.test.json')
 
-let config: any = {
+const config: any = {
   'report-on': 'Epic',
   daysAgo: 1000
 }
@@ -23,8 +23,8 @@ describe('project-new', () => {
   })
 
   it('process returns NewCards', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -32,9 +32,9 @@ describe('project-new', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = projectNew.process(config, list, drillIn) as NewCards
+    const processed = projectNew.process(config, list, drillIn) as NewCards
     //console.log(JSON.stringify(processed, null, 2));
 
     expect(processed).toBeDefined()
@@ -47,8 +47,8 @@ describe('project-new', () => {
   })
 
   it('renderMarkdown renders valid markdown', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -56,12 +56,12 @@ describe('project-new', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = projectNew.process(config, list, drillIn) as NewCards
+    const processed = projectNew.process(config, list, drillIn) as NewCards
     expect(processed).toBeDefined()
 
-    let markdown = projectNew.renderMarkdown([], processed)
+    const markdown = projectNew.renderMarkdown([], processed)
     expect(markdown).toBeDefined()
     expect(markdown).toContain('## :wave: Added Epics')
     expect(markdown).toContain(

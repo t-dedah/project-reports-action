@@ -28,7 +28,7 @@ export class GitHubClient {
       ]
     })
 
-    let diskCache = new restCache.FileSystemStore(cacheDir)
+    const diskCache = new restCache.FileSystemStore(cacheDir)
     this.octokit.hook.wrap('request', restCache.wrap(diskCache))
   }
 
@@ -36,15 +36,15 @@ export class GitHubClient {
     console.log(`Finding project for ${projectHtmlUrl}`)
 
     let proj: ProjectData = null
-    let projUrl = new url.URL(projectHtmlUrl)
-    let projParts = projUrl.pathname.split('/').filter(e => e)
+    const projUrl = new url.URL(projectHtmlUrl)
+    const projParts = projUrl.pathname.split('/').filter(e => e)
 
     if (projParts.length !== 4) {
       throw new Error(`Invalid project url: ${projectHtmlUrl}`)
     }
 
-    let projKind = projParts[0] // orgs or users
-    let projOwner = projParts[1] // orgname or username
+    const projKind = projParts[0] // orgs or users
+    const projOwner = projParts[1] // orgname or username
     // let projId = projParts[3];    // html id
 
     let count = 0
@@ -73,8 +73,8 @@ export class GitHubClient {
         })
       } else {
         // if it's not an org or user project, must be a repo
-        let owner = projParts[0]
-        let repo = projParts[1]
+        const owner = projParts[0]
+        const repo = projParts[1]
         console.log(`querying for owner:'${owner}', repo:'${repo}'`)
         res = await this.octokit.projects.listForRepo({
           owner: owner,
@@ -85,7 +85,7 @@ export class GitHubClient {
         })
       }
 
-      let projects = res.data
+      const projects = res.data
       count = projects.length
 
       for (const project of projects) {
@@ -106,12 +106,12 @@ export class GitHubClient {
   }
 
   public async getColumnsForProject(project): Promise<ProjectColumn[]> {
-    let cols = await this.octokit.projects.listColumns({project_id: project.id})
+    const cols = await this.octokit.projects.listColumns({project_id: project.id})
     return cols.data
   }
 
   public async getCardsForColumns(colId: number) {
-    let cards = await this.octokit.projects.listCards({column_id: colId})
+    const cards = await this.octokit.projects.listCards({column_id: colId})
     return cards.data
   }
 
@@ -140,26 +140,26 @@ export class GitHubClient {
       return null
     }
 
-    let cardUrl = new url.URL(card.content_url)
-    let cardParts = cardUrl.pathname.split('/').filter(e => e)
+    const cardUrl = new url.URL(card.content_url)
+    const cardParts = cardUrl.pathname.split('/').filter(e => e)
 
     // /repos/:owner/:repo/issues/events/:event_id
     // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
 
-    let owner = cardParts[1]
-    let repo = cardParts[2]
-    let issue_number = cardParts[4]
+    const owner = cardParts[1]
+    const repo = cardParts[2]
+    const issue_number = cardParts[4]
 
-    let issueCard = <ProjectIssue>{}
+    const issueCard = <ProjectIssue>{}
 
-    let res = await this.octokit.issues.get({
+    const res = await this.octokit.issues.get({
       owner: owner,
       repo: repo,
       issue_number: issue_number,
       per_page: 100
     })
 
-    let issue = res.data
+    const issue = res.data
 
     issueCard.number = issue.number
     issueCard.title = issue.title
@@ -205,19 +205,19 @@ export class GitHubClient {
   // https://developer.github.com/v3/issues/#parameters-3
   async getIssuesForRepo(
     repoUrl: string,
-    daysAgo: number = 7
+    daysAgo = 7
   ): Promise<ProjectIssue[]> {
-    let set = new IssueList(issue => issue.number)
+    const set = new IssueList(issue => issue.number)
 
-    let rUrl = new url.URL(repoUrl)
-    let parts = rUrl.pathname.split('/').filter(e => e)
+    const rUrl = new url.URL(repoUrl)
+    const parts = rUrl.pathname.split('/').filter(e => e)
 
-    let repoProps = {
+    const repoProps = {
       owner: parts[0],
       repo: parts[1]
     }
 
-    let opened = await this.octokit.paginate(
+    const opened = await this.octokit.paginate(
       'GET /repos/:owner/:repo/issues',
       {
         ...repoProps,
@@ -230,13 +230,13 @@ export class GitHubClient {
     set.add(opened)
 
     // get Date n days ago as of mindnight (ensures cache hit if you run every 15 min)
-    var dateAgo = new Date()
+    const dateAgo = new Date()
     dateAgo.setHours(0, 0, 0, 0)
     dateAgo.setDate(dateAgo.getDate() - daysAgo)
 
     console.log(`${daysAgo} days ago is ${dateAgo.toISOString()}`)
 
-    let recentIssues = await this.octokit.paginate(
+    const recentIssues = await this.octokit.paginate(
       'GET /repos/:owner/:repo/issues',
       {
         ...repoProps,
@@ -250,7 +250,7 @@ export class GitHubClient {
     )
     set.add(recentIssues)
 
-    let issues = set.getItems()
+    const issues = set.getItems()
     console.log(`Total of ${issues.length} distinct issues`)
 
     return issues

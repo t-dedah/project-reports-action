@@ -2,15 +2,15 @@ import {ProjectIssue} from '../project-reports-lib'
 import * as os from 'os'
 
 export function renderMarkdown(heading: string, cards: ProjectIssue[]): string {
-  let lines: string[] = []
+  const lines: string[] = []
 
   lines.push(`## ${heading}`)
 
   // create a report for each type.  e.g. "Epic"
-  for (let card of cards) {
+  for (const card of cards) {
     // note: the two spaces at the end of markdown strings are intentional for markdown new lines.  don't trim :)
     lines.push(`  `)
-    let assigneeHtml = card.assignee
+    const assigneeHtml = card.assignee
       ? `<img height="20" width="20" alt="@${card.assignee.login}" src="${card.assignee.avatar_url}"/>`
       : ''
 
@@ -19,13 +19,13 @@ export function renderMarkdown(heading: string, cards: ProjectIssue[]): string {
     //   `1-dev` `epic`
 
     lines.push(`### ${assigneeHtml} [${card.title}](${card.html_url})  `)
-    let assigneeLink = card.assignee
+    const assigneeLink = card.assignee
       ? `[@${card.assignee.login}](${card.assignee.html_url})  `
       : 'not assigned  '
     lines.push(`> ${assigneeLink}`)
 
-    let labels: string[] = []
-    for (let label of card.labels) {
+    const labels: string[] = []
+    for (const label of card.labels) {
       labels.push(`\`${label.name}\``)
     }
 

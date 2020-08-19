@@ -13,8 +13,8 @@ export interface RepoProps {
 }
 
 export function repoPropsFromUrl(htmlUrl: string): RepoProps {
-  let rUrl = new url.URL(htmlUrl)
-  let parts = rUrl.pathname.split('/').filter(e => e)
+  const rUrl = new url.URL(htmlUrl)
+  const parts = rUrl.pathname.split('/').filter(e => e)
 
   return <RepoProps>{
     owner: parts[0],
@@ -44,8 +44,8 @@ export function filterByLabel(
 export function getCountFromLabel(card: ProjectIssue, re: RegExp): number {
   let num = NaN
 
-  for (let label of card.labels) {
-    let matches = label.name.match(re)
+  for (const label of card.labels) {
+    const matches = label.name.match(re)
     if (matches && matches.length > 0) {
       num = parseInt(matches[1])
       if (num) {
@@ -59,8 +59,8 @@ export function getCountFromLabel(card: ProjectIssue, re: RegExp): number {
 export function getStringFromLabel(card: ProjectIssue, re: RegExp): string {
   let str = ''
 
-  for (let label of card.labels) {
-    let matches = label.name.match(re)
+  for (const label of card.labels) {
+    const matches = label.name.match(re)
     if (matches && matches.length > 0) {
       str = matches[0]
       if (str) {
@@ -88,7 +88,7 @@ export function fuzzyMatch(content: string, match: string): boolean {
   contentWords = contentWords.map(item => item.toLowerCase())
 
   let isMatch = true
-  for (let matchWord of matchWords) {
+  for (const matchWord of matchWords) {
     if (contentWords.indexOf(matchWord) === -1) {
       isMatch = false
       break
@@ -120,9 +120,9 @@ export const ProjectStages = {
 export type ProjectStageIssues = {[key: string]: ProjectIssue[]}
 
 export function getProjectStageIssues(issues: ProjectIssue[]) {
-  let projIssues = <ProjectStageIssues>{}
-  for (let projIssue of issues) {
-    let stage = projIssue['project_stage']
+  const projIssues = <ProjectStageIssues>{}
+  for (const projIssue of issues) {
+    const stage = projIssue['project_stage']
     if (!stage) {
       // the engine will handle and add to an issues list
       continue
@@ -221,7 +221,7 @@ export interface ProjectIssue {
   project_stage: string
 }
 
-let stageLevel = {
+const stageLevel = {
   None: 0,
   Proposed: 1,
   Accepted: 2,
@@ -257,8 +257,8 @@ export class IssueList {
     this.processed = null
     let added = false
     if (Array.isArray(data)) {
-      for (let item of data) {
-        let res = this.add_item(item)
+      for (const item of data) {
+        const res = this.add_item(item)
         if (!added) {
           added = res
         }
@@ -271,7 +271,7 @@ export class IssueList {
   }
 
   private add_item(item: any): boolean {
-    let id = this.identifier(item)
+    const id = this.identifier(item)
 
     if (!this.seen.has(id)) {
       this.items.push(item)
@@ -292,7 +292,7 @@ export class IssueList {
     }
 
     // call process
-    for (let item of this.items) {
+    for (const item of this.items) {
       this.processStages(item)
     }
 
@@ -315,7 +315,7 @@ export class IssueList {
     }
 
     issue = clone(issue)
-    let momentAgo = moment(datetime)
+    const momentAgo = moment(datetime)
 
     // clear everything we're going to re-apply
     issue.labels = []
@@ -328,11 +328,11 @@ export class IssueList {
     delete issue.closed_at
 
     // stages and labels
-    let filteredEvents: IssueEvent[] = []
-    let labelMap: {[name: string]: IssueLabel} = {}
+    const filteredEvents: IssueEvent[] = []
+    const labelMap: {[name: string]: IssueLabel} = {}
 
     if (issue.events) {
-      for (let event of issue.events) {
+      for (const event of issue.events) {
         if (moment(event.created_at).isAfter(momentAgo)) {
           continue
         }
@@ -356,15 +356,15 @@ export class IssueList {
     }
     issue.events = filteredEvents
 
-    for (let labelName in labelMap) {
+    for (const labelName in labelMap) {
       issue.labels.push(labelMap[labelName])
     }
 
     this.processStages(issue)
 
     // comments
-    let filteredComments: IssueComment[] = []
-    for (let comment of issue.comments) {
+    const filteredComments: IssueComment[] = []
+    for (const comment of issue.comments) {
       if (moment(comment.created_at).isAfter(momentAgo)) {
         continue
       }
@@ -387,10 +387,10 @@ export class IssueList {
     let doneTime: Date
     let addedTime: Date
 
-    let tempLabels = {}
+    const tempLabels = {}
 
     if (issue.events) {
-      for (let event of issue.events) {
+      for (const event of issue.events) {
         let eventDateTime: Date
         if (event.created_at) {
           eventDateTime = event.created_at
@@ -402,7 +402,7 @@ export class IssueList {
         let toStage: string
         let toLevel: number
         let fromStage: string
-        let fromLevel: number = 0
+        let fromLevel = 0
 
         if (event.project_card && event.project_card.column_name) {
           if (!addedTime) {

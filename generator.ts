@@ -33,24 +33,24 @@ export async function generate(
     throw new Error('GITHUB_WORKSPACE not defined')
   }
 
-  let configPath = path.join(workspacePath, configYaml)
-  let cachePath = path.join(workspacePath, '_reports', '.data')
+  const configPath = path.join(workspacePath, configYaml)
+  const cachePath = path.join(workspacePath, '_reports', '.data')
   util.mkdirP(cachePath)
 
-  let config = <GeneratorConfiguration>(
+  const config = <GeneratorConfiguration>(
     yaml.load(fs.readFileSync(configPath, 'utf-8'))
   )
 
-  let snapshot = <ReportSnapshot>{}
+  const snapshot = <ReportSnapshot>{}
   snapshot.datetime = new Date()
   snapshot.config = config
-  let d = snapshot.datetime
-  let year = d.getUTCFullYear()
-  let month = (d.getUTCMonth() + 1).toString().padStart(2, '0')
-  let day = d.getUTCDate().toString().padStart(2, '0')
-  let hour = d.getUTCHours().toString().padStart(2, '0')
-  let minute = d.getUTCMinutes().toString().padStart(2, '0')
-  let dt: string = `${year}-${month}-${day}_${hour}-${minute}`
+  const d = snapshot.datetime
+  const year = d.getUTCFullYear()
+  const month = (d.getUTCMonth() + 1).toString().padStart(2, '0')
+  const day = d.getUTCDate().toString().padStart(2, '0')
+  const hour = d.getUTCHours().toString().padStart(2, '0')
+  const minute = d.getUTCMinutes().toString().padStart(2, '0')
+  const dt = `${year}-${month}-${day}_${hour}-${minute}`
   snapshot.datetimeString = dt
 
   snapshot.config.output = snapshot.config.output || '_reports'
@@ -93,21 +93,21 @@ export async function generate(
 
   // apply defaults to targets
   console.log('Applying target defaults')
-  for (let targetName in crawlCfg) {
-    let target = crawlCfg[targetName]
+  for (const targetName in crawlCfg) {
+    const target = crawlCfg[targetName]
     if (target.type === 'project') {
       if (!target.columnMap) {
         target.columnMap = {}
       }
 
-      let defaultStages = [
+      const defaultStages = [
         'Proposed',
         'Accepted',
         'In-Progress',
         'Done',
         'Unmapped'
       ]
-      for (let phase of defaultStages) {
+      for (const phase of defaultStages) {
         if (!target.columnMap[phase]) {
           target.columnMap[phase] = []
         }
@@ -126,7 +126,7 @@ export async function generate(
       // Add some common mappings
       target.columnMap['Proposed'].push('Triage', 'Not Started')
 
-      for (let mapName in target.columnMap) {
+      for (const mapName in target.columnMap) {
         target.columnMap[mapName] = target.columnMap[mapName].map(item =>
           item.trim()
         )
@@ -137,7 +137,7 @@ export async function generate(
   console.log('crawlConfig')
   console.log(JSON.stringify(crawlCfg, null, 2))
 
-  let crawler: Crawler = new Crawler(token, cachePath)
+  const crawler: Crawler = new Crawler(token, cachePath)
 
   for (const report of config.reports) {
     let output = ''
@@ -157,7 +157,7 @@ export async function generate(
 
       output += `&nbsp;  ${os.EOL}`
 
-      let reportModule = `${reportSection.name}`
+      const reportModule = `${reportSection.name}`
 
       // if it's a relative path, find in the workflow repo relative path.
       // this allows for consume of action to create their own report sections
@@ -183,11 +183,11 @@ export async function generate(
         throw new Error(`Report not found: ${reportSection.name}`)
       }
 
-      let reportGenerator = require(reportModulePath) as ProjectReportBuilder
+      const reportGenerator = require(reportModulePath) as ProjectReportBuilder
 
       // overlay user settings over default settings
-      let config = reportGenerator.getDefaultConfiguration()
-      for (let setting in reportSection.config || {}) {
+      const config = reportGenerator.getDefaultConfiguration()
+      for (const setting in reportSection.config || {}) {
         config[setting] = reportSection.config[setting]
       }
 
@@ -195,12 +195,12 @@ export async function generate(
       // Crawl targets data.
       // definition on section but fall back to report
       // ----------------------------------------------------------------------
-      let targetNames = reportSection.targets || report.targets
+      const targetNames = reportSection.targets || report.targets
 
-      let set = new IssueList(issue => issue.html_url)
+      const set = new IssueList(issue => issue.html_url)
 
-      let targets: CrawlingTarget[] = []
-      for (let targetName of targetNames) {
+      const targets: CrawlingTarget[] = []
+      for (const targetName of targetNames) {
         console.log()
         console.log(
           `Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`
@@ -208,7 +208,7 @@ export async function generate(
         console.log(
           '-------------------------------------------------------------------------------'
         )
-        let target = crawlCfg[targetName]
+        const target = crawlCfg[targetName]
         targets.push(target)
 
         if (
@@ -220,7 +220,7 @@ export async function generate(
           )
         }
 
-        let data: ProjectIssue[] = await crawler.crawl(target)
+        const data: ProjectIssue[] = await crawler.crawl(target)
         console.log(`Adding ${data.length} issues to set ...`)
         set.add(data)
       }
@@ -229,8 +229,8 @@ export async function generate(
 
       console.log('Processing data ...')
 
-      let drillIns = []
-      let drillInCb = (
+      const drillIns = []
+      const drillInCb = (
         identifier: string,
         title: string,
         cards: ProjectIssue[]
@@ -242,7 +242,7 @@ export async function generate(
         })
       }
 
-      let processed = reportGenerator.process(config, clone(set), drillInCb)
+      const processed = reportGenerator.process(config, clone(set), drillInCb)
 
       await writeSectionData(report, reportModule, config, processed)
 
@@ -256,7 +256,7 @@ export async function generate(
         throw new Error(`Report kind ${report.kind} not supported`)
       }
 
-      for (let drillIn of drillIns) {
+      for (const drillIn of drillIns) {
         let drillInReport: string
         if (report.kind === 'markdown') {
           drillInReport = drillInRpt.renderMarkdown(
@@ -286,7 +286,7 @@ export async function generate(
 }
 
 function getReportHeading(report: ReportConfig) {
-  let lines: string[] = []
+  const lines: string[] = []
 
   if (report.kind === 'markdown') {
     lines.push(`# :crystal_ball: ${report.title}  `)
@@ -313,7 +313,7 @@ async function deleteFilesInPath(targetPath: string) {
   existingRootFiles = existingRootFiles.filter(item =>
     fs.lstatSync(item).isFile()
   )
-  for (let file of existingRootFiles) {
+  for (const file of existingRootFiles) {
     console.log(`cleaning up ${file}`)
     fs.unlinkSync(file)
   }
@@ -389,8 +389,8 @@ async function writeReport(
   console.log('Writing the report ...')
   fs.writeFileSync(path.join(report.details.rootPath, '_report.md'), contents)
   fs.writeFileSync(path.join(report.details.fullPath, '_report.md'), contents)
-  for (let target in targetData) {
-    let urlPath = url.parse(target).path.split('/').join('_')
+  for (const target in targetData) {
+    const urlPath = url.parse(target).path.split('/').join('_')
     fs.writeFileSync(
       path.join(report.details.dataPath, `target-${sanitize(urlPath)}.json`),
       JSON.stringify(targetData[target], null, 2)

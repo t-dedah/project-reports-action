@@ -6,7 +6,7 @@ import * as os from 'os'
 import moment from 'moment'
 import clone from 'clone'
 
-let now = moment()
+const now = moment()
 
 const reportType = 'project'
 export {reportType}
@@ -35,22 +35,22 @@ export function process(
   drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void
 ): any {
   console.log('> project-new::process')
-  let newCards = <NewCards>{}
+  const newCards = <NewCards>{}
 
   newCards.cardType = config['report-on'] || config['report-on-label']
 
-  let daysAgo = config['daysAgo'] || 7
+  const daysAgo = config['daysAgo'] || 7
   if (isNaN(daysAgo)) {
     throw new Error('daysAgo is not a number')
   }
   newCards.daysAgo = daysAgo
 
-  let daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days')
+  const daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days')
 
   console.log(`Getting cards for ${newCards.cardType} added > ${daysAgoMoment}`)
 
-  let issues = issueList.getItems()
-  let cardsForType =
+  const issues = issueList.getItems()
+  const cardsForType =
     newCards.cardType === '*'
       ? issues
       : (rptLib.filterByLabel(
@@ -77,17 +77,17 @@ export function renderMarkdown(
   processedData: any
 ): string {
   console.log('> in-progress::renderMarkdown')
-  let newCards = processedData as NewCards
+  const newCards = processedData as NewCards
 
-  let lines: string[] = []
-  let typeLabel = processedData.cardType === '*' ? '' : `${newCards.cardType}s`
+  const lines: string[] = []
+  const typeLabel = processedData.cardType === '*' ? '' : `${newCards.cardType}s`
 
   lines.push(`## :wave: Added ${typeLabel} last ${newCards.daysAgo} days  `)
   lines.push('  ')
 
-  let rows: NewRow[] = []
-  for (let card of processedData.cards) {
-    let newRow = <NewRow>{}
+  const rows: NewRow[] = []
+  for (const card of processedData.cards) {
+    const newRow = <NewRow>{}
 
     let assigned = card.assignee
     if (!assigned && card.assignees && card.assignees.length > 0) {

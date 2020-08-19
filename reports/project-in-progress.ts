@@ -11,7 +11,7 @@ import * as os from 'os'
 import moment from 'moment'
 import clone from 'clone'
 
-let now = moment()
+const now = moment()
 
 const reportType = 'project'
 export {reportType}
@@ -53,7 +53,7 @@ export interface IssueCardEx extends ProjectIssue {
   inProgressSince: string
 }
 
-let statusLevels = {
+const statusLevels = {
   '': 0, // no status
   red: 1,
   yellow: 2,
@@ -89,19 +89,19 @@ export function process(
 ): any {
   console.log('> in-progress::process')
 
-  let progressData = <ProgressData>{}
+  const progressData = <ProgressData>{}
   progressData.cardType = config['report-on'] || config['report-on-label']
   progressData.cards = []
 
-  let issues = issueList.getItems()
-  let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues)
-  let cards = projData[ProjectStages.InProgress]
+  const issues = issueList.getItems()
+  const projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues)
+  const cards = projData[ProjectStages.InProgress]
   if (!cards) {
     return progressData
   }
 
   console.log(`Getting cards for ${progressData.cardType}`)
-  let cardsForType =
+  const cardsForType =
     progressData.cardType === '*'
       ? clone(cards)
       : clone(
@@ -111,7 +111,7 @@ export function process(
           ) as IssueCardEx[]
         )
 
-  let previousMoment = moment()
+  const previousMoment = moment()
     .day(config['status-day'])
     .subtract(config['previous-days-ago'], 'days')
     .utc()
@@ -121,9 +121,9 @@ export function process(
   // add status to each card from the status label
   cardsForType.map((card: IssueCardEx) => {
     console.log(`issue: ${card.html_url}`)
-    let labels = card.labels.map(label => label.name)
+    const labels = card.labels.map(label => label.name)
 
-    let lastUpdatedDate = rptLib.dataFromCard(
+    const lastUpdatedDate = rptLib.dataFromCard(
       card,
       config['last-updated-scheme'],
       config['last-updated-scheme-data']
@@ -133,18 +133,18 @@ export function process(
     card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : ''
     console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`)
 
-    let daysSinceUpdate = lastUpdatedDate
+    const daysSinceUpdate = lastUpdatedDate
       ? now.diff(lastUpdatedDate, 'days')
       : -1
     card.flagHoursLastUpdated =
       daysSinceUpdate < 0 || daysSinceUpdate > config['last-updated-days-flag']
 
-    let previousCard = issueList.getItemAsof(
+    const previousCard = issueList.getItemAsof(
       card.html_url,
       previousMoment.toDate()
     )
 
-    let status = rptLib
+    const status = rptLib
       .getStringFromLabel(card, new RegExp(config['status-label-match']))
       .toLowerCase()
     console.log(
@@ -153,7 +153,7 @@ export function process(
       )}`
     )
 
-    let previousStatus = rptLib
+    const previousStatus = rptLib
       .getStringFromLabel(
         previousCard,
         new RegExp(config['status-label-match'])
@@ -169,7 +169,7 @@ export function process(
     card.previousStatus = statusLevels[previousStatus] ? previousStatus : ''
     card.hoursInProgress = -1
     if (card.project_in_progress_at) {
-      let then = moment(card.project_in_progress_at)
+      const then = moment(card.project_in_progress_at)
       card.hoursInProgress = now.diff(then, 'hours', true)
       card.inProgressSince = now.to(then)
     }
@@ -216,10 +216,10 @@ export function renderMarkdown(
   processedData: any
 ): string {
   console.log('> in-progress::renderMarkdown')
-  let progressData = processedData as ProgressData
+  const progressData = processedData as ProgressData
 
-  let lines: string[] = []
-  let typeLabel =
+  const lines: string[] = []
+  const typeLabel =
     processedData.cardType === '*' ? '' : `${progressData.cardType}s`
 
   lines.push(`## :hourglass_flowing_sand: In Progress ${typeLabel}  `)
@@ -228,9 +228,9 @@ export function renderMarkdown(
   )
   lines.push('  ')
 
-  let rows: ProgressRow[] = []
-  for (let card of processedData.cards) {
-    let progressRow = <ProgressRow>{}
+  const rows: ProgressRow[] = []
+  for (const card of processedData.cards) {
+    const progressRow = <ProgressRow>{}
 
     let assigned = card.assignee
     if (!assigned && card.assignees && card.assignees.length > 0) {

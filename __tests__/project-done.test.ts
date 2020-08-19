@@ -2,9 +2,9 @@ import {ProjectIssue, IssueList} from '../project-reports-lib'
 import * as projectDone from '../reports/project-done'
 import {CompletedCards} from '../reports/project-done'
 
-let projectData: ProjectIssue[] = require('./project-data.test.json')
+const projectData: ProjectIssue[] = require('./project-data.test.json')
 
-let config: any = {
+const config: any = {
   'report-on': 'Epic',
   daysAgo: 1000
 }
@@ -23,8 +23,8 @@ describe('project-new', () => {
   })
 
   it('process returns NewCards', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -32,9 +32,9 @@ describe('project-new', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = projectDone.process(config, list, drillIn) as CompletedCards
+    const processed = projectDone.process(config, list, drillIn) as CompletedCards
     //console.log(JSON.stringify(processed, null, 2));
 
     expect(processed).toBeDefined()
@@ -46,8 +46,8 @@ describe('project-new', () => {
   })
 
   it('renderMarkdown renders valid markdown', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -55,12 +55,12 @@ describe('project-new', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = projectDone.process(config, list, drillIn) as CompletedCards
+    const processed = projectDone.process(config, list, drillIn) as CompletedCards
     expect(processed).toBeDefined()
 
-    let markdown = projectDone.renderMarkdown([], processed)
+    const markdown = projectDone.renderMarkdown([], processed)
     expect(markdown).toBeDefined()
     expect(markdown).toContain('## :checkered_flag: Completed Epics')
     expect(markdown).toContain(

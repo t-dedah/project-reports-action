@@ -3,8 +3,8 @@ import {generate} from './generator'
 
 async function run() {
   try {
-    let token = core.getInput('token', {required: true})
-    let configPath = core.getInput('configPath', {required: true})
+    const token = core.getInput('token', {required: true})
+    const configPath = core.getInput('configPath', {required: true})
 
     console.log(`Generating reports for ${configPath} ...`)
 

@@ -64,21 +64,21 @@ export function process(
   issueList: IssueList,
   drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void
 ): any {
-  let limitsData = <LimitsData>{}
+  const limitsData = <LimitsData>{}
   limitsData.data = {}
 
   // epic, etc..
   limitsData.cardType = config['report-on-label']
 
-  let issues = issueList.getItems()
-  let projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues)
+  const issues = issueList.getItems()
+  const projData: ProjectStageIssues = rptLib.getProjectStageIssues(issues)
 
   // proposed, in-progress, etc...
-  for (let stage in projData) {
-    let stageData = <StageData>{}
+  for (const stage in projData) {
+    const stageData = <StageData>{}
 
-    let cards = projData[stage]
-    let cardsForType =
+    const cards = projData[stage]
+    const cardsForType =
       limitsData.cardType === '*'
         ? clone(cards)
         : clone(
@@ -95,7 +95,7 @@ export function process(
       cardsForType
     )
 
-    let limitKey = `${stage.toLocaleLowerCase()}-limit`
+    const limitKey = `${stage.toLocaleLowerCase()}-limit`
     stageData.limit = config[limitKey] || 0
     stageData.flag =
       stageData.limit > -1 && cardsForType.length > stageData.limit
@@ -118,17 +118,17 @@ export function renderMarkdown(
 ): string {
   console.log(`Rendering for ${targets.length} targets`)
 
-  let stageData = processedData as LimitsData
-  let lines: string[] = []
+  const stageData = processedData as LimitsData
+  const lines: string[] = []
 
   // create a report for each type.  e.g. "Epic"
-  let typeLabel = stageData.cardType === '*' ? '' : stageData.cardType
+  const typeLabel = stageData.cardType === '*' ? '' : stageData.cardType
   lines.push(`## :ship: ${typeLabel} Limits  `)
 
-  let rows: StageRow[] = []
-  for (let stageName in stageData.data) {
-    let stage = stageData.data[stageName]
-    let stageRow = <StageRow>{}
+  const rows: StageRow[] = []
+  for (const stageName in stageData.data) {
+    const stage = stageData.data[stageName]
+    const stageRow = <StageRow>{}
     stageRow.stage = stageName
     // data folder is part of the contract here.  make a lib function to create this path
     stageRow.count = `[${stage.items.length}](./${getDrillName(
@@ -142,7 +142,7 @@ export function renderMarkdown(
     rows.push(stageRow)
   }
 
-  let table: string = tablemark(rows)
+  const table: string = tablemark(rows)
   lines.push(table)
 
   return lines.join(os.EOL)

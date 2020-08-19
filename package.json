@@ -7,7 +7,7 @@
     "build": "./build.sh",
     "test": "jest",
     "check:format": "prettier --write *.ts **/*.ts",
-    "check:lint": "eslint src",
+    "check:lint": "eslint *.ts **/*.ts",
     "check": "run-s check:format check:lint"
   },
   "husky": {

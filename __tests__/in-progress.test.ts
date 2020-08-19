@@ -2,9 +2,9 @@ import {ProjectIssue, IssueList} from '../project-reports-lib'
 import * as inProgress from '../reports/project-in-progress'
 import {ProgressData, IssueCardEx} from '../reports/project-in-progress'
 
-let projectData: ProjectIssue[] = require('./project-data.test.json')
+const projectData: ProjectIssue[] = require('./project-data.test.json')
 
-let config: any = {
+const config: any = {
   'report-on': 'Epic',
   // TODO: implement getting a shapshot of data n days ago
   daysAgo: 7,
@@ -32,8 +32,8 @@ describe('project-in-progress', () => {
   })
 
   it('process returns InProgressData', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -41,15 +41,15 @@ describe('project-in-progress', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = inProgress.process(config, list, drillIn) as ProgressData
+    const processed = inProgress.process(config, list, drillIn) as ProgressData
     //console.log(JSON.stringify(processed, null, 2));
 
     expect(processed).toBeDefined()
     expect(processed.cardType).toBe('Epic')
 
-    let cards: IssueCardEx[] = processed.cards
+    const cards: IssueCardEx[] = processed.cards
     expect(cards.length).toBe(4)
 
     // spot check a card
@@ -67,8 +67,8 @@ describe('project-in-progress', () => {
   })
 
   it('renderMarkdown renders valid markdown', async () => {
-    let drillIns = []
-    let drillIn = (
+    const drillIns = []
+    const drillIn = (
       identifier: string,
       title: string,
       cards: ProjectIssue[]
@@ -76,12 +76,12 @@ describe('project-in-progress', () => {
       drillIns.push(identifier)
     }
 
-    let list: IssueList = new IssueList(issue => issue.html_url)
+    const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    let processed = inProgress.process(config, list, drillIn) as IssueCardEx[]
+    const processed = inProgress.process(config, list, drillIn) as IssueCardEx[]
     expect(processed).toBeDefined()
 
-    let markdown = inProgress.renderMarkdown([], processed)
+    const markdown = inProgress.renderMarkdown([], processed)
     expect(markdown).toBeDefined()
     // console.log(markdown);
     expect(markdown).toContain('## :hourglass_flowing_sand: In Progress Epics')

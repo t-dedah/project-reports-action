@@ -24,7 +24,7 @@ export function process(config, data: any): any {
 export function renderMarkdown(targets: CrawlingTarget[], data: any): string {
   console.log(`rendering for ${targets.length} targets`)
 
-  let lines: string[] = []
+  const lines: string[] = []
   lines.push(`## Echo data `)
 
   lines.push('')
