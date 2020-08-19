@@ -6,7 +6,7 @@
   "scripts": {
     "build": "./build.sh",
     "test": "jest",
-    "check:format": "prettier --write src/*",
+    "check:format": "prettier --write *.ts **/*.ts",
     "check:lint": "eslint src",
     "check": "run-s check:format check:lint"
   },

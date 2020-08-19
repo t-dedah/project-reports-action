@@ -1,18 +1,14 @@
-import {IssueList} from '../project-reports-lib';
+import {IssueList} from '../project-reports-lib'
 
 describe('util', () => {
+  beforeEach(() => {})
 
-    beforeEach(() => {
-    });
-  
-    afterEach(() => {
-  
-    });
-  
-    afterAll(async () => {}, 100000);
-    
-    // TODO: add some lib tests
-    it('depdupes distinct items', async () => {
-      expect(true).toBe(true);
-    });    
-});
+  afterEach(() => {})
+
+  afterAll(async () => {}, 100000)
+
+  // TODO: add some lib tests
+  it('depdupes distinct items', async () => {
+    expect(true).toBe(true)
+  })
+})
