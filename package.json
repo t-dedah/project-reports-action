@@ -5,7 +5,15 @@
   "main": "index.js",
   "scripts": {
     "build": "./build.sh",
-    "test": "jest"
+    "test": "jest",
+    "check:format": "prettier --write *.ts **/*.ts",
+    "check:lint": "eslint *.ts **/*.ts __tests__ github reports types",
+    "check": "run-s check:format check:lint"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run check"
+    }
   },
   "keywords": [],
   "author": "",
@@ -27,8 +35,15 @@
     "@types/js-yaml": "^3.12.5",
     "@types/mustache": "^4.0.1",
     "@types/node": "^14.0.23",
+    "@typescript-eslint/eslint-plugin": "^3.9.1",
+    "@typescript-eslint/parser": "^3.9.1",
     "@zeit/ncc": "^0.22.3",
+    "eslint": "^7.7.0",
+    "eslint-config-prettier": "^6.11.0",
+    "husky": "^4.2.5",
     "jest": "^26.1.0",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.0.5",
     "ts-jest": "^26.1.3",
     "typescript": "^3.9.6"
   }

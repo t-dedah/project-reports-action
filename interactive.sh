@@ -11,7 +11,7 @@ export INPUT_CONFIGPATH=${1:-samples/sample.yaml}
 echo "Running ${INPUT_CONFIGPATH}"
 
 [ -n "${GHPAT}" ] || { 
-    echo "set GHPAT envvar" && exit 
+    echo "set GHPAT envvar" && exit  1
 }
 
 export GITHUB_WORKSPACE="${SCRIPT_DIR}"

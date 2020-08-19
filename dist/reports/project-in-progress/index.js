@@ -75,15 +75,18 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = exports.reportType = void 0;
 const project_reports_lib_1 = __webpack_require__(369);
 const rptLib = __importStar(__webpack_require__(369));
-const tablemark = __webpack_require__(611);
+const tablemark_1 = __importDefault(__webpack_require__(611));
 const os = __importStar(__webpack_require__(87));
-const moment = __webpack_require__(431);
-let now = moment();
-let clone = __webpack_require__(97);
+const moment_1 = __importDefault(__webpack_require__(431));
+const clone_1 = __importDefault(__webpack_require__(97));
+let now = moment_1.default();
 const reportType = 'project';
 exports.reportType = reportType;
 /*
@@ -152,8 +155,8 @@ function process(config, issueList, drillIn) {
         return progressData;
     }
     console.log(`Getting cards for ${progressData.cardType}`);
-    let cardsForType = progressData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
-    let previousMoment = moment().day(config['status-day']).subtract(config['previous-days-ago'], 'days').utc().hour(config['previous-hour-utc']);
+    let cardsForType = progressData.cardType === '*' ? clone_1.default(cards) : clone_1.default(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
+    let previousMoment = moment_1.default().day(config['status-day']).subtract(config['previous-days-ago'], 'days').utc().hour(config['previous-hour-utc']);
     console.log(`Previous status moment: ${previousMoment}`);
     // add status to each card from the status label
     cardsForType.map((card) => {
@@ -174,7 +177,7 @@ function process(config, issueList, drillIn) {
         card.previousStatus = statusLevels[previousStatus] ? previousStatus : "";
         card.hoursInProgress = -1;
         if (card.project_in_progress_at) {
-            let then = moment(card.project_in_progress_at);
+            let then = moment_1.default(card.project_in_progress_at);
             card.hoursInProgress = now.diff(then, 'hours', true);
             card.inProgressSince = now.to(then);
         }
@@ -229,7 +232,7 @@ function renderMarkdown(targets, processedData) {
     }
     let table;
     if (rows && rows.length > 0) {
-        table = tablemark(rows);
+        table = tablemark_1.default(rows);
     }
     else {
         table = `No ${progressData.cardType}s found.`;
@@ -670,11 +673,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
-const clone = __webpack_require__(97);
-const moment = __webpack_require__(431);
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(431));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
 function repoPropsFromUrl(htmlUrl) {
@@ -847,8 +853,8 @@ class IssueList {
         if (!issue) {
             return issue;
         }
-        issue = clone(issue);
-        let momentAgo = moment(datetime);
+        issue = clone_1.default(issue);
+        let momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
         delete issue.project_added_at;
@@ -863,7 +869,7 @@ class IssueList {
         let labelMap = {};
         if (issue.events) {
             for (let event of issue.events) {
-                if (moment(event.created_at).isAfter(momentAgo)) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
                     continue;
                 }
                 filteredEvents.push(event);
@@ -889,7 +895,7 @@ class IssueList {
         // comments
         let filteredComments = [];
         for (let comment of issue.comments) {
-            if (moment(comment.created_at).isAfter(momentAgo)) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
                 continue;
             }
             filteredComments.push(comment);

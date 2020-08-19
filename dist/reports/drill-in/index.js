@@ -82,7 +82,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = void 0;
-//const tablemark = require('tablemark')
 const os = __importStar(__webpack_require__(87));
 function renderMarkdown(heading, cards) {
     let lines = [];

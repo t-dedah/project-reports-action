@@ -303,7 +303,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.wrap = void 0;
-let HttpsProxyAgent = __webpack_require__(338);
+const https_proxy_agent_1 = __webpack_require__(338);
 var store_1 = __webpack_require__(409);
 Object.defineProperty(exports, "FileSystemStore", { enumerable: true, get: function () { return store_1.FileSystemStore; } });
 function wrap(store) {
@@ -313,7 +313,7 @@ function wrap(store) {
             return request;
         }
         if (process.env['https_proxy']) {
-            options.request = { agent: new HttpsProxyAgent(process.env['https_proxy']) };
+            options.request = { agent: new https_proxy_agent_1.HttpsProxyAgent(process.env['https_proxy']) };
         }
         //
         // check whether in cache. if so, return the etag
@@ -943,7 +943,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = void 0;
-//const tablemark = require('tablemark')
 const os = __importStar(__webpack_require__(87));
 function renderMarkdown(heading, cards) {
     let lines = [];
@@ -6131,6 +6130,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generate = void 0;
 const path = __importStar(__webpack_require__(622));
@@ -6143,9 +6145,9 @@ const os = __importStar(__webpack_require__(87));
 const mustache = __importStar(__webpack_require__(174));
 const drillInRpt = __importStar(__webpack_require__(67));
 const crawler_1 = __webpack_require__(750);
-const moment = __webpack_require__(482);
-let sanitize = __webpack_require__(834);
-let clone = __webpack_require__(97);
+const moment_1 = __importDefault(__webpack_require__(482));
+const sanitize_filename_1 = __importDefault(__webpack_require__(834));
+const clone_1 = __importDefault(__webpack_require__(97));
 const project_reports_lib_1 = __webpack_require__(369);
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -6176,9 +6178,9 @@ function generate(token, configYaml) {
         for (const report of config.reports) {
             report.timezoneOffset = report.timezoneOffset || -8;
             report.details = {
-                time: moment().utcOffset(report.timezoneOffset).format("dddd, MMMM Do YYYY, h:mm:ss a")
+                time: moment_1.default().utcOffset(report.timezoneOffset).format("dddd, MMMM Do YYYY, h:mm:ss a")
             };
-            report.details.rootPath = path.join(snapshot.rootPath, sanitize(report.name));
+            report.details.rootPath = path.join(snapshot.rootPath, sanitize_filename_1.default(report.name));
             report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString);
             report.details.dataPath = path.join(report.details.fullPath, 'data');
             report.title = mustache.render(report.title, {
@@ -6286,7 +6288,7 @@ function generate(token, configYaml) {
                         cards: cards
                     });
                 };
-                let processed = reportGenerator.process(config, clone(set), drillInCb);
+                let processed = reportGenerator.process(config, clone_1.default(set), drillInCb);
                 yield writeSectionData(report, reportModule, config, processed);
                 report.kind = report.kind || 'markdown';
                 if (report.kind === 'markdown') {
@@ -6300,7 +6302,7 @@ function generate(token, configYaml) {
                 for (let drillIn of drillIns) {
                     let drillInReport;
                     if (report.kind === 'markdown') {
-                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards));
+                        drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone_1.default(drillIn.cards));
                     }
                     else {
                         throw new Error(`Report kind ${report.kind} not supported`);
@@ -6373,7 +6375,7 @@ function createReportPath(report) {
 function writeSectionData(report, name, settings, processed) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(`Writing section data for ${name}...`);
-        const sectionPath = path.join(report.details.fullPath, "data", sanitize(name));
+        const sectionPath = path.join(report.details.fullPath, "data", sanitize_filename_1.default(name));
         util.mkdirP(sectionPath);
         fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
         fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
@@ -6386,7 +6388,7 @@ function writeReport(report, targetData, contents) {
         fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
         for (let target in targetData) {
             let urlPath = url.parse(target).path.split("/").join("_");
-            fs.writeFileSync(path.join(report.details.dataPath, `target-${sanitize(urlPath)}.json`), JSON.stringify(targetData[target], null, 2));
+            fs.writeFileSync(path.join(report.details.dataPath, `target-${sanitize_filename_1.default(urlPath)}.json`), JSON.stringify(targetData[target], null, 2));
         }
     });
 }
@@ -6580,11 +6582,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const url = __importStar(__webpack_require__(835));
-const clone = __webpack_require__(97);
-const moment = __webpack_require__(482);
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(482));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(714), exports);
 function repoPropsFromUrl(htmlUrl) {
@@ -6757,8 +6762,8 @@ class IssueList {
         if (!issue) {
             return issue;
         }
-        issue = clone(issue);
-        let momentAgo = moment(datetime);
+        issue = clone_1.default(issue);
+        let momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
         delete issue.project_added_at;
@@ -6773,7 +6778,7 @@ class IssueList {
         let labelMap = {};
         if (issue.events) {
             for (let event of issue.events) {
-                if (moment(event.created_at).isAfter(momentAgo)) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
                     continue;
                 }
                 filteredEvents.push(event);
@@ -6799,7 +6804,7 @@ class IssueList {
         // comments
         let filteredComments = [];
         for (let comment of issue.comments) {
-            if (moment(comment.created_at).isAfter(momentAgo)) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
                 continue;
             }
             filteredComments.push(comment);
@@ -22283,7 +22288,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GitHubClient = void 0;
-const { Octokit } = __webpack_require__(889);
+const rest_1 = __webpack_require__(889);
 const url = __importStar(__webpack_require__(835));
 const restCache = __importStar(__webpack_require__(28));
 const project_reports_lib_1 = __webpack_require__(369);
@@ -22292,7 +22297,7 @@ function DateOrNull(date) {
 }
 class GitHubClient {
     constructor(token, cacheDir) {
-        this.octokit = new Octokit({
+        this.octokit = new rest_1.Octokit({
             auth: token,
             previews: [
                 'squirrel-girl-preview',
