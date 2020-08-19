@@ -1,5 +1,3 @@
-!dist/**/*.js
-!jest.config.js
 node_modules/
 _cache
 # interactive running
