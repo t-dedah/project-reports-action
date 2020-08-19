@@ -19,7 +19,7 @@ export {reportType};
  */
 export function getDefaultConfiguration(): any {
     return <any>{
-        "report-on-label": 'Epic',
+        "report-on-label": 'Feature',
         "daysAgo": 7
     };
 }

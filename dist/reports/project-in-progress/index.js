@@ -95,7 +95,7 @@ function getDefaultConfiguration() {
     return {
         // Takes a single type since settings like daysAgo might be different by type.
         // Can add multiple sections on report if you want more
-        "report-on-label": 'Epic',
+        "report-on-label": 'Feature',
         // TODO: implement getting a shapshot of data n days ago
         "daysAgo": 7,
         "status-label-match": "(?:green|yellow|red)",
@@ -715,7 +715,7 @@ exports.getCountFromLabel = getCountFromLabel;
 function getStringFromLabel(card, re) {
     let str = '';
     for (let label of card.labels) {
-        let matches = label.name.match(re);
+        let matches = label.name.trim().match(re);
         if (matches && matches.length > 0) {
             str = matches[0];
             if (str) {

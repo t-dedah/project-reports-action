@@ -40,7 +40,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(878);
+/******/ 		return __webpack_require__(94);
 /******/ 	};
 /******/ 	// initialize runtime
 /******/ 	runtime(__webpack_require__);
@@ -55,6 +55,188 @@ module.exports =
 /***/ (function(module) {
 
 module.exports = require("os");
+
+/***/ }),
+
+/***/ 94:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
+const project_reports_lib_1 = __webpack_require__(369);
+const rptLib = __importStar(__webpack_require__(369));
+const tablemark = __webpack_require__(611);
+const os = __importStar(__webpack_require__(87));
+const moment = __webpack_require__(431);
+let now = moment();
+let clone = __webpack_require__(97);
+const reportType = 'project';
+exports.reportType = reportType;
+/*
+ * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
+ * how focused the team is (e.g. how many efforts are going on)
+ * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
+ */
+function getDefaultConfiguration() {
+    return {
+        "report-on-label": "feature",
+        "group-by-label-prefix": "> ",
+        "target-date-scheme": "LastCommentField",
+        "target-date-scheme-data": "Target Date",
+        "flag-in-progress-days": 21,
+        "wip-limit": 2,
+        "status-label-match": "(?:green|yellow|red)",
+    };
+}
+exports.getDefaultConfiguration = getDefaultConfiguration;
+function drillInName(name, column) {
+    return `${name}-${column}`;
+}
+function getBreakdown(config, name, issues, drillIn) {
+    let groupByData = {};
+    let stageData = rptLib.getProjectStageIssues(issues);
+    groupByData.stages = {};
+    groupByData.stages.proposed = stageData[project_reports_lib_1.ProjectStages.Proposed] || [];
+    drillIn(drillInName(name, "proposed"), `${name} proposed`, groupByData.stages.proposed);
+    groupByData.stages.accepted = stageData[project_reports_lib_1.ProjectStages.Accepted] || [];
+    drillIn(drillInName(name, "accepted"), `${name} accepted`, groupByData.stages.accepted);
+    groupByData.stages.inProgress = stageData[project_reports_lib_1.ProjectStages.InProgress] || [];
+    drillIn(drillInName(name, "in-progress"), `${name} in progress`, groupByData.stages.inProgress);
+    groupByData.stages.done = stageData[project_reports_lib_1.ProjectStages.Done] || [];
+    drillIn(drillInName(name, "done"), `${name} done`, groupByData.stages.done);
+    groupByData.flagged = {};
+    let exceeded = issues.filter(issue => issue.project_in_progress_at &&
+        moment().diff(moment(issue.project_in_progress_at), 'days') > config["flag-in-progress-days"]);
+    let statusRegEx = new RegExp(config["status-label-match"]);
+    groupByData.flagged.red = issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'red') || [];
+    drillIn(drillInName(name, "red"), `${name} with a status red`, groupByData.flagged.red);
+    groupByData.flagged.yellow = issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'yellow') || [];
+    drillIn(drillInName(name, "yellow"), `${name} with a status yellow`, groupByData.flagged.yellow);
+    groupByData.flagged.inProgressDuration = exceeded;
+    drillIn(drillInName(name, "duration"), `${name} > ${config["flag-in-progress-days"]} in progress duration`, groupByData.flagged.inProgressDuration);
+    groupByData.flagged.noTarget = [];
+    drillIn(drillInName(name, "no-target"), `${name} with no target date`, groupByData.flagged.red);
+    groupByData.flagged.pastTarget = [];
+    drillIn(drillInName(name, "past-target"), `${name} past the target date`, groupByData.flagged.red);
+    return groupByData;
+}
+function process(config, issueList, drillIn) {
+    console.log("> project-group-by::process");
+    let groupData = {};
+    groupData.durationDays = config["flag-in-progress-days"];
+    groupData.wipLimit = config["wip-limit"];
+    groupData.groups = {};
+    let issues = issueList.getItems();
+    let label = config["report-on-label"];
+    if (!label) {
+        throw new Error("report-on-label is required");
+    }
+    console.log(`Getting issues for ${label}`);
+    let issuesForLabel = label === '*' ? clone(issues) : clone(rptLib.filterByLabel(issues, label.trim().toLowerCase()));
+    // get distinct group by labels
+    let prefix = config["group-by-label-prefix"];
+    if (!prefix) {
+        throw new Error("group-by-label-prefix is required");
+    }
+    let pattern = `(?<=${prefix}).*`;
+    let regex = new RegExp(pattern);
+    let groupByLabels = [];
+    for (let issue of issuesForLabel) {
+        let labelValue = (rptLib.getStringFromLabel(issue, regex) || "").trim();
+        if (labelValue && groupByLabels.indexOf(labelValue) === -1) {
+            groupByLabels.push(labelValue);
+        }
+    }
+    console.log(`labels: ${JSON.stringify(groupByLabels)}`);
+    groupData.total = getBreakdown(config, "Total", issuesForLabel, drillIn);
+    for (let group of groupByLabels) {
+        let issuesForGroup = rptLib.filterByLabel(issuesForLabel, `${prefix}${group}`);
+        console.log(`${group} ${issuesForGroup.length}`);
+        groupData.groups[group] = getBreakdown(config, group, issuesForGroup, drillIn);
+    }
+    console.log(JSON.stringify(groupData, null, 2));
+    return groupData;
+}
+exports.process = process;
+function getFlagContents(count, limit) {
+    return count <= limit ? "" : `${count} :triangular_flag_on_post:`;
+}
+function getLimitContents(count, limit) {
+    return `${count} ${count > limit ? ":triangular_flag_on_post:" : ""}`;
+}
+function getRow(name, days, wips, data, lines) {
+    let breakdownRow = {};
+    breakdownRow.name = `**${name}**`;
+    breakdownRow.proposed = `[${data.stages.proposed.length}](./${drillInName(name, "proposed")}.md)`;
+    breakdownRow.accepted = `[${data.stages.accepted.length}](./${drillInName(name, "accepted")}.md)`;
+    breakdownRow.inProgress = `[${getLimitContents(data.stages.inProgress.length, wips)}](./${drillInName(name, "in-progress")}.md)`;
+    breakdownRow.done = `[${data.stages.done.length.toString()}](./${drillInName(name, "done")}.md)`;
+    breakdownRow.spacer = "";
+    breakdownRow.yellow = `[${getFlagContents(data.flagged.yellow.length, 0)}](./${drillInName(name, "yellow")}.md)`;
+    breakdownRow.red = `[${getFlagContents(data.flagged.red.length, 0)}](./${drillInName(name, "red")}.md)`;
+    breakdownRow.inProgressDuration = `[${getFlagContents(data.flagged.inProgressDuration.length, 0)}](./${drillInName(name, "duration")}.md)`;
+    breakdownRow.noTarget = `[${getFlagContents(data.flagged.noTarget.length, 0)}](./${drillInName(name, "no-target")}.md)`;
+    breakdownRow.pastTarget = `[${getFlagContents(data.flagged.pastTarget.length, 0)}](./${drillInName(name, "past-target")}.md)`;
+    return breakdownRow;
+}
+function renderMarkdown(targets, processedData) {
+    console.log("> project-groupby-status::renderMarkdown");
+    let lines = [];
+    lines.push("## :rocket: Execution  ");
+    let groupBy = processedData;
+    let rows = [];
+    rows.push(getRow("Total", groupBy.durationDays, groupBy.wipLimit, groupBy.total, lines));
+    lines.push('&nbsp;  ');
+    for (let group in groupBy.groups) {
+        rows.push(getRow(group, groupBy.durationDays, groupBy.wipLimit, groupBy.groups[group], lines));
+    }
+    lines.push(tablemark(rows, {
+        columns: [
+            "...",
+            { name: ':new:', align: 'center' },
+            { name: ':white_check_mark:', align: 'center' },
+            { name: `:hourglass_flowing_sand: <sub><sup>(${groupBy.wipLimit})</sup></sub>`, align: 'center' },
+            { name: ':checkered_flag:', align: 'center' },
+            "...",
+            { name: ':yellow_heart:', align: 'center' },
+            { name: ':heart:', align: 'center' },
+            { name: `:calendar: <sub><sup>(>${groupBy.durationDays} days)</sup></sub>`, align: 'center' },
+            { name: ':man_shrugging: <sub><sup>Target Date</sup></sub>', align: 'center' },
+            { name: ':alarm_clock: <sub><sup>Target Date</sup></sub>', align: 'center' },
+        ]
+    }));
+    lines.push("<sub><sup>:new: Proposed => :white_check_mark: Accepted => :hourglass_flowing_sand: In-Progress => :checkered_flag: Done</sup></sub>");
+    lines.push('&nbsp;  ');
+    return lines.join(os.EOL);
+}
+exports.renderMarkdown = renderMarkdown;
+function renderHtml() {
+    // Not supported yet
+    return "";
+}
+exports.renderHtml = renderHtml;
+
 
 /***/ }),
 
@@ -6876,114 +7058,6 @@ module.exports = /([a-z\xB5\xDF-\xF6\xF8-\xFF\u0101\u0103\u0105\u0107\u0109\u010
 /***/ (function(module) {
 
 module.exports = require("url");
-
-/***/ }),
-
-/***/ 878:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
-const rptLib = __importStar(__webpack_require__(369));
-const tablemark = __webpack_require__(611);
-const os = __importStar(__webpack_require__(87));
-let clone = __webpack_require__(97);
-const reportType = 'project';
-exports.reportType = reportType;
-/*
- * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
- * how focused the team is (e.g. how many efforts are going on)
- * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
- */
-function getDefaultConfiguration() {
-    return {
-        // Epic for now.  Supports others. 
-        // Will appear on report in this casing but matches labels with lowercase version.
-        "report-on-label": 'Feature',
-        "proposed-limit": 0,
-        "accepted-limit": 0,
-        "in-progress-limit": 4,
-        "done-limit": -1
-    };
-}
-exports.getDefaultConfiguration = getDefaultConfiguration;
-function getDrillName(cardType, stage) {
-    return `limits-${cardType}-${stage}`.split(" ").join("-");
-}
-function process(config, issueList, drillIn) {
-    let limitsData = {};
-    limitsData.data = {};
-    // epic, etc..
-    limitsData.cardType = config["report-on-label"];
-    let issues = issueList.getItems();
-    let projData = rptLib.getProjectStageIssues(issues);
-    // proposed, in-progress, etc...
-    for (let stage in projData) {
-        let stageData = {};
-        let cards = projData[stage];
-        let cardsForType = limitsData.cardType === '*' ? clone(cards) : clone(rptLib.filterByLabel(cards, limitsData.cardType.toLowerCase()));
-        stageData.items = cardsForType;
-        drillIn(getDrillName(limitsData.cardType, stage), `Issues for ${stage} ${limitsData.cardType}s`, cardsForType);
-        let limitKey = `${stage.toLocaleLowerCase()}-limit`;
-        stageData.limit = config[limitKey] || 0;
-        stageData.flag = stageData.limit > -1 && cardsForType.length > stageData.limit;
-        limitsData.data[stage] = stageData;
-    }
-    return limitsData;
-}
-exports.process = process;
-function renderMarkdown(targets, processedData) {
-    console.log(`Rendering for ${targets.length} targets`);
-    let stageData = processedData;
-    let lines = [];
-    // create a report for each type.  e.g. "Epic"
-    let typeLabel = stageData.cardType === '*' ? "" : stageData.cardType;
-    lines.push(`## :ship: ${typeLabel} Limits  `);
-    let rows = [];
-    for (let stageName in stageData.data) {
-        let stage = stageData.data[stageName];
-        let stageRow = {};
-        stageRow.stage = stageName;
-        // data folder is part of the contract here.  make a lib function to create this path
-        stageRow.count = `[${stage.items.length}](./${getDrillName(stageData.cardType, stageName)}.md)`;
-        if (stage.flag) {
-            stageRow.count += "  :triangular_flag_on_post:";
-        }
-        stageRow.limit = stage.limit >= 0 ? stage.limit.toString() : "";
-        rows.push(stageRow);
-    }
-    let table = tablemark(rows);
-    lines.push(table);
-    return lines.join(os.EOL);
-}
-exports.renderMarkdown = renderMarkdown;
-function renderHtml() {
-    // Not supported yet
-    return "";
-}
-exports.renderHtml = renderHtml;
-
 
 /***/ })
 

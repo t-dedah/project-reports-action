@@ -6625,7 +6625,7 @@ exports.getCountFromLabel = getCountFromLabel;
 function getStringFromLabel(card, re) {
     let str = '';
     for (let label of card.labels) {
-        let matches = label.name.match(re);
+        let matches = label.name.trim().match(re);
         if (matches && matches.length > 0) {
             str = matches[0];
             if (str) {
@@ -20074,15 +20074,11 @@ class ProjectCrawler {
         return __awaiter(this, void 0, void 0, function* () {
             console.log(`Crawling project ${target.htmlUrl} ...`);
             let issues = [];
-            // let columns: { [key: string]: number } = {};
             let projectData = yield this.github.getProject(target.htmlUrl);
             if (!projectData) {
                 throw new Error(`Could not find project ${target.htmlUrl}`);
             }
             let columns = yield this.github.getColumnsForProject(projectData);
-            // cols.forEach((col) => {
-            //     columns[col.name] = col.id;
-            // })
             let mappedColumns = [];
             for (const stageName in target.columnMap) {
                 let colNames = target.columnMap[stageName];

@@ -8,6 +8,7 @@ reports:
     title: "My Project Report"
     targets: ['sampleProject']
     sections:
+      - name: "project-groupby-status"
       - name: "project-limits"
       - name: "project-in-progress"
       - name: "project-done"

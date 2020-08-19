@@ -52,7 +52,7 @@ export function getStringFromLabel(card: ProjectIssue, re: RegExp): string {
     let str = '';
 
     for (let label of card.labels) {
-        let matches = label.name.match(re);
+        let matches = label.name.trim().match(re);
         if (matches && matches.length > 0) {
              str = matches[0];
              if (str) {
