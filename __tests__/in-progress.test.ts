@@ -1,8 +1,7 @@
-import {ProjectIssue, IssueList} from '../project-reports-lib'
+import {IssueList, ProjectIssue} from '../project-reports-lib'
 import * as inProgress from '../reports/project-in-progress'
-import {ProgressData, IssueCardEx} from '../reports/project-in-progress'
-
-const projectData: ProjectIssue[] = require('./project-data.test.json')
+import {IssueCardEx, ProgressData} from '../reports/project-in-progress'
+import projectData from './project-data.test.json'
 
 const config: any = {
   'report-on': 'Epic',
@@ -19,12 +18,6 @@ const config: any = {
 }
 
 describe('project-in-progress', () => {
-  beforeEach(() => {})
-
-  afterEach(() => {})
-
-  afterAll(async () => {}, 100000)
-
   // make sure the mocked data set is loaded and valid
   it('imports a valid projectData from file', async () => {
     expect(projectData).toBeDefined()

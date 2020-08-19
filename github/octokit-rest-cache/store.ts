@@ -1,7 +1,7 @@
+import {promises as fs} from 'fs'
 import * as mustache from 'mustache'
 import * as path from 'path'
 import * as url from 'url'
-import {promises as fs} from 'fs'
 
 export interface IStore {
   // check in cache, if so, return etag
@@ -18,19 +18,19 @@ export class FileSystemStore implements IStore {
   }
 
   private getUrlPath(options): string {
-    let pathPart = url.parse(options.url).path
-    let urlFormat = pathPart
+    const pathPart = url.parse(options.url).path
+    const urlFormat = pathPart
       .replace(new RegExp('{', 'g'), '{{{')
       .replace(new RegExp('}', 'g'), '}}}')
-    let urlPath = mustache.render(urlFormat, options)
+    const urlPath = mustache.render(urlFormat, options)
 
     return urlPath
   }
 
   public async check(options): Promise<string> {
-    let urlPath = this.getUrlPath(options)
-    let cachePath = path.join(this._path, urlPath)
-    let etagPath = path.join(cachePath, 'etag')
+    const urlPath = this.getUrlPath(options)
+    const cachePath = path.join(this._path, urlPath)
+    const etagPath = path.join(cachePath, 'etag')
     process.stdout.write(urlPath)
 
     let exists = true
@@ -50,9 +50,9 @@ export class FileSystemStore implements IStore {
   }
 
   public async read(response, options): Promise<any> {
-    let urlPath = this.getUrlPath(options)
-    let cachePath = path.join(this._path, urlPath)
-    let contents = (
+    const urlPath = this.getUrlPath(options)
+    const cachePath = path.join(this._path, urlPath)
+    const contents = (
       await fs.readFile(path.join(cachePath, 'res.json'))
     ).toString()
 
@@ -60,8 +60,8 @@ export class FileSystemStore implements IStore {
   }
 
   public async write(response, options): Promise<void> {
-    let urlPath = this.getUrlPath(options)
-    let cachePath = path.join(this._path, urlPath)
+    const urlPath = this.getUrlPath(options)
+    const cachePath = path.join(this._path, urlPath)
 
     await fs.mkdir(cachePath, {recursive: true})
     await fs.writeFile(

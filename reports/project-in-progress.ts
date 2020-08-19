@@ -1,15 +1,15 @@
-import {CrawlingTarget} from '../interfaces'
-import {
-  ProjectIssue,
-  IssueList,
-  ProjectStages,
-  ProjectStageIssues
-} from '../project-reports-lib'
-import * as rptLib from '../project-reports-lib'
-import tablemark from 'tablemark'
-import * as os from 'os'
-import moment from 'moment'
 import clone from 'clone'
+import moment from 'moment'
+import * as os from 'os'
+import tablemark from 'tablemark'
+import {CrawlingTarget} from '../interfaces'
+import * as rptLib from '../project-reports-lib'
+import {
+  IssueList,
+  ProjectIssue,
+  ProjectStageIssues,
+  ProjectStages
+} from '../project-reports-lib'
 
 const now = moment()
 

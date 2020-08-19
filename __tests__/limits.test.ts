@@ -1,8 +1,7 @@
-import {ProjectIssue, IssueList} from '../project-reports-lib'
+import {IssueList, ProjectIssue} from '../project-reports-lib'
 import * as limits from '../reports/project-limits'
 import {LimitsData} from '../reports/project-limits'
-
-const projectData: ProjectIssue[] = require('./project-data.test.json')
+import projectData from './project-data.test.json'
 
 const config: any = {
   'report-on-label': 'Epic',
@@ -14,12 +13,6 @@ const config: any = {
 }
 
 describe('report-lib', () => {
-  beforeEach(() => {})
-
-  afterEach(() => {})
-
-  afterAll(async () => {}, 100000)
-
   // make sure the mocked data set is loaded and valid
   it('imports a valid projectData from file', async () => {
     expect(projectData).toBeDefined()

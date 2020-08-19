@@ -1,9 +1,6 @@
 import * as rptLib from '../project-reports-lib'
-
 import {IssueList, ProjectIssue} from '../project-reports-lib'
-import {hasUncaughtExceptionCaptureCallback} from 'process'
-
-const projectData: ProjectIssue[] = require('./project-data.test.json')
+import projectData from './project-data.test.json'
 
 const testCards: ProjectIssue[] = [
   <ProjectIssue>{
@@ -29,12 +26,6 @@ const testCards: ProjectIssue[] = [
 ]
 
 describe('report-lib', () => {
-  beforeEach(() => {})
-
-  afterEach(() => {})
-
-  afterAll(async () => {}, 100000)
-
   it('fuzzy matches column names', async () => {
     // fuzzy match
     //                        are in this <== all these "words"
@@ -150,7 +141,11 @@ describe('report-lib', () => {
   })
 
   it('gets last comment updated_at value from dataFromCard', async () => {
-    const d = rptLib.dataFromCard(card, 'LastCommentPattern', '^(#){1,4} update')
+    const d = rptLib.dataFromCard(
+      card,
+      'LastCommentPattern',
+      '^(#){1,4} update'
+    )
     expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z')
   })
 

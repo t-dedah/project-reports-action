@@ -1,13 +1,13 @@
+import clone from 'clone'
+import * as os from 'os'
+import tablemark from 'tablemark'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
 import {
-  ProjectIssue,
   IssueList,
+  ProjectIssue,
   ProjectStageIssues
 } from '../project-reports-lib'
-import tablemark from 'tablemark'
-import * as os from 'os'
-import clone from 'clone'
 
 const reportType = 'project'
 export {reportType}

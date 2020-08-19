@@ -1,9 +1,9 @@
-import {ProjectData} from '../interfaces'
-import {ProjectIssue, IssueList} from '../project-reports-lib'
-import * as rptLib from '../project-reports-lib'
-import tablemark from 'tablemark'
-import * as os from 'os'
 import moment from 'moment'
+import * as os from 'os'
+import tablemark from 'tablemark'
+import {ProjectData} from '../interfaces'
+import * as rptLib from '../project-reports-lib'
+import {IssueList, ProjectIssue} from '../project-reports-lib'
 
 const reportType = 'project'
 export {reportType}
@@ -46,7 +46,9 @@ export function process(
   config = Object.assign({}, getDefaultConfiguration(), config)
 
   const issues = issueList.getItems()
-  const projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(issues)
+  const projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(
+    issues
+  )
   for (const cardType of config['report-on-label']) {
     const stageData = <CycleTimeStageData>{}
     const cards = projData['Done']

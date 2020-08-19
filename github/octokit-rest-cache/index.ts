@@ -1,6 +1,6 @@
 import {HttpsProxyAgent} from 'https-proxy-agent'
-
 import {IStore} from './store'
+
 export {FileSystemStore} from './store'
 
 export function wrap(store: IStore) {
@@ -17,7 +17,7 @@ export function wrap(store: IStore) {
     //
     // check whether in cache. if so, return the etag
     //
-    let etag = await store.check(options)
+    const etag = await store.check(options)
 
     if (etag) {
       options.headers['If-None-Match'] = etag

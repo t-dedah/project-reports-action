@@ -1,5 +1,5 @@
-import {ProjectIssue} from '../project-reports-lib'
 import * as os from 'os'
+import {ProjectIssue} from '../project-reports-lib'
 
 export function renderMarkdown(heading: string, cards: ProjectIssue[]): string {
   const lines: string[] = []

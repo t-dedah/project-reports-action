@@ -1,9 +1,9 @@
-import {CrawlingTarget, CrawlingConfig} from '../interfaces'
-import {IssueList, ProjectIssue} from '../project-reports-lib'
-import * as rptLib from '../project-reports-lib'
-import tablemark from 'tablemark'
-import * as os from 'os'
 import clone from 'clone'
+import * as os from 'os'
+import tablemark from 'tablemark'
+import {CrawlingTarget} from '../interfaces'
+import * as rptLib from '../project-reports-lib'
+import {IssueList, ProjectIssue} from '../project-reports-lib'
 
 const reportType = 'repo'
 export {reportType}

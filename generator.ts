@@ -1,28 +1,26 @@
-import * as path from 'path'
+import clone from 'clone'
 import * as fs from 'fs'
-import * as util from './util'
 import * as yaml from 'js-yaml'
-import * as url from 'url'
+import moment from 'moment'
+import * as mustache from 'mustache'
 // import {GitHubClient} from './github'
 import * as os from 'os'
-import * as mustache from 'mustache'
-import * as drillInRpt from './reports/drill-in'
-import {Crawler} from './crawler'
-import * as lib from './project-reports-lib'
-import moment from 'moment'
+import * as path from 'path'
 import sanitize from 'sanitize-filename'
-import clone from 'clone'
-
-import {IssueList, ProjectIssue} from './project-reports-lib'
+import * as url from 'url'
+import {Crawler} from './crawler'
 import {
   CrawlingConfig,
   CrawlingTarget,
   GeneratorConfiguration,
-  ReportSnapshot,
-  ReportConfig,
   ProjectReportBuilder,
-  ReportDetails
+  ReportConfig,
+  ReportDetails,
+  ReportSnapshot
 } from './interfaces'
+import {IssueList, ProjectIssue} from './project-reports-lib'
+import * as drillInRpt from './reports/drill-in'
+import * as util from './util'
 
 export async function generate(
   token: string,
@@ -183,6 +181,7 @@ export async function generate(
         throw new Error(`Report not found: ${reportSection.name}`)
       }
 
+      /* eslint-disable-next-line @typescript-eslint/no-var-requires */
       const reportGenerator = require(reportModulePath) as ProjectReportBuilder
 
       // overlay user settings over default settings

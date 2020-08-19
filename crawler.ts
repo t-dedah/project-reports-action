@@ -1,13 +1,13 @@
-import {GitHubClient} from './github'
-import {
-  IssueList,
-  ProjectIssue,
-  IssueEvent,
-  ProjectColumn,
-  fuzzyMatch
-} from './project-reports-lib'
-import {CrawlingTarget} from './interfaces'
 import {URL} from 'url'
+import {GitHubClient} from './github'
+import {CrawlingTarget} from './interfaces'
+import {
+  fuzzyMatch,
+  IssueEvent,
+  IssueList,
+  ProjectColumn,
+  ProjectIssue
+} from './project-reports-lib'
 
 export class Crawler {
   // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
@@ -152,7 +152,10 @@ class ProjectCrawler {
         // cached since real column could be mapped to two different mapped columns
         // read and build the event list once
 
-        const issueCard = await this.github.getIssueForCard(card, projectData.id)
+        const issueCard = await this.github.getIssueForCard(
+          card,
+          projectData.id
+        )
         if (issueCard) {
           this.processCard(issueCard, projectData.id, target, eventCallback)
           issues.push(issueCard)
