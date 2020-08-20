@@ -170,6 +170,7 @@ function process(config, issueList, drillIn) {
         const labels = card.labels.map(label => label.name);
         const lastUpdatedDate = rptLib.dataFromCard(card, config['last-updated-scheme'], config['last-updated-scheme-data']);
         console.log(`last updated: ${lastUpdatedDate}`);
+        card.lastUpdatedAt = lastUpdatedDate;
         card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : '';
         console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`);
         const daysSinceUpdate = lastUpdatedDate
