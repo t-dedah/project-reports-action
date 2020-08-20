@@ -192,6 +192,237 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 13:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.GitHubClient = void 0;
+const rest_1 = __webpack_require__(889);
+const url = __importStar(__webpack_require__(835));
+const project_reports_lib_1 = __webpack_require__(189);
+const restCache = __importStar(__webpack_require__(648));
+function DateOrNull(date) {
+    return date ? new Date(date) : null;
+}
+class GitHubClient {
+    constructor(token, cacheDir) {
+        this.octokit = new rest_1.Octokit({
+            auth: token,
+            previews: [
+                'squirrel-girl-preview',
+                'inertia-preview',
+                'starfox-preview',
+                'mockingbird-preview',
+                'sailor-v-preview'
+            ]
+        });
+        const diskCache = new restCache.FileSystemStore(cacheDir);
+        this.octokit.hook.wrap('request', restCache.wrap(diskCache));
+    }
+    getProject(projectHtmlUrl) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Finding project for ${projectHtmlUrl}`);
+            let proj = null;
+            const projUrl = new url.URL(projectHtmlUrl);
+            const projParts = projUrl.pathname.split('/').filter(e => e);
+            if (projParts.length !== 4) {
+                throw new Error(`Invalid project url: ${projectHtmlUrl}`);
+            }
+            const projKind = projParts[0]; // orgs or users
+            const projOwner = projParts[1]; // orgname or username
+            // let projId = projParts[3];    // html id
+            let count = 0;
+            let page = 0;
+            do {
+                ++page;
+                console.log(`page: ${page}`);
+                let res;
+                if (projKind === 'orgs') {
+                    console.log(`querying: ${projKind}, ${projOwner}`);
+                    res = yield this.octokit.projects.listForOrg({
+                        org: projOwner,
+                        state: 'open',
+                        per_page: 100,
+                        page: page
+                    });
+                }
+                else if (projKind === 'users') {
+                    console.log(`querying: ${projKind}, ${projOwner}`);
+                    res = yield this.octokit.projects.listForUser({
+                        username: projOwner,
+                        state: 'open',
+                        per_page: 100,
+                        page: page
+                    });
+                }
+                else {
+                    // if it's not an org or user project, must be a repo
+                    const owner = projParts[0];
+                    const repo = projParts[1];
+                    console.log(`querying for owner:'${owner}', repo:'${repo}'`);
+                    res = yield this.octokit.projects.listForRepo({
+                        owner: owner,
+                        repo: repo,
+                        state: 'open',
+                        per_page: 100,
+                        page: page
+                    });
+                }
+                const projects = res.data;
+                count = projects.length;
+                for (const project of projects) {
+                    if (projectHtmlUrl.indexOf(project.html_url) > -1) {
+                        proj = {
+                            id: project.id,
+                            html_url: project.html_url,
+                            name: project.name
+                        };
+                        console.log(`Found ${project.name}`);
+                        break;
+                    }
+                }
+            } while (count == 100);
+            return proj;
+        });
+    }
+    getColumnsForProject(project) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const cols = yield this.octokit.projects.listColumns({
+                project_id: project.id
+            });
+            return cols.data;
+        });
+    }
+    getCardsForColumns(colId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const cards = yield this.octokit.projects.listCards({ column_id: colId });
+            return cards.data;
+        });
+    }
+    getIssueComments(owner, repo, issue_number) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.octokit.paginate('GET /repos/:owner/:repo/issues/:id/comments', {
+                owner: owner,
+                repo: repo,
+                id: issue_number,
+                per_page: 100
+            });
+        });
+    }
+    // returns null if not an issue
+    getIssueForCard(card, projectId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!card.content_url) {
+                return null;
+            }
+            const cardUrl = new url.URL(card.content_url);
+            const cardParts = cardUrl.pathname.split('/').filter(e => e);
+            // /repos/:owner/:repo/issues/events/:event_id
+            // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
+            const owner = cardParts[1];
+            const repo = cardParts[2];
+            const issue_number = cardParts[4];
+            const issueCard = {};
+            const res = yield this.octokit.issues.get({
+                owner: owner,
+                repo: repo,
+                issue_number: issue_number,
+                per_page: 100
+            });
+            const issue = res.data;
+            issueCard.number = issue.number;
+            issueCard.title = issue.title;
+            issueCard.number = issue.number;
+            issueCard.html_url = issue.html_url;
+            issueCard.closed_at = DateOrNull(issue.closed_at);
+            issueCard.created_at = DateOrNull(issue.created_at);
+            issueCard.updated_at = DateOrNull(issue.updated_at);
+            issueCard.assignee = issue.assignee;
+            issueCard.assignees = issue.assignees;
+            issueCard.labels = issue.labels;
+            issueCard.comments = [];
+            if (issue.comments > 0) {
+                issueCard.comments = yield this.getIssueComments(owner, repo, issue_number);
+            }
+            issueCard.events = yield this.octokit.paginate('GET /repos/:owner/:repo/issues/:id/events', {
+                owner: owner,
+                repo: repo,
+                id: issue_number,
+                per_page: 100
+            });
+            return issueCard;
+        });
+    }
+    //
+    // This will get all open issues unioned with all issues changed in last n days
+    // It will sort descending by updated time
+    //
+    // This focuses on two main scenarios:
+    //   1. Slice and dice opened bugs by labels, assigned, milestone
+    //   2. Get cycle time (time opened to closed etc.)
+    //
+    // https://developer.github.com/v3/issues/#parameters-3
+    getIssuesForRepo(repoUrl, daysAgo = 7) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const set = new project_reports_lib_1.IssueList(issue => issue.number);
+            const rUrl = new url.URL(repoUrl);
+            const parts = rUrl.pathname.split('/').filter(e => e);
+            const repoProps = {
+                owner: parts[0],
+                repo: parts[1]
+            };
+            const opened = yield this.octokit.paginate('GET /repos/:owner/:repo/issues', Object.assign(Object.assign({}, repoProps), { state: 'open', per_page: 100 }), response => response.data.filter(issue => !issue.pull_request));
+            console.log(`Found ${opened.length} opened issues`);
+            set.add(opened);
+            // get Date n days ago as of mindnight (ensures cache hit if you run every 15 min)
+            const dateAgo = new Date();
+            dateAgo.setHours(0, 0, 0, 0);
+            dateAgo.setDate(dateAgo.getDate() - daysAgo);
+            console.log(`${daysAgo} days ago is ${dateAgo.toISOString()}`);
+            const recentIssues = yield this.octokit.paginate('GET /repos/:owner/:repo/issues', Object.assign(Object.assign({}, repoProps), { since: dateAgo.toUTCString(), per_page: 100 }), response => response.data.filter(issue => !issue.pull_request));
+            console.log(`Found ${recentIssues.length} issues changed in last ${daysAgo} days.`);
+            set.add(recentIssues);
+            const issues = set.getItems();
+            console.log(`Total of ${issues.length} distinct issues`);
+            return issues;
+        });
+    }
+}
+exports.GitHubClient = GitHubClient;
+
+
+/***/ }),
+
 /***/ 16:
 /***/ (function(module) {
 
@@ -284,71 +515,6 @@ module.exports = new Schema({
   ]
 });
 
-
-/***/ }),
-
-/***/ 28:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.wrap = void 0;
-const https_proxy_agent_1 = __webpack_require__(338);
-var store_1 = __webpack_require__(409);
-Object.defineProperty(exports, "FileSystemStore", { enumerable: true, get: function () { return store_1.FileSystemStore; } });
-function wrap(store) {
-    return (request, options) => __awaiter(this, void 0, void 0, function* () {
-        // only cache GET requests
-        if (options.method !== 'GET') {
-            return request;
-        }
-        if (process.env['https_proxy']) {
-            options.request = { agent: new https_proxy_agent_1.HttpsProxyAgent(process.env['https_proxy']) };
-        }
-        //
-        // check whether in cache. if so, return the etag
-        //
-        let etag = yield store.check(options);
-        if (etag) {
-            options.headers["If-None-Match"] = etag;
-        }
-        // make the request.
-        let response;
-        let fromCache = false;
-        try {
-            response = yield request(options);
-            process.stdout.write(` [${response.status}]`);
-        }
-        catch (err) {
-            if (err.status === 304 && etag) {
-                console.log(" [304, cache]");
-                response = yield store.read(request, options);
-                fromCache = true;
-            }
-            else {
-                throw err;
-            }
-        }
-        if (!fromCache) {
-            console.log(`rate : ${response.headers["x-ratelimit-remaining"]}/${response.headers["x-ratelimit-limit"]}`);
-            yield store.write(response, options);
-        }
-        return response;
-    });
-}
-exports.wrap = wrap;
-;
-//# sourceMappingURL=index.js.map
 
 /***/ }),
 
@@ -917,65 +1083,6 @@ module.exports = windowsRelease;
 
 /***/ }),
 
-/***/ 67:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.renderHtml = exports.renderMarkdown = void 0;
-const os = __importStar(__webpack_require__(87));
-function renderMarkdown(heading, cards) {
-    let lines = [];
-    lines.push(`## ${heading}`);
-    // create a report for each type.  e.g. "Epic"
-    for (let card of cards) {
-        // note: the two spaces at the end of markdown strings are intentional for markdown new lines.  don't trim :)
-        lines.push(`  `);
-        let assigneeHtml = card.assignee ? `<img height="20" width="20" alt="@${card.assignee.login}" src="${card.assignee.avatar_url}"/>` : "";
-        // ### <img height="20" width="20" alt="@bryanmacfarlane" src="https://avatars3.githubusercontent.com/u/919564?v=4"/> [Initial Web UI](https://github.com/bryanmacfarlane/quotes-feed/issues/13) 
-        // > [@bryanmacfarlane](https://github.com/bryanmacfarlane)  
-        //   `1-dev` `epic`        
-        lines.push(`### ${assigneeHtml} [${card.title}](${card.html_url})  `);
-        let assigneeLink = card.assignee ? `[@${card.assignee.login}](${card.assignee.html_url})  ` : "not assigned  ";
-        lines.push(`> ${assigneeLink}`);
-        let labels = [];
-        for (let label of card.labels) {
-            labels.push(`\`${label.name}\``);
-        }
-        lines.push(`  ${labels.join(" ")}`);
-    }
-    return lines.join(os.EOL);
-}
-exports.renderMarkdown = renderMarkdown;
-function renderHtml() {
-    // Not supported yet
-    return "";
-}
-exports.renderHtml = renderHtml;
-//# sourceMappingURL=drill-in.js.map
-
-/***/ }),
-
 /***/ 81:
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -1340,6 +1447,244 @@ module.exports = new Type('tag:yaml.org,2002:timestamp', {
 /***/ (function(module) {
 
 module.exports = require("os");
+
+/***/ }),
+
+/***/ 91:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Crawler = void 0;
+const url_1 = __webpack_require__(835);
+const github_1 = __webpack_require__(13);
+const project_reports_lib_1 = __webpack_require__(189);
+class Crawler {
+    constructor(token, cachePath) {
+        // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
+        this.targetMap = {};
+        this.github = new github_1.GitHubClient(token, cachePath);
+    }
+    crawl(target) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this.targetMap[target.htmlUrl]) {
+                return this.targetMap[target.htmlUrl];
+            }
+            // TODO: eventually deprecate ProjectData and only have distinct set
+            let data;
+            if (target.type === 'project') {
+                const projectCrawler = new ProjectCrawler(this.github);
+                data = yield projectCrawler.crawl(target);
+            }
+            else if (target.type === 'repo') {
+                console.log(`crawling repo ${target.htmlUrl}`);
+                const repoCrawler = new RepoCrawler(this.github);
+                data = yield repoCrawler.crawl(target);
+            }
+            else {
+                throw new Error(`Unsupported target config: ${target.type}`);
+            }
+            this.targetMap[target.htmlUrl] = data;
+            return data;
+        });
+    }
+    getTargetData() {
+        return this.targetMap;
+    }
+}
+exports.Crawler = Crawler;
+class RepoCrawler {
+    constructor(client) {
+        this.github = client;
+    }
+    crawl(target) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Crawling project ${target.htmlUrl} ...`);
+            const set = new project_reports_lib_1.IssueList(issue => issue.number);
+            const res = yield this.github.getIssuesForRepo(target.htmlUrl);
+            const summaries = res.map(issue => this.summarizeIssue(issue));
+            console.log(`Crawled ${summaries.length} issues`);
+            set.add(summaries);
+            return set.getItems();
+        });
+    }
+    // walk events and rollup / summarize an issue for slicing and dicing.
+    summarizeIssue(issue) {
+        const summary = {};
+        summary.number = issue.number;
+        summary.title = issue.title;
+        summary.html_url = issue.html_url;
+        summary.labels = issue.labels;
+        // TODO: get events, comments and rollup up other "stage" data
+        return summary;
+    }
+}
+class ProjectCrawler {
+    constructor(client) {
+        // cache the resolution of stage names for a column
+        // a columns by stage names are the default and resolve immediately
+        this.resolvedColumns = {
+            proposed: 'Proposed',
+            accepted: 'Accepted',
+            'in-progress': 'In-Progress',
+            done: 'Done'
+        };
+        this.github = client;
+    }
+    crawl(target) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`Crawling project ${target.htmlUrl} ...`);
+            const issues = [];
+            const projectData = yield this.github.getProject(target.htmlUrl);
+            if (!projectData) {
+                throw new Error(`Could not find project ${target.htmlUrl}`);
+            }
+            const columns = yield this.github.getColumnsForProject(projectData);
+            let mappedColumns = [];
+            for (const stageName in target.columnMap) {
+                const colNames = target.columnMap[stageName];
+                if (!colNames || !Array.isArray) {
+                    throw new Error(`Invalid config. column map for ${stageName} is not an array`);
+                }
+                mappedColumns = mappedColumns.concat(colNames);
+            }
+            let seenUnmappedColumns = [];
+            for (const column of columns) {
+                console.log();
+                console.log(`>> Processing column ${column.name} (${column.id})`);
+                const cards = yield this.github.getCardsForColumns(column.id);
+                for (const card of cards) {
+                    // called as each event is processed
+                    // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
+                    // this will help diagnose a potential config issue much faster
+                    const eventCallback = (event) => {
+                        const mentioned = [];
+                        if (event.project_card && event.project_card.column_name) {
+                            mentioned.push(event.project_card.column_name);
+                        }
+                        if (event.project_card && event.project_card.previous_column_name) {
+                            mentioned.push(event.project_card.previous_column_name);
+                        }
+                        for (const mention of mentioned) {
+                            if (mappedColumns.indexOf(mention.trim()) === -1 &&
+                                seenUnmappedColumns.indexOf(mention) === -1) {
+                                seenUnmappedColumns.push(mention);
+                            }
+                        }
+                    };
+                    // cached since real column could be mapped to two different mapped columns
+                    // read and build the event list once
+                    const issueCard = yield this.github.getIssueForCard(card, projectData.id);
+                    if (issueCard) {
+                        this.processCard(issueCard, projectData.id, target, eventCallback);
+                        issues.push(issueCard);
+                    }
+                    else {
+                        const contents = card['note'];
+                        try {
+                            new url_1.URL(contents);
+                            console.log(contents);
+                            console.log('WWARNING: card found that is not an issue but has contents of an issues url that is not part of the project');
+                        }
+                        catch (_a) {
+                            console.log(`ignoring note: ${contents}`);
+                        }
+                    }
+                }
+            }
+            console.log('Done processing.');
+            console.log();
+            if (seenUnmappedColumns.length > 0) {
+                console.log();
+                console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
+                seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`);
+                console.log(`WARNING: Columns are ${seenUnmappedColumns.join(' ')}`);
+                console.log();
+            }
+            return issues;
+        });
+    }
+    //
+    // Add logical stages to the events.
+    // filter out events not for the project being crawled (issue can belond to multiple boards)
+    //
+    processCard(card, projectId, target, eventCallback) {
+        if (!projectId) {
+            throw new Error('projectId not set');
+        }
+        console.log();
+        console.log(`Processing card ${card.title}`);
+        console.log(card.html_url);
+        const filteredEvents = [];
+        // card events should be in order chronologically
+        let currentStage;
+        let doneTime;
+        let blockedTime;
+        let addedTime;
+        if (card.events) {
+            for (const event of card.events) {
+                // since we're adding this card to a projects / stage, let's filter out
+                // events for other project ids since an issue can be part of multiple boards
+                if (event.project_card && event.project_card.project_id !== projectId) {
+                    continue;
+                }
+                eventCallback(event);
+                if (event.project_card && event.project_card.column_name) {
+                    const stage = this.getStageFromColumn(event.project_card.column_name, target);
+                    if (!stage) {
+                        console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
+                    }
+                    event.project_card.stage_name = stage || 'Unmapped';
+                    console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`);
+                }
+                if (event.project_card && event.project_card.previous_column_name) {
+                    const previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target);
+                    if (!previousStage) {
+                        console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
+                    }
+                    event.project_card.previous_stage_name = previousStage || 'Unmapped';
+                    console.log(`${event.created_at}: ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
+                }
+                filteredEvents.push(event);
+            }
+            card.events = filteredEvents;
+        }
+    }
+    getStageFromColumn(column, target) {
+        if (this.resolvedColumns[column]) {
+            return this.resolvedColumns[column];
+        }
+        let resolvedStage = null;
+        for (const stageName in target.columnMap) {
+            // case insensitve match
+            for (const mappedColumn of target.columnMap[stageName].filter(e => e)) {
+                if (project_reports_lib_1.fuzzyMatch(column, mappedColumn)) {
+                    resolvedStage = stageName;
+                    break;
+                }
+            }
+            if (resolvedStage) {
+                break;
+            }
+        }
+        // cache the n^2 reverse case insensitive lookup.  it will never change for this run
+        if (resolvedStage) {
+            this.resolvedColumns[column] = resolvedStage;
+        }
+        return resolvedStage;
+    }
+}
+
 
 /***/ }),
 
@@ -1737,6 +2082,40 @@ module.exports = new Type('tag:yaml.org,2002:set', {
 var truncate = __webpack_require__(423);
 var getLength = Buffer.byteLength.bind(Buffer);
 module.exports = truncate.bind(null, getLength);
+
+
+/***/ }),
+
+/***/ 112:
+/***/ (function(module, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getLastCommentPattern = exports.dataFromCard = void 0;
+function dataFromCard(card, filterBy, data) {
+    const fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
+}
+exports.dataFromCard = dataFromCard;
+//
+// returns last updated using last comment with a body matching a pattern
+//
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    const re = new RegExp(pattern);
+    const comment = card.comments.filter(comment => comment.body.match(re)).pop();
+    return comment ? comment['updated_at'] : null;
+}
+exports.getLastCommentPattern = getLastCommentPattern;
+// export function diffHours(date1: Date, date2: Date): number {
+//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
+// }
 
 
 /***/ }),
@@ -2645,6 +3024,344 @@ module.exports = opts => {
 
 /***/ }),
 
+/***/ 189:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(482));
+const url = __importStar(__webpack_require__(835));
+// TODO: separate npm module.  for now it's a file till we flush out
+__exportStar(__webpack_require__(112), exports);
+function repoPropsFromUrl(htmlUrl) {
+    const rUrl = new url.URL(htmlUrl);
+    const parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
+//
+// filter cards by label
+//
+function filterByLabel(issues, name) {
+    return issues.filter(card => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+}
+exports.filterByLabel = filterByLabel;
+//
+// Get number from a label by regex.
+// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
+// returns NaN if no labels match
+//
+function getCountFromLabel(card, re) {
+    let num = NaN;
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            num = parseInt(matches[1]);
+            if (num) {
+                break;
+            }
+        }
+    }
+    return num;
+}
+exports.getCountFromLabel = getCountFromLabel;
+function getStringFromLabel(card, re) {
+    let str = '';
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            str = matches[0];
+            if (str) {
+                break;
+            }
+        }
+    }
+    if (str) {
+        str = str.trim();
+    }
+    return str;
+}
+exports.getStringFromLabel = getStringFromLabel;
+function sumCardProperty(cards, prop) {
+    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
+}
+exports.sumCardProperty = sumCardProperty;
+function fuzzyMatch(content, match) {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+    let isMatch = true;
+    for (const matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+exports.fuzzyMatch = fuzzyMatch;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: 'Proposed',
+    Accepted: 'Accepted',
+    InProgress: 'In-Progress',
+    Done: 'Done',
+    Missing: 'Missing'
+};
+function getProjectStageIssues(issues) {
+    const projIssues = {};
+    for (const projIssue of issues) {
+        const stage = projIssue['project_stage'];
+        if (!stage) {
+            // the engine will handle and add to an issues list
+            continue;
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
+const stageLevel = {
+    None: 0,
+    Proposed: 1,
+    Accepted: 2,
+    'In-Progress': 3,
+    Done: 4,
+    Unmapped: 5
+};
+class IssueList {
+    constructor(identifier) {
+        // keep in order indexed by level above
+        // TODO: unify both to avoid out of sync problems
+        this.stageAtNames = [
+            'none',
+            'project_proposed_at',
+            'project_accepted_at',
+            'project_in_progress_at',
+            'project_done_at'
+        ];
+        this.seen = new Map();
+        this.identifier = identifier;
+        this.items = [];
+    }
+    // returns whether any were added
+    add(data) {
+        this.processed = null;
+        let added = false;
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const res = this.add_item(item);
+                if (!added) {
+                    added = res;
+                }
+            }
+        }
+        else {
+            return this.add_item(data);
+        }
+        return added;
+    }
+    add_item(item) {
+        const id = this.identifier(item);
+        if (!this.seen.has(id)) {
+            this.items.push(item);
+            this.seen.set(id, item);
+            return true;
+        }
+        return false;
+    }
+    getItem(identifier) {
+        return this.seen.get(identifier);
+    }
+    getItems() {
+        if (this.processed) {
+            return this.processed;
+        }
+        // call process
+        for (const item of this.items) {
+            this.processStages(item);
+        }
+        this.processed = this.items;
+        return this.processed;
+    }
+    //
+    // Gets an issue from a number of days, hours ago.
+    // Clones the issue and Replays events (labels, column moves, milestones)
+    // and reprocesses the stages.
+    // If the issue doesn't exist in the list, returns null
+    //
+    getItemAsof(identifier, datetime) {
+        console.log(`getting asof ${datetime} : ${identifier}`);
+        let issue = this.getItem(identifier);
+        if (!issue) {
+            return issue;
+        }
+        issue = clone_1.default(issue);
+        const momentAgo = moment_1.default(datetime);
+        // clear everything we're going to re-apply
+        issue.labels = [];
+        delete issue.project_added_at;
+        delete issue.project_proposed_at;
+        delete issue.project_in_progress_at;
+        delete issue.project_accepted_at;
+        delete issue.project_done_at;
+        delete issue.project_stage;
+        delete issue.closed_at;
+        // stages and labels
+        const filteredEvents = [];
+        const labelMap = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
+                    continue;
+                }
+                filteredEvents.push(event);
+                if (event.event === 'labeled') {
+                    labelMap[event.label.name] = event.label;
+                }
+                else if (event.event === 'unlabeled') {
+                    delete labelMap[event.label.name];
+                }
+                if (event.event === 'closed') {
+                    issue.closed_at = event.created_at;
+                }
+                if (event.event === 'reopened') {
+                    delete issue.closed_at;
+                }
+            }
+        }
+        issue.events = filteredEvents;
+        for (const labelName in labelMap) {
+            issue.labels.push(labelMap[labelName]);
+        }
+        this.processStages(issue);
+        // comments
+        const filteredComments = [];
+        for (const comment of issue.comments) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
+                continue;
+            }
+            filteredComments.push(comment);
+        }
+        issue.comments = filteredComments;
+        return issue;
+    }
+    //
+    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
+    // Call initially and then call again if events are filtered (get issue asof)
+    //
+    processStages(issue) {
+        console.log(`Processing stages for ${issue.html_url}`);
+        // card events should be in order chronologically
+        let currentStage;
+        let doneTime;
+        let addedTime;
+        const tempLabels = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                let eventDateTime;
+                if (event.created_at) {
+                    eventDateTime = event.created_at;
+                }
+                //
+                // Process Project Stages
+                //
+                let toStage;
+                let toLevel;
+                let fromStage;
+                let fromLevel = 0;
+                if (event.project_card && event.project_card.column_name) {
+                    if (!addedTime) {
+                        addedTime = eventDateTime;
+                    }
+                    if (!event.project_card.stage_name) {
+                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
+                    }
+                    toStage = event.project_card.stage_name;
+                    toLevel = stageLevel[toStage];
+                    currentStage = toStage;
+                }
+                if (event.project_card && event.project_card.previous_column_name) {
+                    if (!event.project_card.previous_stage_name) {
+                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
+                    }
+                    fromStage = event.project_card.previous_stage_name;
+                    fromLevel = stageLevel[fromStage];
+                }
+                // last occurence of moving to these columns from a lesser or no column
+                // example. if moved to accepted from proposed (or less),
+                //      then in-progress (greater) and then back to accepted, first wins
+                if (toStage === 'Proposed' ||
+                    toStage === 'Accepted' ||
+                    toStage === 'In-Progress') {
+                    if (toLevel > fromLevel) {
+                        issue[this.stageAtNames[toLevel]] = eventDateTime;
+                    }
+                    //moving back, clear the stage at dates up to fromLevel
+                    else if (toLevel < fromLevel) {
+                        for (let i = toLevel + 1; i <= fromLevel; i++) {
+                            delete issue[this.stageAtNames[i]];
+                        }
+                    }
+                }
+                if (toStage === 'Done') {
+                    doneTime = eventDateTime;
+                }
+            }
+            // done_at and blocked_at is only set if it's currently at that stage
+            if (currentStage === 'Done') {
+                issue.project_done_at = doneTime;
+                console.log(`project_done_at: ${issue.project_done_at}`);
+            }
+            if (addedTime) {
+                issue.project_added_at = addedTime;
+                console.log(`project_added_at: ${issue.project_added_at}`);
+            }
+            issue.project_stage = currentStage;
+            console.log(`project_stage: ${issue.project_stage}`);
+        }
+    }
+}
+exports.IssueList = IssueList;
+
+
+/***/ }),
+
 /***/ 197:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -2697,6 +3414,102 @@ function checkMode (stat, options) {
 /***/ (function(module) {
 
 module.exports = require("https");
+
+/***/ }),
+
+/***/ 221:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FileSystemStore = void 0;
+const fs_1 = __webpack_require__(747);
+const mustache = __importStar(__webpack_require__(174));
+const path = __importStar(__webpack_require__(622));
+const url = __importStar(__webpack_require__(835));
+class FileSystemStore {
+    constructor(path) {
+        this._path = path;
+    }
+    getUrlPath(options) {
+        const pathPart = url.parse(options.url).path;
+        const urlFormat = pathPart
+            .replace(new RegExp('{', 'g'), '{{{')
+            .replace(new RegExp('}', 'g'), '}}}');
+        const urlPath = mustache.render(urlFormat, options);
+        return urlPath;
+    }
+    check(options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const urlPath = this.getUrlPath(options);
+            const cachePath = path.join(this._path, urlPath);
+            const etagPath = path.join(cachePath, 'etag');
+            process.stdout.write(urlPath);
+            let exists = true;
+            try {
+                yield fs_1.promises.stat(path.join(cachePath, 'res.json'));
+                yield fs_1.promises.stat(path.join(cachePath, 'etag'));
+            }
+            catch (err) {
+                exists = false;
+            }
+            let etag;
+            if (exists) {
+                etag = (yield fs_1.promises.readFile(etagPath)).toString();
+            }
+            return etag;
+        });
+    }
+    read(response, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const urlPath = this.getUrlPath(options);
+            const cachePath = path.join(this._path, urlPath);
+            const contents = (yield fs_1.promises.readFile(path.join(cachePath, 'res.json'))).toString();
+            return JSON.parse(contents);
+        });
+    }
+    write(response, options) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const urlPath = this.getUrlPath(options);
+            const cachePath = path.join(this._path, urlPath);
+            yield fs_1.promises.mkdir(cachePath, { recursive: true });
+            yield fs_1.promises.writeFile(path.join(cachePath, 'res.json'), JSON.stringify(response, null, 2), 'utf8');
+            yield fs_1.promises.writeFile(path.join(cachePath, 'etag'), response.headers.etag, 'utf8');
+            return;
+        });
+    }
+}
+exports.FileSystemStore = FileSystemStore;
+
 
 /***/ }),
 
@@ -6076,28 +6889,7 @@ isStream.transform = function (stream) {
 
 /***/ }),
 
-/***/ 338:
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-"use strict";
-
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-const agent_1 = __importDefault(__webpack_require__(40));
-function createHttpsProxyAgent(opts) {
-    return new agent_1.default(opts);
-}
-(function (createHttpsProxyAgent) {
-    createHttpsProxyAgent.HttpsProxyAgent = agent_1.default;
-    createHttpsProxyAgent.prototype = agent_1.default.prototype;
-})(createHttpsProxyAgent || (createHttpsProxyAgent = {}));
-module.exports = createHttpsProxyAgent;
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-
-/***/ 341:
+/***/ 330:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -6135,42 +6927,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generate = void 0;
-const path = __importStar(__webpack_require__(622));
+const clone_1 = __importDefault(__webpack_require__(97));
 const fs = __importStar(__webpack_require__(747));
-const util = __importStar(__webpack_require__(702));
 const yaml = __importStar(__webpack_require__(414));
-const url = __importStar(__webpack_require__(835));
+const moment_1 = __importDefault(__webpack_require__(482));
+const mustache = __importStar(__webpack_require__(174));
 // import {GitHubClient} from './github'
 const os = __importStar(__webpack_require__(87));
-const mustache = __importStar(__webpack_require__(174));
-const drillInRpt = __importStar(__webpack_require__(67));
-const crawler_1 = __webpack_require__(750);
-const moment_1 = __importDefault(__webpack_require__(482));
+const path = __importStar(__webpack_require__(622));
 const sanitize_filename_1 = __importDefault(__webpack_require__(834));
-const clone_1 = __importDefault(__webpack_require__(97));
-const project_reports_lib_1 = __webpack_require__(369);
+const url = __importStar(__webpack_require__(835));
+const crawler_1 = __webpack_require__(91);
+const project_reports_lib_1 = __webpack_require__(189);
+const drillInRpt = __importStar(__webpack_require__(398));
+const util = __importStar(__webpack_require__(873));
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
-        const workspacePath = process.env["GITHUB_WORKSPACE"];
+        const workspacePath = process.env['GITHUB_WORKSPACE'];
         if (!workspacePath) {
-            throw new Error("GITHUB_WORKSPACE not defined");
+            throw new Error('GITHUB_WORKSPACE not defined');
         }
-        let configPath = path.join(workspacePath, configYaml);
-        let cachePath = path.join(workspacePath, "_reports", ".data");
+        const configPath = path.join(workspacePath, configYaml);
+        const cachePath = path.join(workspacePath, '_reports', '.data');
         util.mkdirP(cachePath);
-        let config = yaml.load(fs.readFileSync(configPath, 'utf-8'));
-        let snapshot = {};
+        const config = (yaml.load(fs.readFileSync(configPath, 'utf-8')));
+        const snapshot = {};
         snapshot.datetime = new Date();
+        // ISO8601 without separators—supported by moment, etc.
+        snapshot.datetimeString = moment_1.default(snapshot.datetime)
+            .utc()
+            .format('YYYYMMDDTHHmmss.SSS[Z]');
         snapshot.config = config;
-        let d = snapshot.datetime;
-        let year = d.getUTCFullYear();
-        let month = (d.getUTCMonth() + 1).toString().padStart(2, "0");
-        let day = d.getUTCDate().toString().padStart(2, "0");
-        let hour = d.getUTCHours().toString().padStart(2, "0");
-        let minute = d.getUTCMinutes().toString().padStart(2, "0");
-        let dt = `${year}-${month}-${day}_${hour}-${minute}`;
-        snapshot.datetimeString = dt;
-        snapshot.config.output = snapshot.config.output || "_reports";
+        snapshot.config.output = snapshot.config.output || '_reports';
         snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
         console.log(`Writing snapshot to ${snapshot.rootPath}`);
         yield writeSnapshot(snapshot);
@@ -6178,7 +6966,9 @@ function generate(token, configYaml) {
         for (const report of config.reports) {
             report.timezoneOffset = report.timezoneOffset || -8;
             report.details = {
-                time: moment_1.default().utcOffset(report.timezoneOffset).format("dddd, MMMM Do YYYY, h:mm:ss a")
+                time: moment_1.default()
+                    .utcOffset(report.timezoneOffset)
+                    .format('dddd, MMMM Do YYYY, h:mm:ss a')
             };
             report.details.rootPath = path.join(snapshot.rootPath, sanitize_filename_1.default(report.name));
             report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString);
@@ -6189,22 +6979,28 @@ function generate(token, configYaml) {
             });
         }
         let crawlCfg;
-        if (typeof (config.targets) === 'string') {
+        if (typeof config.targets === 'string') {
             throw new Error('crawl config external files not supported yet');
         }
         else {
             crawlCfg = config.targets;
         }
         // apply defaults to targets
-        console.log("Applying target defaults");
-        for (let targetName in crawlCfg) {
-            let target = crawlCfg[targetName];
+        console.log('Applying target defaults');
+        for (const targetName in crawlCfg) {
+            const target = crawlCfg[targetName];
             if (target.type === 'project') {
                 if (!target.columnMap) {
                     target.columnMap = {};
                 }
-                let defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
-                for (let phase of defaultStages) {
+                const defaultStages = [
+                    'Proposed',
+                    'Accepted',
+                    'In-Progress',
+                    'Done',
+                    'Unmapped'
+                ];
+                for (const phase of defaultStages) {
                     if (!target.columnMap[phase]) {
                         target.columnMap[phase] = [];
                     }
@@ -6215,35 +7011,36 @@ function generate(token, configYaml) {
                 target.columnMap['Done'].push('Done', 'Completed', 'Complete');
                 // Add some common mappings
                 target.columnMap['Proposed'].push('Triage', 'Not Started');
-                for (let mapName in target.columnMap) {
+                for (const mapName in target.columnMap) {
                     target.columnMap[mapName] = target.columnMap[mapName].map(item => item.trim());
                 }
             }
         }
         console.log('crawlConfig');
         console.log(JSON.stringify(crawlCfg, null, 2));
-        let crawler = new crawler_1.Crawler(token, cachePath);
+        const crawler = new crawler_1.Crawler(token, cachePath);
         for (const report of config.reports) {
-            let output = "";
+            let output = '';
             // gather all the markdown files in the root to delete before writing new files
             deleteFilesInPath(report.details.rootPath);
             output += getReportHeading(report);
             console.log();
             console.log(`Generating ${report.name} ...`);
             yield createReportPath(report);
-            for (const reportSection of report.sections) {
-                // We only support rollup of repo issues. 
+            for (let sectionIdx = 0; sectionIdx < report.sections.length; sectionIdx++) {
+                const reportSection = report.sections[sectionIdx];
+                // We only support rollup of repo issues.
                 // once we move ProjectData to a distinct set, we can support project data as well
                 // let projectData: ProjectData = null;
                 output += `&nbsp;  ${os.EOL}`;
-                let reportModule = `${reportSection.name}`;
+                const reportModule = `${reportSection.name}`;
                 // if it's a relative path, find in the workflow repo relative path.
                 // this allows for consume of action to create their own report sections
                 // else look for built-ins
                 console.log(`Report module ${reportModule}`);
                 let reportModulePath;
-                if (reportModule.startsWith("./")) {
-                    reportModulePath = path.join(process.env["GITHUB_WORKSPACE"], `${reportModule}`);
+                if (reportModule.startsWith('./')) {
+                    reportModulePath = path.join(process.env['GITHUB_WORKSPACE'], `${reportModule}`);
                 }
                 else {
                     reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
@@ -6252,44 +7049,52 @@ function generate(token, configYaml) {
                 if (!fs.existsSync(reportModulePath)) {
                     throw new Error(`Report not found: ${reportSection.name}`);
                 }
-                let reportGenerator = require(reportModulePath);
-                // overlay user settings over default settings 
-                let config = reportGenerator.getDefaultConfiguration();
-                for (let setting in reportSection.config || {}) {
+                /* eslint-disable-next-line @typescript-eslint/no-var-requires */
+                const reportGenerator = require(reportModulePath);
+                // overlay user settings over default settings
+                const config = reportGenerator.getDefaultConfiguration();
+                for (const setting in reportSection.config || {}) {
                     config[setting] = reportSection.config[setting];
                 }
                 // ----------------------------------------------------------------------
-                // Crawl targets data.  
-                // definition on section but fall back to report 
+                // Crawl targets data.
+                // definition on section but fall back to report
                 // ----------------------------------------------------------------------
-                let targetNames = reportSection.targets || report.targets;
-                let set = new project_reports_lib_1.IssueList(issue => issue.html_url);
-                let targets = [];
-                for (let targetName of targetNames) {
+                const targetNames = reportSection.targets || report.targets;
+                const set = new project_reports_lib_1.IssueList(issue => issue.html_url);
+                const targets = [];
+                for (const targetName of targetNames) {
                     console.log();
                     console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`);
                     console.log('-------------------------------------------------------------------------------');
-                    let target = crawlCfg[targetName];
+                    const target = crawlCfg[targetName];
                     targets.push(target);
-                    if (reportGenerator.reportType !== "any" && reportGenerator.reportType !== target.type) {
+                    if (reportGenerator.reportType !== 'any' &&
+                        reportGenerator.reportType !== target.type) {
                         throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                     }
-                    let data = yield crawler.crawl(target);
+                    const data = yield crawler.crawl(target);
                     console.log(`Adding ${data.length} issues to set ...`);
                     set.add(data);
                 }
                 console.log(`Issues set has ${set.getItems().length}`);
-                console.log("Processing data ...");
-                let drillIns = [];
-                let drillInCb = (identifier, title, cards) => {
+                console.log('Processing data ...');
+                const drillIns = [];
+                const drillInCb = (identifier, title, cards) => {
                     drillIns.push({
                         identifier: identifier,
                         title: title,
                         cards: cards
                     });
                 };
-                let processed = reportGenerator.process(config, clone_1.default(set), drillInCb);
-                yield writeSectionData(report, reportModule, config, processed);
+                const processed = reportGenerator.process(config, clone_1.default(set), drillInCb);
+                const sectionPath = `${sectionIdx
+                    .toString()
+                    .padStart(2, '0')}-${reportModule}`;
+                yield writeSectionData(report, sectionPath, config, {
+                    type: reportModule,
+                    output: processed
+                });
                 report.kind = report.kind || 'markdown';
                 if (report.kind === 'markdown') {
                     console.log('Rendering markdown ...');
@@ -6299,7 +7104,7 @@ function generate(token, configYaml) {
                 else {
                     throw new Error(`Report kind ${report.kind} not supported`);
                 }
-                for (let drillIn of drillIns) {
+                for (const drillIn of drillIns) {
                     let drillInReport;
                     if (report.kind === 'markdown') {
                         drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone_1.default(drillIn.cards));
@@ -6307,12 +7112,12 @@ function generate(token, configYaml) {
                     else {
                         throw new Error(`Report kind ${report.kind} not supported`);
                     }
-                    yield writeDrillIn(report, drillIn.identifier, drillIn.cards, drillInReport);
+                    yield writeDrillIn(report, sectionPath, drillIn.identifier, drillIn.cards, drillInReport);
                 }
             }
-            console.log("Writing report");
+            console.log('Writing report');
             writeReport(report, crawler.getTargetData(), output);
-            console.log("Done.");
+            console.log('Done.');
         }
         console.log();
         return snapshot;
@@ -6320,13 +7125,13 @@ function generate(token, configYaml) {
 }
 exports.generate = generate;
 function getReportHeading(report) {
-    let lines = [];
-    if (report.kind === "markdown") {
+    const lines = [];
+    if (report.kind === 'markdown') {
         lines.push(`# :crystal_ball: ${report.title}  `);
         lines.push('  ');
         lines.push(`Generated with :heart: by [project-reports-action](https://github.com/bryanmacfarlane/project-reports-action)  `);
         lines.push(`<sub><sup>${report.details.time}</sup></sub>  `);
-        lines.push("  ");
+        lines.push('  ');
     }
     return lines.join(os.EOL);
 }
@@ -6336,18 +7141,21 @@ function deleteFilesInPath(targetPath) {
         if (!fs.existsSync(targetPath)) {
             return;
         }
-        let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item));
+        let existingRootFiles = fs
+            .readdirSync(targetPath)
+            .map(item => path.join(targetPath, item));
         existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
-        for (let file of existingRootFiles) {
+        for (const file of existingRootFiles) {
             console.log(`cleaning up ${file}`);
             fs.unlinkSync(file);
         }
     });
 }
-function writeDrillIn(report, identifier, cards, contents) {
+function writeDrillIn(report, reportModule, identifier, cards, contents) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(`Writing drill-in data for ${identifier} ...`);
-        fs.writeFileSync(path.join(report.details.dataPath, `${identifier}.json`), JSON.stringify(cards, null, 2));
+        util.mkdirP(path.join(report.details.dataPath, reportModule, 'details'));
+        fs.writeFileSync(path.join(report.details.dataPath, reportModule, 'details', `${identifier}.json`), JSON.stringify(cards, null, 2));
         fs.writeFileSync(path.join(report.details.rootPath, `${identifier}.md`), contents);
         fs.writeFileSync(path.join(report.details.fullPath, `${identifier}.md`), contents);
     });
@@ -6355,8 +7163,8 @@ function writeDrillIn(report, identifier, cards, contents) {
 // creates directory structure for the reports and hands back the root path to write reports in
 function writeSnapshot(snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Writing snapshot data ...");
-        const genPath = path.join(snapshot.rootPath, ".data");
+        console.log('Writing snapshot data ...');
+        const genPath = path.join(snapshot.rootPath, '.data');
         util.mkdirP(genPath);
         const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
         console.log(`Writing to ${snapshotPath}`);
@@ -6375,24 +7183,45 @@ function createReportPath(report) {
 function writeSectionData(report, name, settings, processed) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(`Writing section data for ${name}...`);
-        const sectionPath = path.join(report.details.fullPath, "data", sanitize_filename_1.default(name));
+        const sectionPath = path.join(report.details.fullPath, 'data', sanitize_filename_1.default(name));
         util.mkdirP(sectionPath);
-        fs.writeFileSync(path.join(sectionPath, "settings.json"), JSON.stringify(settings, null, 2));
-        fs.writeFileSync(path.join(sectionPath, "processed.json"), JSON.stringify(processed, null, 2));
+        fs.writeFileSync(path.join(sectionPath, 'config.json'), JSON.stringify(settings, null, 2));
+        fs.writeFileSync(path.join(sectionPath, 'output.json'), JSON.stringify(processed, null, 2));
     });
 }
 function writeReport(report, targetData, contents) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Writing the report ...");
-        fs.writeFileSync(path.join(report.details.rootPath, "_report.md"), contents);
-        fs.writeFileSync(path.join(report.details.fullPath, "_report.md"), contents);
-        for (let target in targetData) {
-            let urlPath = url.parse(target).path.split("/").join("_");
+        console.log('Writing the report ...');
+        fs.writeFileSync(path.join(report.details.rootPath, '_report.md'), contents);
+        fs.writeFileSync(path.join(report.details.fullPath, '_report.md'), contents);
+        for (const target in targetData) {
+            const urlPath = url.parse(target).path.split('/').join('_');
             fs.writeFileSync(path.join(report.details.dataPath, `target-${sanitize_filename_1.default(urlPath)}.json`), JSON.stringify(targetData[target], null, 2));
         }
     });
 }
-//# sourceMappingURL=generator.js.map
+
+
+/***/ }),
+
+/***/ 338:
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+"use strict";
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+const agent_1 = __importDefault(__webpack_require__(40));
+function createHttpsProxyAgent(opts) {
+    return new agent_1.default(opts);
+}
+(function (createHttpsProxyAgent) {
+    createHttpsProxyAgent.HttpsProxyAgent = agent_1.default;
+    createHttpsProxyAgent.prototype = agent_1.default.prototype;
+})(createHttpsProxyAgent || (createHttpsProxyAgent = {}));
+module.exports = createHttpsProxyAgent;
+//# sourceMappingURL=index.js.map
 
 /***/ }),
 
@@ -6552,342 +7381,6 @@ module.exports = (flag, argv = process.argv) => {
 	return position !== -1 && (terminatorPosition === -1 || position < terminatorPosition);
 };
 
-
-/***/ }),
-
-/***/ 369:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
-const url = __importStar(__webpack_require__(835));
-const clone_1 = __importDefault(__webpack_require__(97));
-const moment_1 = __importDefault(__webpack_require__(482));
-// TODO: separate npm module.  for now it's a file till we flush out
-__exportStar(__webpack_require__(714), exports);
-function repoPropsFromUrl(htmlUrl) {
-    let rUrl = new url.URL(htmlUrl);
-    let parts = rUrl.pathname.split('/').filter(e => e);
-    return {
-        owner: parts[0],
-        repo: parts[1]
-    };
-}
-exports.repoPropsFromUrl = repoPropsFromUrl;
-//
-// filter cards by label
-//
-function filterByLabel(issues, name) {
-    return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
-}
-exports.filterByLabel = filterByLabel;
-//
-// Get number from a label by regex.  
-// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
-// returns NaN if no labels match
-//
-function getCountFromLabel(card, re) {
-    let num = NaN;
-    for (let label of card.labels) {
-        let matches = label.name.match(re);
-        if (matches && matches.length > 0) {
-            num = parseInt(matches[1]);
-            if (num) {
-                break;
-            }
-        }
-    }
-    return num;
-}
-exports.getCountFromLabel = getCountFromLabel;
-function getStringFromLabel(card, re) {
-    let str = '';
-    for (let label of card.labels) {
-        let matches = label.name.match(re);
-        if (matches && matches.length > 0) {
-            str = matches[0];
-            if (str) {
-                break;
-            }
-        }
-    }
-    if (str) {
-        str = str.trim();
-    }
-    return str;
-}
-exports.getStringFromLabel = getStringFromLabel;
-function sumCardProperty(cards, prop) {
-    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
-}
-exports.sumCardProperty = sumCardProperty;
-function fuzzyMatch(content, match) {
-    let matchWords = match.match(/[a-zA-Z0-9]+/g);
-    matchWords = matchWords.map(item => item.toLowerCase());
-    let contentWords = content.match(/[a-zA-Z0-9]+/g);
-    contentWords = contentWords.map(item => item.toLowerCase());
-    let isMatch = true;
-    for (let matchWord of matchWords) {
-        if (contentWords.indexOf(matchWord) === -1) {
-            isMatch = false;
-            break;
-        }
-    }
-    return isMatch;
-}
-exports.fuzzyMatch = fuzzyMatch;
-// stages more discoverable
-exports.ProjectStages = {
-    Proposed: "Proposed",
-    Accepted: "Accepted",
-    InProgress: "In-Progress",
-    Done: "Done",
-    Missing: "Missing"
-};
-function getProjectStageIssues(issues) {
-    let projIssues = {};
-    for (let projIssue of issues) {
-        let stage = projIssue["project_stage"];
-        if (!stage) {
-            // the engine will handle and add to an issues list
-            continue;
-        }
-        if (!projIssues[stage]) {
-            projIssues[stage] = [];
-        }
-        projIssues[stage].push(projIssue);
-    }
-    return projIssues;
-}
-exports.getProjectStageIssues = getProjectStageIssues;
-let stageLevel = {
-    "None": 0,
-    "Proposed": 1,
-    "Accepted": 2,
-    "In-Progress": 3,
-    "Done": 4,
-    "Unmapped": 5
-};
-class IssueList {
-    constructor(identifier) {
-        // keep in order indexed by level above
-        // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
-        this.seen = new Map();
-        this.identifier = identifier;
-        this.items = [];
-    }
-    // returns whether any were added
-    add(data) {
-        this.processed = null;
-        let added = false;
-        if (Array.isArray(data)) {
-            for (let item of data) {
-                let res = this.add_item(item);
-                if (!added) {
-                    added = res;
-                }
-            }
-        }
-        else {
-            return this.add_item(data);
-        }
-        return added;
-    }
-    add_item(item) {
-        let id = this.identifier(item);
-        if (!this.seen.has(id)) {
-            this.items.push(item);
-            this.seen.set(id, item);
-            return true;
-        }
-        return false;
-    }
-    getItem(identifier) {
-        return this.seen.get(identifier);
-    }
-    getItems() {
-        if (this.processed) {
-            return this.processed;
-        }
-        // call process
-        for (let item of this.items) {
-            this.processStages(item);
-        }
-        this.processed = this.items;
-        return this.processed;
-    }
-    //
-    // Gets an issue from a number of days, hours ago.
-    // Clones the issue and Replays events (labels, column moves, milestones)
-    // and reprocesses the stages.
-    // If the issue doesn't exist in the list, returns null
-    //
-    getItemAsof(identifier, datetime) {
-        console.log(`getting asof ${datetime} : ${identifier}`);
-        let issue = this.getItem(identifier);
-        if (!issue) {
-            return issue;
-        }
-        issue = clone_1.default(issue);
-        let momentAgo = moment_1.default(datetime);
-        // clear everything we're going to re-apply
-        issue.labels = [];
-        delete issue.project_added_at;
-        delete issue.project_proposed_at;
-        delete issue.project_in_progress_at;
-        delete issue.project_accepted_at;
-        delete issue.project_done_at;
-        delete issue.project_stage;
-        delete issue.closed_at;
-        // stages and labels
-        let filteredEvents = [];
-        let labelMap = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
-                    continue;
-                }
-                filteredEvents.push(event);
-                if (event.event === 'labeled') {
-                    labelMap[event.label.name] = event.label;
-                }
-                else if (event.event === 'unlabeled') {
-                    delete labelMap[event.label.name];
-                }
-                if (event.event === 'closed') {
-                    issue.closed_at = event.created_at;
-                }
-                if (event.event === 'reopened') {
-                    delete issue.closed_at;
-                }
-            }
-        }
-        issue.events = filteredEvents;
-        for (let labelName in labelMap) {
-            issue.labels.push(labelMap[labelName]);
-        }
-        this.processStages(issue);
-        // comments
-        let filteredComments = [];
-        for (let comment of issue.comments) {
-            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
-                continue;
-            }
-            filteredComments.push(comment);
-        }
-        issue.comments = filteredComments;
-        return issue;
-    }
-    //
-    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
-    // Call initially and then call again if events are filtered (get issue asof)
-    //
-    processStages(issue) {
-        console.log(`Processing stages for ${issue.html_url}`);
-        // card events should be in order chronologically
-        let currentStage;
-        let doneTime;
-        let addedTime;
-        let tempLabels = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                let eventDateTime;
-                if (event.created_at) {
-                    eventDateTime = event.created_at;
-                }
-                //
-                // Process Project Stages
-                //
-                let toStage;
-                let toLevel;
-                let fromStage;
-                let fromLevel = 0;
-                if (event.project_card && event.project_card.column_name) {
-                    if (!addedTime) {
-                        addedTime = eventDateTime;
-                    }
-                    if (!event.project_card.stage_name) {
-                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
-                    }
-                    toStage = event.project_card.stage_name;
-                    toLevel = stageLevel[toStage];
-                    currentStage = toStage;
-                }
-                if (event.project_card && event.project_card.previous_column_name) {
-                    if (!event.project_card.previous_stage_name) {
-                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
-                    }
-                    fromStage = event.project_card.previous_stage_name;
-                    fromLevel = stageLevel[fromStage];
-                }
-                // last occurence of moving to these columns from a lesser or no column
-                // example. if moved to accepted from proposed (or less), 
-                //      then in-progress (greater) and then back to accepted, first wins            
-                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                    if (toLevel > fromLevel) {
-                        issue[this.stageAtNames[toLevel]] = eventDateTime;
-                    }
-                    //moving back, clear the stage at dates up to fromLevel
-                    else if (toLevel < fromLevel) {
-                        for (let i = toLevel + 1; i <= fromLevel; i++) {
-                            delete issue[this.stageAtNames[i]];
-                        }
-                    }
-                }
-                if (toStage === 'Done') {
-                    doneTime = eventDateTime;
-                }
-            }
-            // done_at and blocked_at is only set if it's currently at that stage
-            if (currentStage === 'Done') {
-                issue.project_done_at = doneTime;
-                console.log(`project_done_at: ${issue.project_done_at}`);
-            }
-            if (addedTime) {
-                issue.project_added_at = addedTime;
-                console.log(`project_added_at: ${issue.project_added_at}`);
-            }
-            issue.project_stage = currentStage;
-            console.log(`project_stage: ${issue.project_stage}`);
-        }
-    }
-}
-exports.IssueList = IssueList;
-//# sourceMappingURL=project-reports-lib.js.map
 
 /***/ }),
 
@@ -7354,7 +7847,7 @@ module.exports = readShebang;
 
 /***/ }),
 
-/***/ 409:
+/***/ 398:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -7378,73 +7871,42 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FileSystemStore = void 0;
-const mustache = __importStar(__webpack_require__(174));
-const path = __importStar(__webpack_require__(622));
-const url = __importStar(__webpack_require__(835));
-const fs_1 = __webpack_require__(747);
-class FileSystemStore {
-    constructor(path) {
-        this._path = path;
+exports.renderHtml = exports.renderMarkdown = void 0;
+const os = __importStar(__webpack_require__(87));
+function renderMarkdown(heading, cards) {
+    const lines = [];
+    lines.push(`## ${heading}`);
+    // create a report for each type.  e.g. "Epic"
+    for (const card of cards) {
+        // note: the two spaces at the end of markdown strings are intentional for markdown new lines.  don't trim :)
+        lines.push(`  `);
+        const assigneeHtml = card.assignee
+            ? `<img height="20" width="20" alt="@${card.assignee.login}" src="${card.assignee.avatar_url}"/>`
+            : '';
+        // ### <img height="20" width="20" alt="@bryanmacfarlane" src="https://avatars3.githubusercontent.com/u/919564?v=4"/> [Initial Web UI](https://github.com/bryanmacfarlane/quotes-feed/issues/13)
+        // > [@bryanmacfarlane](https://github.com/bryanmacfarlane)
+        //   `1-dev` `epic`
+        lines.push(`### ${assigneeHtml} [${card.title}](${card.html_url})  `);
+        const assigneeLink = card.assignee
+            ? `[@${card.assignee.login}](${card.assignee.html_url})  `
+            : 'not assigned  ';
+        lines.push(`> ${assigneeLink}`);
+        const labels = [];
+        for (const label of card.labels) {
+            labels.push(`\`${label.name}\``);
+        }
+        lines.push(`  ${labels.join(' ')}`);
     }
-    getUrlPath(options) {
-        let pathPart = url.parse(options.url).path;
-        let urlFormat = pathPart.replace(new RegExp('{', 'g'), '{{{').replace(new RegExp('}', 'g'), '}}}');
-        let urlPath = mustache.render(urlFormat, options);
-        return urlPath;
-    }
-    check(options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let urlPath = this.getUrlPath(options);
-            let cachePath = path.join(this._path, urlPath);
-            let etagPath = path.join(cachePath, "etag");
-            process.stdout.write(urlPath);
-            let exists = true;
-            try {
-                yield fs_1.promises.stat(path.join(cachePath, "res.json"));
-                yield fs_1.promises.stat(path.join(cachePath, "etag"));
-            }
-            catch (err) {
-                exists = false;
-            }
-            let etag;
-            if (exists) {
-                etag = (yield fs_1.promises.readFile(etagPath)).toString();
-            }
-            return etag;
-        });
-    }
-    read(response, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let urlPath = this.getUrlPath(options);
-            let cachePath = path.join(this._path, urlPath);
-            let contents = (yield fs_1.promises.readFile(path.join(cachePath, "res.json"))).toString();
-            return JSON.parse(contents);
-        });
-    }
-    write(response, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let urlPath = this.getUrlPath(options);
-            let cachePath = path.join(this._path, urlPath);
-            yield fs_1.promises.mkdir(cachePath, { recursive: true });
-            yield fs_1.promises.writeFile(path.join(cachePath, "res.json"), JSON.stringify(response, null, 2), 'utf8');
-            yield fs_1.promises.writeFile(path.join(cachePath, "etag"), response.headers.etag, 'utf8');
-            return;
-        });
-    }
+    return lines.join(os.EOL);
 }
-exports.FileSystemStore = FileSystemStore;
-//# sourceMappingURL=store.js.map
+exports.renderMarkdown = renderMarkdown;
+function renderHtml() {
+    // Not supported yet
+    return '';
+}
+exports.renderHtml = renderHtml;
+
 
 /***/ }),
 
@@ -18652,6 +19114,70 @@ module.exports = new Type('tag:yaml.org,2002:merge', {
 
 /***/ }),
 
+/***/ 648:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.wrap = void 0;
+const https_proxy_agent_1 = __webpack_require__(338);
+var store_1 = __webpack_require__(221);
+Object.defineProperty(exports, "FileSystemStore", { enumerable: true, get: function () { return store_1.FileSystemStore; } });
+function wrap(store) {
+    return (request, options) => __awaiter(this, void 0, void 0, function* () {
+        // only cache GET requests
+        if (options.method !== 'GET') {
+            return request;
+        }
+        if (process.env['https_proxy']) {
+            options.request = { agent: new https_proxy_agent_1.HttpsProxyAgent(process.env['https_proxy']) };
+        }
+        //
+        // check whether in cache. if so, return the etag
+        //
+        const etag = yield store.check(options);
+        if (etag) {
+            options.headers['If-None-Match'] = etag;
+        }
+        // make the request.
+        let response;
+        let fromCache = false;
+        try {
+            response = yield request(options);
+            process.stdout.write(` [${response.status}]`);
+        }
+        catch (err) {
+            if (err.status === 304 && etag) {
+                console.log(' [304, cache]');
+                response = yield store.read(request, options);
+                fromCache = true;
+            }
+            else {
+                throw err;
+            }
+        }
+        if (!fromCache) {
+            console.log(`rate : ${response.headers['x-ratelimit-remaining']}/${response.headers['x-ratelimit-limit']}`);
+            yield store.write(response, options);
+        }
+        return response;
+    });
+}
+exports.wrap = wrap;
+
+
+/***/ }),
+
 /***/ 654:
 /***/ (function(module) {
 
@@ -19684,77 +20210,6 @@ module.exports = (promise, onFinally) => {
 
 /***/ }),
 
-/***/ 702:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.mkdirP = void 0;
-const fs = __importStar(__webpack_require__(747));
-function mkdirP(tgtPath) {
-    if (!fs.existsSync(tgtPath)) {
-        fs.mkdirSync(tgtPath, { recursive: true });
-    }
-}
-exports.mkdirP = mkdirP;
-//# sourceMappingURL=util.js.map
-
-/***/ }),
-
-/***/ 714:
-/***/ (function(module, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getLastCommentPattern = exports.dataFromCard = void 0;
-function dataFromCard(card, filterBy, data) {
-    let fn = module.exports[`get${filterBy}`];
-    if (!fn) {
-        throw new Error(`Invalid filter: ${filterBy}`);
-    }
-    return fn(card, data);
-}
-exports.dataFromCard = dataFromCard;
-//
-// returns last updated using last comment with a body matching a pattern
-//
-function getLastCommentPattern(card, pattern) {
-    if (!card.comments) {
-        return '';
-    }
-    let re = new RegExp(pattern);
-    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
-    return comment ? comment["updated_at"] : null;
-}
-exports.getLastCommentPattern = getLastCommentPattern;
-// export function diffHours(date1: Date, date2: Date): number {
-//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
-// }
-//# sourceMappingURL=project-reports-schemes.js.map
-
-/***/ }),
-
 /***/ 723:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -19826,12 +20281,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(__webpack_require__(470));
-const generator_1 = __webpack_require__(341);
+const generator_1 = __webpack_require__(330);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            let token = core.getInput('token', { required: true });
-            let configPath = core.getInput('configPath', { required: true });
+            const token = core.getInput('token', { required: true });
+            const configPath = core.getInput('configPath', { required: true });
             console.log(`Generating reports for ${configPath} ...`);
             yield generator_1.generate(token, configPath);
         }
@@ -19981,243 +20436,6 @@ function sync (path, options) {
 /***/ (function(module) {
 
 module.exports = require("fs");
-
-/***/ }),
-
-/***/ 750:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Crawler = void 0;
-const github_1 = __webpack_require__(970);
-const project_reports_lib_1 = __webpack_require__(369);
-const url_1 = __webpack_require__(835);
-class Crawler {
-    constructor(token, cachePath) {
-        // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
-        this.targetMap = {};
-        this.github = new github_1.GitHubClient(token, cachePath);
-    }
-    crawl(target) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.targetMap[target.htmlUrl]) {
-                return this.targetMap[target.htmlUrl];
-            }
-            // TODO: eventually deprecate ProjectData and only have distinct set
-            let data;
-            if (target.type === 'project') {
-                let projectCrawler = new ProjectCrawler(this.github);
-                data = yield projectCrawler.crawl(target);
-            }
-            else if (target.type === 'repo') {
-                console.log(`crawling repo ${target.htmlUrl}`);
-                let repoCrawler = new RepoCrawler(this.github);
-                data = yield repoCrawler.crawl(target);
-            }
-            else {
-                throw new Error(`Unsupported target config: ${target.type}`);
-            }
-            this.targetMap[target.htmlUrl] = data;
-            return data;
-        });
-    }
-    getTargetData() {
-        return this.targetMap;
-    }
-}
-exports.Crawler = Crawler;
-class RepoCrawler {
-    constructor(client) {
-        this.github = client;
-    }
-    crawl(target) {
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Crawling project ${target.htmlUrl} ...`);
-            let set = new project_reports_lib_1.IssueList(issue => issue.number);
-            let res = yield this.github.getIssuesForRepo(target.htmlUrl);
-            let summaries = res.map(issue => this.summarizeIssue(issue));
-            console.log(`Crawled ${summaries.length} issues`);
-            set.add(summaries);
-            return set.getItems();
-        });
-    }
-    // walk events and rollup / summarize an issue for slicing and dicing.
-    summarizeIssue(issue) {
-        let summary = {};
-        summary.number = issue.number;
-        summary.title = issue.title;
-        summary.html_url = issue.html_url;
-        summary.labels = issue.labels;
-        // TODO: get events, comments and rollup up other "stage" data
-        return summary;
-    }
-}
-class ProjectCrawler {
-    constructor(client) {
-        // cache the resolution of stage names for a column
-        // a columns by stage names are the default and resolve immediately
-        this.resolvedColumns = {
-            "proposed": "Proposed",
-            "accepted": "Accepted",
-            "in-progress": "In-Progress",
-            "done": "Done"
-        };
-        this.github = client;
-    }
-    crawl(target) {
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Crawling project ${target.htmlUrl} ...`);
-            let issues = [];
-            let projectData = yield this.github.getProject(target.htmlUrl);
-            if (!projectData) {
-                throw new Error(`Could not find project ${target.htmlUrl}`);
-            }
-            let columns = yield this.github.getColumnsForProject(projectData);
-            let mappedColumns = [];
-            for (const stageName in target.columnMap) {
-                let colNames = target.columnMap[stageName];
-                if (!colNames || !Array.isArray) {
-                    throw new Error(`Invalid config. column map for ${stageName} is not an array`);
-                }
-                mappedColumns = mappedColumns.concat(colNames);
-            }
-            let seenUnmappedColumns = [];
-            for (const column of columns) {
-                console.log();
-                console.log(`>> Processing column ${column.name} (${column.id})`);
-                let cards = yield this.github.getCardsForColumns(column.id);
-                for (const card of cards) {
-                    // called as each event is processed 
-                    // creating a list of mentioned columns existing cards in the board in events that aren't mapped in the config
-                    // this will help diagnose a potential config issue much faster
-                    let eventCallback = (event) => {
-                        let mentioned = [];
-                        if (event.project_card && event.project_card.column_name) {
-                            mentioned.push(event.project_card.column_name);
-                        }
-                        if (event.project_card && event.project_card.previous_column_name) {
-                            mentioned.push(event.project_card.previous_column_name);
-                        }
-                        for (let mention of mentioned) {
-                            if (mappedColumns.indexOf(mention.trim()) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
-                                seenUnmappedColumns.push(mention);
-                            }
-                        }
-                    };
-                    // cached since real column could be mapped to two different mapped columns
-                    // read and build the event list once
-                    let issueCard = yield this.github.getIssueForCard(card, projectData.id);
-                    if (issueCard) {
-                        this.processCard(issueCard, projectData.id, target, eventCallback);
-                        issues.push(issueCard);
-                    }
-                    else {
-                        let contents = card["note"];
-                        try {
-                            new url_1.URL(contents);
-                            console.log(contents);
-                            console.log("WWARNING: card found that is not an issue but has contents of an issues url that is not part of the project");
-                        }
-                        catch (_a) {
-                            console.log(`ignoring note: ${contents}`);
-                        }
-                    }
-                }
-            }
-            console.log("Done processing.");
-            console.log();
-            if (seenUnmappedColumns.length > 0) {
-                console.log();
-                console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
-                seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`);
-                console.log(`WARNING: Columns are ${seenUnmappedColumns.join(" ")}`);
-                console.log();
-            }
-            return issues;
-        });
-    }
-    //
-    // Add logical stages to the events.
-    // filter out events not for the project being crawled (issue can belond to multiple boards)
-    //
-    processCard(card, projectId, target, eventCallback) {
-        if (!projectId) {
-            throw new Error('projectId not set');
-        }
-        console.log();
-        console.log(`Processing card ${card.title}`);
-        console.log(card.html_url);
-        let filteredEvents = [];
-        // card events should be in order chronologically
-        let currentStage;
-        let doneTime;
-        let blockedTime;
-        let addedTime;
-        if (card.events) {
-            for (let event of card.events) {
-                // since we're adding this card to a projects / stage, let's filter out
-                // events for other project ids since an issue can be part of multiple boards
-                if (event.project_card && event.project_card.project_id !== projectId) {
-                    continue;
-                }
-                eventCallback(event);
-                if (event.project_card && event.project_card.column_name) {
-                    let stage = this.getStageFromColumn(event.project_card.column_name, target);
-                    if (!stage) {
-                        console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
-                    }
-                    event.project_card.stage_name = stage || "Unmapped";
-                    console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`);
-                }
-                if (event.project_card && event.project_card.previous_column_name) {
-                    let previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target);
-                    if (!previousStage) {
-                        console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
-                    }
-                    event.project_card.previous_stage_name = previousStage || "Unmapped";
-                    console.log(`${event.created_at}: ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
-                }
-                filteredEvents.push(event);
-            }
-            card.events = filteredEvents;
-        }
-    }
-    getStageFromColumn(column, target) {
-        if (this.resolvedColumns[column]) {
-            return this.resolvedColumns[column];
-        }
-        let resolvedStage = null;
-        for (let stageName in target.columnMap) {
-            // case insensitve match
-            for (let mappedColumn of target.columnMap[stageName].filter(e => e)) {
-                if (project_reports_lib_1.fuzzyMatch(column, mappedColumn)) {
-                    resolvedStage = stageName;
-                    break;
-                }
-            }
-            if (resolvedStage) {
-                break;
-            }
-        }
-        // cache the n^2 reverse case insensitive lookup.  it will never change for this run
-        if (resolvedStage) {
-            this.resolvedColumns[column] = resolvedStage;
-        }
-        return resolvedStage;
-    }
-}
-//# sourceMappingURL=crawler.js.map
 
 /***/ }),
 
@@ -21206,6 +21424,43 @@ module.exports = function (str) {
 /***/ (function(module) {
 
 module.exports = require("tty");
+
+/***/ }),
+
+/***/ 873:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.mkdirP = void 0;
+const fs = __importStar(__webpack_require__(747));
+function mkdirP(tgtPath) {
+    if (!fs.existsSync(tgtPath)) {
+        fs.mkdirSync(tgtPath, { recursive: true });
+    }
+}
+exports.mkdirP = mkdirP;
+
 
 /***/ }),
 
@@ -22250,235 +22505,6 @@ function onceStrict (fn) {
   return f
 }
 
-
-/***/ }),
-
-/***/ 970:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.GitHubClient = void 0;
-const rest_1 = __webpack_require__(889);
-const url = __importStar(__webpack_require__(835));
-const restCache = __importStar(__webpack_require__(28));
-const project_reports_lib_1 = __webpack_require__(369);
-function DateOrNull(date) {
-    return date ? new Date(date) : null;
-}
-class GitHubClient {
-    constructor(token, cacheDir) {
-        this.octokit = new rest_1.Octokit({
-            auth: token,
-            previews: [
-                'squirrel-girl-preview',
-                'inertia-preview',
-                'starfox-preview',
-                'mockingbird-preview',
-                'sailor-v-preview'
-            ]
-        });
-        let diskCache = new restCache.FileSystemStore(cacheDir);
-        this.octokit.hook.wrap("request", restCache.wrap(diskCache));
-    }
-    getProject(projectHtmlUrl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            console.log(`Finding project for ${projectHtmlUrl}`);
-            let proj = null;
-            let projUrl = new url.URL(projectHtmlUrl);
-            let projParts = projUrl.pathname.split("/").filter(e => e);
-            if (projParts.length !== 4) {
-                throw new Error(`Invalid project url: ${projectHtmlUrl}`);
-            }
-            let projKind = projParts[0]; // orgs or users
-            let projOwner = projParts[1]; // orgname or username
-            // let projId = projParts[3];    // html id
-            let count = 0;
-            let page = 0;
-            do {
-                ++page;
-                console.log(`page: ${page}`);
-                let res;
-                if (projKind === 'orgs') {
-                    console.log(`querying: ${projKind}, ${projOwner}`);
-                    res = yield this.octokit.projects.listForOrg({
-                        org: projOwner,
-                        state: "open",
-                        per_page: 100,
-                        page: page
-                    });
-                }
-                else if (projKind === 'users') {
-                    console.log(`querying: ${projKind}, ${projOwner}`);
-                    res = yield this.octokit.projects.listForUser({
-                        username: projOwner,
-                        state: "open",
-                        per_page: 100,
-                        page: page
-                    });
-                }
-                else {
-                    // if it's not an org or user project, must be a repo
-                    let owner = projParts[0];
-                    let repo = projParts[1];
-                    console.log(`querying for owner:'${owner}', repo:'${repo}'`);
-                    res = yield this.octokit.projects.listForRepo({
-                        owner: owner,
-                        repo: repo,
-                        state: "open",
-                        per_page: 100,
-                        page: page
-                    });
-                }
-                let projects = res.data;
-                count = projects.length;
-                for (const project of projects) {
-                    if (projectHtmlUrl.indexOf(project.html_url) > -1) {
-                        proj = {
-                            id: project.id,
-                            html_url: project.html_url,
-                            name: project.name
-                        };
-                        console.log(`Found ${project.name}`);
-                        break;
-                    }
-                }
-            } while (count == 100);
-            return proj;
-        });
-    }
-    getColumnsForProject(project) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let cols = yield this.octokit.projects.listColumns({ project_id: project.id });
-            return cols.data;
-        });
-    }
-    getCardsForColumns(colId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let cards = yield this.octokit.projects.listCards({ column_id: colId });
-            return cards.data;
-        });
-    }
-    getIssueComments(owner, repo, issue_number) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return yield this.octokit.paginate("GET /repos/:owner/:repo/issues/:id/comments", {
-                owner: owner,
-                repo: repo,
-                id: issue_number,
-                per_page: 100,
-            });
-        });
-    }
-    // returns null if not an issue
-    getIssueForCard(card, projectId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!card.content_url) {
-                return null;
-            }
-            let cardUrl = new url.URL(card.content_url);
-            let cardParts = cardUrl.pathname.split('/').filter(e => e);
-            // /repos/:owner/:repo/issues/events/:event_id
-            // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
-            let owner = cardParts[1];
-            let repo = cardParts[2];
-            let issue_number = cardParts[4];
-            let issueCard = {};
-            let res = yield this.octokit.issues.get({
-                owner: owner,
-                repo: repo,
-                issue_number: issue_number,
-                per_page: 100
-            });
-            let issue = res.data;
-            issueCard.number = issue.number;
-            issueCard.title = issue.title;
-            issueCard.number = issue.number;
-            issueCard.html_url = issue.html_url;
-            issueCard.closed_at = DateOrNull(issue.closed_at);
-            issueCard.created_at = DateOrNull(issue.created_at);
-            issueCard.updated_at = DateOrNull(issue.updated_at);
-            issueCard.assignee = issue.assignee;
-            issueCard.assignees = issue.assignees;
-            issueCard.labels = issue.labels;
-            issueCard.comments = [];
-            if (issue.comments > 0) {
-                issueCard.comments = yield this.getIssueComments(owner, repo, issue_number);
-            }
-            issueCard.events = yield this.octokit.paginate("GET /repos/:owner/:repo/issues/:id/events", {
-                owner: owner,
-                repo: repo,
-                id: issue_number,
-                per_page: 100,
-            });
-            return issueCard;
-        });
-    }
-    //
-    // This will get all open issues unioned with all issues changed in last n days
-    // It will sort descending by updated time
-    //
-    // This focuses on two main scenarios:
-    //   1. Slice and dice opened bugs by labels, assigned, milestone
-    //   2. Get cycle time (time opened to closed etc.)
-    //
-    // https://developer.github.com/v3/issues/#parameters-3
-    getIssuesForRepo(repoUrl, daysAgo = 7) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let set = new project_reports_lib_1.IssueList(issue => issue.number);
-            let rUrl = new url.URL(repoUrl);
-            let parts = rUrl.pathname.split('/').filter(e => e);
-            let repoProps = {
-                owner: parts[0],
-                repo: parts[1]
-            };
-            let opened = yield this.octokit.paginate("GET /repos/:owner/:repo/issues", Object.assign(Object.assign({}, repoProps), { state: 'open', per_page: 100 }), (response) => response.data.filter(issue => !issue.pull_request));
-            console.log(`Found ${opened.length} opened issues`);
-            set.add(opened);
-            // get Date n days ago as of mindnight (ensures cache hit if you run every 15 min)
-            var dateAgo = new Date();
-            dateAgo.setHours(0, 0, 0, 0);
-            dateAgo.setDate(dateAgo.getDate() - daysAgo);
-            console.log(`${daysAgo} days ago is ${dateAgo.toISOString()}`);
-            let recentIssues = yield this.octokit.paginate("GET /repos/:owner/:repo/issues", Object.assign(Object.assign({}, repoProps), { since: dateAgo.toUTCString(), per_page: 100 }), (response) => response.data.filter(issue => !issue.pull_request));
-            console.log(`Found ${recentIssues.length} issues changed in last ${daysAgo} days.`);
-            set.add(recentIssues);
-            let issues = set.getItems();
-            console.log(`Total of ${issues.length} distinct issues`);
-            return issues;
-        });
-    }
-}
-exports.GitHubClient = GitHubClient;
-//# sourceMappingURL=index.js.map
 
 /***/ }),
 

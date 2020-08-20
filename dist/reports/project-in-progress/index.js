@@ -80,13 +80,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = exports.process = exports.sortCards = exports.getDefaultConfiguration = exports.reportType = void 0;
-const project_reports_lib_1 = __webpack_require__(369);
-const rptLib = __importStar(__webpack_require__(369));
-const tablemark_1 = __importDefault(__webpack_require__(611));
-const os = __importStar(__webpack_require__(87));
-const moment_1 = __importDefault(__webpack_require__(431));
 const clone_1 = __importDefault(__webpack_require__(97));
-let now = moment_1.default();
+const moment_1 = __importDefault(__webpack_require__(431));
+const os = __importStar(__webpack_require__(87));
+const tablemark_1 = __importDefault(__webpack_require__(611));
+const rptLib = __importStar(__webpack_require__(189));
+const project_reports_lib_1 = __webpack_require__(189);
+const now = moment_1.default();
 const reportType = 'project';
 exports.reportType = reportType;
 /*
@@ -98,26 +98,26 @@ function getDefaultConfiguration() {
     return {
         // Takes a single type since settings like daysAgo might be different by type.
         // Can add multiple sections on report if you want more
-        "report-on-label": 'Epic',
+        'report-on-label': 'Epic',
         // TODO: implement getting a shapshot of data n days ago
-        "daysAgo": 7,
-        "status-label-match": "(?:green|yellow|red)",
-        "last-updated-days-flag": 3.0,
-        "last-updated-scheme": "LastCommentPattern",
-        "last-updated-scheme-data": "^(#){1,4} update",
+        daysAgo: 7,
+        'status-label-match': '(?:green|yellow|red)',
+        'last-updated-days-flag': 3.0,
+        'last-updated-scheme': 'LastCommentPattern',
+        'last-updated-scheme-data': '^(#){1,4} update',
         // last status a week before this wednesday (last wednesday)
-        "status-day": "Wednesday",
-        "previous-days-ago": 7,
-        "previous-hour-utc": 17,
+        'status-day': 'Wednesday',
+        'previous-days-ago': 7,
+        'previous-hour-utc': 17
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
-let statusLevels = {
-    "": 0,
-    "red": 1,
-    "yellow": 2,
-    "blocked": 3,
-    "green": 4
+const statusLevels = {
+    '': 0,
+    red: 1,
+    yellow: 2,
+    blocked: 3,
+    green: 4
 };
 // sort by status
 function sortCards(card1, card2) {
@@ -144,40 +144,53 @@ function sortCards(card1, card2) {
 }
 exports.sortCards = sortCards;
 function process(config, issueList, drillIn) {
-    console.log("> in-progress::process");
-    let progressData = {};
-    progressData.cardType = config["report-on"] || config["report-on-label"];
+    console.log('> in-progress::process');
+    const progressData = {};
+    progressData.cardType = config['report-on'] || config['report-on-label'];
     progressData.cards = [];
-    let issues = issueList.getItems();
-    let projData = rptLib.getProjectStageIssues(issues);
-    let cards = projData[project_reports_lib_1.ProjectStages.InProgress];
+    const issues = issueList.getItems();
+    const projData = rptLib.getProjectStageIssues(issues);
+    const cards = projData[project_reports_lib_1.ProjectStages.InProgress];
     if (!cards) {
         return progressData;
     }
     console.log(`Getting cards for ${progressData.cardType}`);
-    let cardsForType = progressData.cardType === '*' ? clone_1.default(cards) : clone_1.default(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
-    let previousMoment = moment_1.default().day(config['status-day']).subtract(config['previous-days-ago'], 'days').utc().hour(config['previous-hour-utc']);
+    const cardsForType = progressData.cardType === '*'
+        ? clone_1.default(cards)
+        : clone_1.default(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()));
+    const previousMoment = moment_1.default()
+        .day(config['status-day'])
+        .subtract(config['previous-days-ago'], 'days')
+        .utc()
+        .hour(config['previous-hour-utc']);
     console.log(`Previous status moment: ${previousMoment}`);
     // add status to each card from the status label
     cardsForType.map((card) => {
         console.log(`issue: ${card.html_url}`);
-        let labels = card.labels.map(label => label.name);
-        let lastUpdatedDate = rptLib.dataFromCard(card, config["last-updated-scheme"], config["last-updated-scheme-data"]);
+        const labels = card.labels.map(label => label.name);
+        const lastUpdatedDate = rptLib.dataFromCard(card, config['last-updated-scheme'], config['last-updated-scheme-data']);
         console.log(`last updated: ${lastUpdatedDate}`);
-        card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : "";
+        card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : '';
         console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`);
-        let daysSinceUpdate = lastUpdatedDate ? now.diff(lastUpdatedDate, 'days') : -1;
-        card.flagHoursLastUpdated = daysSinceUpdate < 0 || daysSinceUpdate > config["last-updated-days-flag"];
-        let previousCard = issueList.getItemAsof(card.html_url, previousMoment.toDate());
-        let status = rptLib.getStringFromLabel(card, new RegExp(config["status-label-match"])).toLowerCase();
-        console.log(`status: '${status}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
-        let previousStatus = rptLib.getStringFromLabel(previousCard, new RegExp(config["status-label-match"])).toLowerCase();
-        console.log(`previousStatus: '${previousStatus}' - '${config["status-label-match"]}':${JSON.stringify(labels)}`);
-        card.status = statusLevels[status] ? status : "";
-        card.previousStatus = statusLevels[previousStatus] ? previousStatus : "";
+        const daysSinceUpdate = lastUpdatedDate
+            ? now.diff(lastUpdatedDate, 'days')
+            : -1;
+        card.flagHoursLastUpdated =
+            daysSinceUpdate < 0 || daysSinceUpdate > config['last-updated-days-flag'];
+        const previousCard = issueList.getItemAsof(card.html_url, previousMoment.toDate());
+        const status = rptLib
+            .getStringFromLabel(card, new RegExp(config['status-label-match']))
+            .toLowerCase();
+        console.log(`status: '${status}' - '${config['status-label-match']}':${JSON.stringify(labels)}`);
+        const previousStatus = rptLib
+            .getStringFromLabel(previousCard, new RegExp(config['status-label-match']))
+            .toLowerCase();
+        console.log(`previousStatus: '${previousStatus}' - '${config['status-label-match']}':${JSON.stringify(labels)}`);
+        card.status = statusLevels[status] ? status : '';
+        card.previousStatus = statusLevels[previousStatus] ? previousStatus : '';
         card.hoursInProgress = -1;
         if (card.project_in_progress_at) {
-            let then = moment_1.default(card.project_in_progress_at);
+            const then = moment_1.default(card.project_in_progress_at);
             card.hoursInProgress = now.diff(then, 'hours', true);
             card.inProgressSince = now.to(then);
         }
@@ -190,42 +203,44 @@ function process(config, issueList, drillIn) {
 exports.process = process;
 // TODO: we could make this configurable
 function getStatusEmoji(status) {
-    let statusEmoji = ":exclamation:";
+    let statusEmoji = ':exclamation:';
     switch (status.toLowerCase()) {
-        case "red":
-            statusEmoji = ":heart:";
+        case 'red':
+            statusEmoji = ':heart:';
             break;
-        case "green":
-            statusEmoji = ":green_heart:";
+        case 'green':
+            statusEmoji = ':green_heart:';
             break;
-        case "yellow":
-            statusEmoji = ":yellow_heart:";
+        case 'yellow':
+            statusEmoji = ':yellow_heart:';
             break;
     }
     return statusEmoji;
 }
 function renderMarkdown(targets, processedData) {
-    console.log("> in-progress::renderMarkdown");
-    let progressData = processedData;
-    let lines = [];
-    let typeLabel = processedData.cardType === '*' ? "" : `${progressData.cardType}s`;
+    console.log('> in-progress::renderMarkdown');
+    const progressData = processedData;
+    const lines = [];
+    const typeLabel = processedData.cardType === '*' ? '' : `${progressData.cardType}s`;
     lines.push(`## :hourglass_flowing_sand: In Progress ${typeLabel}  `);
     lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `);
-    lines.push("  ");
-    let rows = [];
-    for (let card of processedData.cards) {
-        let progressRow = {};
+    lines.push('  ');
+    const rows = [];
+    for (const card of processedData.cards) {
+        const progressRow = {};
         let assigned = card.assignee;
         if (!assigned && card.assignees && card.assignees.length > 0) {
             assigned = card.assignees[0];
         }
-        progressRow.assigned = assigned ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>` : ":triangular_flag_on_post:";
+        progressRow.assigned = assigned
+            ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>`
+            : ':triangular_flag_on_post:';
         progressRow.title = `[${card.title}](${card.html_url})`;
         progressRow.status = getStatusEmoji(card.status);
         progressRow.previous = getStatusEmoji(card.previousStatus);
         progressRow.lastUpdated = card.lastUpdatedAgo;
         if (card.flagHoursLastUpdated) {
-            progressRow.lastUpdated += " :triangular_flag_on_post:";
+            progressRow.lastUpdated += ' :triangular_flag_on_post:';
         }
         progressRow.inProgress = card.inProgressSince;
         rows.push(progressRow);
@@ -238,13 +253,13 @@ function renderMarkdown(targets, processedData) {
         table = `No ${progressData.cardType}s found.`;
     }
     lines.push(table);
-    lines.push("  ");
+    lines.push('  ');
     return lines.join(os.EOL);
 }
 exports.renderMarkdown = renderMarkdown;
 function renderHtml() {
     // Not supported yet
-    return "";
+    return '';
 }
 exports.renderHtml = renderHtml;
 
@@ -530,6 +545,344 @@ module.exports = /([A-Z\xC0-\xD6\xD8-\xDE\u0100\u0102\u0104\u0106\u0108\u010A\u0
 
 /***/ }),
 
+/***/ 189:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(431));
+const url = __importStar(__webpack_require__(835));
+// TODO: separate npm module.  for now it's a file till we flush out
+__exportStar(__webpack_require__(385), exports);
+function repoPropsFromUrl(htmlUrl) {
+    const rUrl = new url.URL(htmlUrl);
+    const parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
+//
+// filter cards by label
+//
+function filterByLabel(issues, name) {
+    return issues.filter(card => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+}
+exports.filterByLabel = filterByLabel;
+//
+// Get number from a label by regex.
+// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
+// returns NaN if no labels match
+//
+function getCountFromLabel(card, re) {
+    let num = NaN;
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            num = parseInt(matches[1]);
+            if (num) {
+                break;
+            }
+        }
+    }
+    return num;
+}
+exports.getCountFromLabel = getCountFromLabel;
+function getStringFromLabel(card, re) {
+    let str = '';
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            str = matches[0];
+            if (str) {
+                break;
+            }
+        }
+    }
+    if (str) {
+        str = str.trim();
+    }
+    return str;
+}
+exports.getStringFromLabel = getStringFromLabel;
+function sumCardProperty(cards, prop) {
+    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
+}
+exports.sumCardProperty = sumCardProperty;
+function fuzzyMatch(content, match) {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+    let isMatch = true;
+    for (const matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+exports.fuzzyMatch = fuzzyMatch;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: 'Proposed',
+    Accepted: 'Accepted',
+    InProgress: 'In-Progress',
+    Done: 'Done',
+    Missing: 'Missing'
+};
+function getProjectStageIssues(issues) {
+    const projIssues = {};
+    for (const projIssue of issues) {
+        const stage = projIssue['project_stage'];
+        if (!stage) {
+            // the engine will handle and add to an issues list
+            continue;
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
+const stageLevel = {
+    None: 0,
+    Proposed: 1,
+    Accepted: 2,
+    'In-Progress': 3,
+    Done: 4,
+    Unmapped: 5
+};
+class IssueList {
+    constructor(identifier) {
+        // keep in order indexed by level above
+        // TODO: unify both to avoid out of sync problems
+        this.stageAtNames = [
+            'none',
+            'project_proposed_at',
+            'project_accepted_at',
+            'project_in_progress_at',
+            'project_done_at'
+        ];
+        this.seen = new Map();
+        this.identifier = identifier;
+        this.items = [];
+    }
+    // returns whether any were added
+    add(data) {
+        this.processed = null;
+        let added = false;
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const res = this.add_item(item);
+                if (!added) {
+                    added = res;
+                }
+            }
+        }
+        else {
+            return this.add_item(data);
+        }
+        return added;
+    }
+    add_item(item) {
+        const id = this.identifier(item);
+        if (!this.seen.has(id)) {
+            this.items.push(item);
+            this.seen.set(id, item);
+            return true;
+        }
+        return false;
+    }
+    getItem(identifier) {
+        return this.seen.get(identifier);
+    }
+    getItems() {
+        if (this.processed) {
+            return this.processed;
+        }
+        // call process
+        for (const item of this.items) {
+            this.processStages(item);
+        }
+        this.processed = this.items;
+        return this.processed;
+    }
+    //
+    // Gets an issue from a number of days, hours ago.
+    // Clones the issue and Replays events (labels, column moves, milestones)
+    // and reprocesses the stages.
+    // If the issue doesn't exist in the list, returns null
+    //
+    getItemAsof(identifier, datetime) {
+        console.log(`getting asof ${datetime} : ${identifier}`);
+        let issue = this.getItem(identifier);
+        if (!issue) {
+            return issue;
+        }
+        issue = clone_1.default(issue);
+        const momentAgo = moment_1.default(datetime);
+        // clear everything we're going to re-apply
+        issue.labels = [];
+        delete issue.project_added_at;
+        delete issue.project_proposed_at;
+        delete issue.project_in_progress_at;
+        delete issue.project_accepted_at;
+        delete issue.project_done_at;
+        delete issue.project_stage;
+        delete issue.closed_at;
+        // stages and labels
+        const filteredEvents = [];
+        const labelMap = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
+                    continue;
+                }
+                filteredEvents.push(event);
+                if (event.event === 'labeled') {
+                    labelMap[event.label.name] = event.label;
+                }
+                else if (event.event === 'unlabeled') {
+                    delete labelMap[event.label.name];
+                }
+                if (event.event === 'closed') {
+                    issue.closed_at = event.created_at;
+                }
+                if (event.event === 'reopened') {
+                    delete issue.closed_at;
+                }
+            }
+        }
+        issue.events = filteredEvents;
+        for (const labelName in labelMap) {
+            issue.labels.push(labelMap[labelName]);
+        }
+        this.processStages(issue);
+        // comments
+        const filteredComments = [];
+        for (const comment of issue.comments) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
+                continue;
+            }
+            filteredComments.push(comment);
+        }
+        issue.comments = filteredComments;
+        return issue;
+    }
+    //
+    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
+    // Call initially and then call again if events are filtered (get issue asof)
+    //
+    processStages(issue) {
+        console.log(`Processing stages for ${issue.html_url}`);
+        // card events should be in order chronologically
+        let currentStage;
+        let doneTime;
+        let addedTime;
+        const tempLabels = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                let eventDateTime;
+                if (event.created_at) {
+                    eventDateTime = event.created_at;
+                }
+                //
+                // Process Project Stages
+                //
+                let toStage;
+                let toLevel;
+                let fromStage;
+                let fromLevel = 0;
+                if (event.project_card && event.project_card.column_name) {
+                    if (!addedTime) {
+                        addedTime = eventDateTime;
+                    }
+                    if (!event.project_card.stage_name) {
+                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
+                    }
+                    toStage = event.project_card.stage_name;
+                    toLevel = stageLevel[toStage];
+                    currentStage = toStage;
+                }
+                if (event.project_card && event.project_card.previous_column_name) {
+                    if (!event.project_card.previous_stage_name) {
+                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
+                    }
+                    fromStage = event.project_card.previous_stage_name;
+                    fromLevel = stageLevel[fromStage];
+                }
+                // last occurence of moving to these columns from a lesser or no column
+                // example. if moved to accepted from proposed (or less),
+                //      then in-progress (greater) and then back to accepted, first wins
+                if (toStage === 'Proposed' ||
+                    toStage === 'Accepted' ||
+                    toStage === 'In-Progress') {
+                    if (toLevel > fromLevel) {
+                        issue[this.stageAtNames[toLevel]] = eventDateTime;
+                    }
+                    //moving back, clear the stage at dates up to fromLevel
+                    else if (toLevel < fromLevel) {
+                        for (let i = toLevel + 1; i <= fromLevel; i++) {
+                            delete issue[this.stageAtNames[i]];
+                        }
+                    }
+                }
+                if (toStage === 'Done') {
+                    doneTime = eventDateTime;
+                }
+            }
+            // done_at and blocked_at is only set if it's currently at that stage
+            if (currentStage === 'Done') {
+                issue.project_done_at = doneTime;
+                console.log(`project_done_at: ${issue.project_done_at}`);
+            }
+            if (addedTime) {
+                issue.project_added_at = addedTime;
+                console.log(`project_added_at: ${issue.project_added_at}`);
+            }
+            issue.project_stage = currentStage;
+            console.log(`project_stage: ${issue.project_stage}`);
+        }
+    }
+}
+exports.IssueList = IssueList;
+
+
+/***/ }),
+
 /***/ 205:
 /***/ (function(module) {
 
@@ -646,339 +999,37 @@ module.exports = /[^A-Za-z\xAA\xB5\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02C1\u02C6-\u02D1
 
 /***/ }),
 
-/***/ 369:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
+/***/ 385:
+/***/ (function(module, exports) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
-const url = __importStar(__webpack_require__(835));
-const clone_1 = __importDefault(__webpack_require__(97));
-const moment_1 = __importDefault(__webpack_require__(431));
-// TODO: separate npm module.  for now it's a file till we flush out
-__exportStar(__webpack_require__(714), exports);
-function repoPropsFromUrl(htmlUrl) {
-    let rUrl = new url.URL(htmlUrl);
-    let parts = rUrl.pathname.split('/').filter(e => e);
-    return {
-        owner: parts[0],
-        repo: parts[1]
-    };
+exports.getLastCommentPattern = exports.dataFromCard = void 0;
+function dataFromCard(card, filterBy, data) {
+    const fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
 }
-exports.repoPropsFromUrl = repoPropsFromUrl;
+exports.dataFromCard = dataFromCard;
 //
-// filter cards by label
+// returns last updated using last comment with a body matching a pattern
 //
-function filterByLabel(issues, name) {
-    return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    const re = new RegExp(pattern);
+    const comment = card.comments.filter(comment => comment.body.match(re)).pop();
+    return comment ? comment['updated_at'] : null;
 }
-exports.filterByLabel = filterByLabel;
-//
-// Get number from a label by regex.  
-// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
-// returns NaN if no labels match
-//
-function getCountFromLabel(card, re) {
-    let num = NaN;
-    for (let label of card.labels) {
-        let matches = label.name.match(re);
-        if (matches && matches.length > 0) {
-            num = parseInt(matches[1]);
-            if (num) {
-                break;
-            }
-        }
-    }
-    return num;
-}
-exports.getCountFromLabel = getCountFromLabel;
-function getStringFromLabel(card, re) {
-    let str = '';
-    for (let label of card.labels) {
-        let matches = label.name.match(re);
-        if (matches && matches.length > 0) {
-            str = matches[0];
-            if (str) {
-                break;
-            }
-        }
-    }
-    if (str) {
-        str = str.trim();
-    }
-    return str;
-}
-exports.getStringFromLabel = getStringFromLabel;
-function sumCardProperty(cards, prop) {
-    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
-}
-exports.sumCardProperty = sumCardProperty;
-function fuzzyMatch(content, match) {
-    let matchWords = match.match(/[a-zA-Z0-9]+/g);
-    matchWords = matchWords.map(item => item.toLowerCase());
-    let contentWords = content.match(/[a-zA-Z0-9]+/g);
-    contentWords = contentWords.map(item => item.toLowerCase());
-    let isMatch = true;
-    for (let matchWord of matchWords) {
-        if (contentWords.indexOf(matchWord) === -1) {
-            isMatch = false;
-            break;
-        }
-    }
-    return isMatch;
-}
-exports.fuzzyMatch = fuzzyMatch;
-// stages more discoverable
-exports.ProjectStages = {
-    Proposed: "Proposed",
-    Accepted: "Accepted",
-    InProgress: "In-Progress",
-    Done: "Done",
-    Missing: "Missing"
-};
-function getProjectStageIssues(issues) {
-    let projIssues = {};
-    for (let projIssue of issues) {
-        let stage = projIssue["project_stage"];
-        if (!stage) {
-            // the engine will handle and add to an issues list
-            continue;
-        }
-        if (!projIssues[stage]) {
-            projIssues[stage] = [];
-        }
-        projIssues[stage].push(projIssue);
-    }
-    return projIssues;
-}
-exports.getProjectStageIssues = getProjectStageIssues;
-let stageLevel = {
-    "None": 0,
-    "Proposed": 1,
-    "Accepted": 2,
-    "In-Progress": 3,
-    "Done": 4,
-    "Unmapped": 5
-};
-class IssueList {
-    constructor(identifier) {
-        // keep in order indexed by level above
-        // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
-        this.seen = new Map();
-        this.identifier = identifier;
-        this.items = [];
-    }
-    // returns whether any were added
-    add(data) {
-        this.processed = null;
-        let added = false;
-        if (Array.isArray(data)) {
-            for (let item of data) {
-                let res = this.add_item(item);
-                if (!added) {
-                    added = res;
-                }
-            }
-        }
-        else {
-            return this.add_item(data);
-        }
-        return added;
-    }
-    add_item(item) {
-        let id = this.identifier(item);
-        if (!this.seen.has(id)) {
-            this.items.push(item);
-            this.seen.set(id, item);
-            return true;
-        }
-        return false;
-    }
-    getItem(identifier) {
-        return this.seen.get(identifier);
-    }
-    getItems() {
-        if (this.processed) {
-            return this.processed;
-        }
-        // call process
-        for (let item of this.items) {
-            this.processStages(item);
-        }
-        this.processed = this.items;
-        return this.processed;
-    }
-    //
-    // Gets an issue from a number of days, hours ago.
-    // Clones the issue and Replays events (labels, column moves, milestones)
-    // and reprocesses the stages.
-    // If the issue doesn't exist in the list, returns null
-    //
-    getItemAsof(identifier, datetime) {
-        console.log(`getting asof ${datetime} : ${identifier}`);
-        let issue = this.getItem(identifier);
-        if (!issue) {
-            return issue;
-        }
-        issue = clone_1.default(issue);
-        let momentAgo = moment_1.default(datetime);
-        // clear everything we're going to re-apply
-        issue.labels = [];
-        delete issue.project_added_at;
-        delete issue.project_proposed_at;
-        delete issue.project_in_progress_at;
-        delete issue.project_accepted_at;
-        delete issue.project_done_at;
-        delete issue.project_stage;
-        delete issue.closed_at;
-        // stages and labels
-        let filteredEvents = [];
-        let labelMap = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
-                    continue;
-                }
-                filteredEvents.push(event);
-                if (event.event === 'labeled') {
-                    labelMap[event.label.name] = event.label;
-                }
-                else if (event.event === 'unlabeled') {
-                    delete labelMap[event.label.name];
-                }
-                if (event.event === 'closed') {
-                    issue.closed_at = event.created_at;
-                }
-                if (event.event === 'reopened') {
-                    delete issue.closed_at;
-                }
-            }
-        }
-        issue.events = filteredEvents;
-        for (let labelName in labelMap) {
-            issue.labels.push(labelMap[labelName]);
-        }
-        this.processStages(issue);
-        // comments
-        let filteredComments = [];
-        for (let comment of issue.comments) {
-            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
-                continue;
-            }
-            filteredComments.push(comment);
-        }
-        issue.comments = filteredComments;
-        return issue;
-    }
-    //
-    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
-    // Call initially and then call again if events are filtered (get issue asof)
-    //
-    processStages(issue) {
-        console.log(`Processing stages for ${issue.html_url}`);
-        // card events should be in order chronologically
-        let currentStage;
-        let doneTime;
-        let addedTime;
-        let tempLabels = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                let eventDateTime;
-                if (event.created_at) {
-                    eventDateTime = event.created_at;
-                }
-                //
-                // Process Project Stages
-                //
-                let toStage;
-                let toLevel;
-                let fromStage;
-                let fromLevel = 0;
-                if (event.project_card && event.project_card.column_name) {
-                    if (!addedTime) {
-                        addedTime = eventDateTime;
-                    }
-                    if (!event.project_card.stage_name) {
-                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
-                    }
-                    toStage = event.project_card.stage_name;
-                    toLevel = stageLevel[toStage];
-                    currentStage = toStage;
-                }
-                if (event.project_card && event.project_card.previous_column_name) {
-                    if (!event.project_card.previous_stage_name) {
-                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
-                    }
-                    fromStage = event.project_card.previous_stage_name;
-                    fromLevel = stageLevel[fromStage];
-                }
-                // last occurence of moving to these columns from a lesser or no column
-                // example. if moved to accepted from proposed (or less), 
-                //      then in-progress (greater) and then back to accepted, first wins            
-                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                    if (toLevel > fromLevel) {
-                        issue[this.stageAtNames[toLevel]] = eventDateTime;
-                    }
-                    //moving back, clear the stage at dates up to fromLevel
-                    else if (toLevel < fromLevel) {
-                        for (let i = toLevel + 1; i <= fromLevel; i++) {
-                            delete issue[this.stageAtNames[i]];
-                        }
-                    }
-                }
-                if (toStage === 'Done') {
-                    doneTime = eventDateTime;
-                }
-            }
-            // done_at and blocked_at is only set if it's currently at that stage
-            if (currentStage === 'Done') {
-                issue.project_done_at = doneTime;
-                console.log(`project_done_at: ${issue.project_done_at}`);
-            }
-            if (addedTime) {
-                issue.project_added_at = addedTime;
-                console.log(`project_added_at: ${issue.project_added_at}`);
-            }
-            issue.project_stage = currentStage;
-            console.log(`project_stage: ${issue.project_stage}`);
-        }
-    }
-}
-exports.IssueList = IssueList;
-//# sourceMappingURL=project-reports-lib.js.map
+exports.getLastCommentPattern = getLastCommentPattern;
+// export function diffHours(date1: Date, date2: Date): number {
+//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
+// }
+
 
 /***/ }),
 
@@ -6973,40 +7024,6 @@ module.exports = function (str, locale) {
   return upperCase(str.charAt(0), locale) + str.substr(1)
 }
 
-
-/***/ }),
-
-/***/ 714:
-/***/ (function(module, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getLastCommentPattern = exports.dataFromCard = void 0;
-function dataFromCard(card, filterBy, data) {
-    let fn = module.exports[`get${filterBy}`];
-    if (!fn) {
-        throw new Error(`Invalid filter: ${filterBy}`);
-    }
-    return fn(card, data);
-}
-exports.dataFromCard = dataFromCard;
-//
-// returns last updated using last comment with a body matching a pattern
-//
-function getLastCommentPattern(card, pattern) {
-    if (!card.comments) {
-        return '';
-    }
-    let re = new RegExp(pattern);
-    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
-    return comment ? comment["updated_at"] : null;
-}
-exports.getLastCommentPattern = getLastCommentPattern;
-// export function diffHours(date1: Date, date2: Date): number {
-//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
-// }
-//# sourceMappingURL=project-reports-schemes.js.map
 
 /***/ }),
 
