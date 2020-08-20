@@ -41,6 +41,13 @@ export async function generate(
 
   const snapshot = <ReportSnapshot>{}
   snapshot.datetime = new Date()
+
+  // ISO8601 without separators—supported by moment, etc.
+  snapshot.datetimeString = snapshot.datetime
+    .toISOString()
+    .replace(/:/g, '')
+    .replace(/-/g, '')
+
   snapshot.config = config
 
   snapshot.config.output = snapshot.config.output || '_reports'
@@ -64,7 +71,7 @@ export async function generate(
     )
     report.details.fullPath = path.join(
       report.details.rootPath,
-      snapshot.datetime.toISOString()
+      snapshot.datetimeString
     )
     report.details.dataPath = path.join(report.details.fullPath, 'data')
 
@@ -337,10 +344,7 @@ async function writeSnapshot(snapshot: ReportSnapshot) {
   const genPath = path.join(snapshot.rootPath, '.data')
   util.mkdirP(genPath)
 
-  const snapshotPath = path.join(
-    genPath,
-    `${snapshot.datetime.toISOString()}.json`
-  )
+  const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`)
   console.log(`Writing to ${snapshotPath}`)
 
   fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2))

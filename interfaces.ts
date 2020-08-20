@@ -49,6 +49,7 @@ export interface ReportSnapshotData {
 
 export interface ReportSnapshot {
   datetime: Date
+  datetimeString: string
   rootPath: string
   config: GeneratorConfiguration
 }
