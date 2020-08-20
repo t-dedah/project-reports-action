@@ -42,14 +42,6 @@ export async function generate(
   const snapshot = <ReportSnapshot>{}
   snapshot.datetime = new Date()
   snapshot.config = config
-  const d = snapshot.datetime
-  const year = d.getUTCFullYear()
-  const month = (d.getUTCMonth() + 1).toString().padStart(2, '0')
-  const day = d.getUTCDate().toString().padStart(2, '0')
-  const hour = d.getUTCHours().toString().padStart(2, '0')
-  const minute = d.getUTCMinutes().toString().padStart(2, '0')
-  const dt = `${year}-${month}-${day}_${hour}-${minute}`
-  snapshot.datetimeString = dt
 
   snapshot.config.output = snapshot.config.output || '_reports'
   snapshot.rootPath = path.join(workspacePath, snapshot.config.output)
@@ -72,7 +64,7 @@ export async function generate(
     )
     report.details.fullPath = path.join(
       report.details.rootPath,
-      snapshot.datetimeString
+      snapshot.datetime.toISOString()
     )
     report.details.dataPath = path.join(report.details.fullPath, 'data')
 
@@ -345,7 +337,10 @@ async function writeSnapshot(snapshot: ReportSnapshot) {
   const genPath = path.join(snapshot.rootPath, '.data')
   util.mkdirP(genPath)
 
-  const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`)
+  const snapshotPath = path.join(
+    genPath,
+    `${snapshot.datetime.toISOString()}.json`
+  )
   console.log(`Writing to ${snapshotPath}`)
 
   fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2))
