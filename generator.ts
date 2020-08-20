@@ -41,15 +41,13 @@ export async function generate(
 
   const snapshot = <ReportSnapshot>{}
   snapshot.datetime = new Date()
+
+  // ISO8601 without separators—supported by moment, etc.
+  snapshot.datetimeString = moment(snapshot.datetime)
+    .utc()
+    .format('YYYYMMDDTHHmmss.SSS[Z]')
+
   snapshot.config = config
-  const d = snapshot.datetime
-  const year = d.getUTCFullYear()
-  const month = (d.getUTCMonth() + 1).toString().padStart(2, '0')
-  const day = d.getUTCDate().toString().padStart(2, '0')
-  const hour = d.getUTCHours().toString().padStart(2, '0')
-  const minute = d.getUTCMinutes().toString().padStart(2, '0')
-  const dt = `${year}-${month}-${day}_${hour}-${minute}`
-  snapshot.datetimeString = dt
 
   snapshot.config.output = snapshot.config.output || '_reports'
   snapshot.rootPath = path.join(workspacePath, snapshot.config.output)
