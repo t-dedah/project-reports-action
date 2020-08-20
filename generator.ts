@@ -43,10 +43,9 @@ export async function generate(
   snapshot.datetime = new Date()
 
   // ISO8601 without separators—supported by moment, etc.
-  snapshot.datetimeString = snapshot.datetime
-    .toISOString()
-    .replace(/:/g, '')
-    .replace(/-/g, '')
+  snapshot.datetimeString = moment(snapshot.datetime)
+    .utc()
+    .format('YYYYMMDDTHHmmss.SSS[Z]')
 
   snapshot.config = config
 
