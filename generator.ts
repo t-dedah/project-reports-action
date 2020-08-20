@@ -146,7 +146,13 @@ export async function generate(
     console.log(`Generating ${report.name} ...`)
     await createReportPath(report)
 
-    for (const reportSection of report.sections) {
+    for (
+      let sectionIdx = 0;
+      sectionIdx < report.sections.length;
+      sectionIdx++
+    ) {
+      const reportSection = report.sections[sectionIdx]
+
       // We only support rollup of repo issues.
       // once we move ProjectData to a distinct set, we can support project data as well
       // let projectData: ProjectData = null;
@@ -241,7 +247,14 @@ export async function generate(
 
       const processed = reportGenerator.process(config, clone(set), drillInCb)
 
-      await writeSectionData(report, reportModule, config, processed)
+      const sectionPath = `${sectionIdx
+        .toString()
+        .padStart(2, '0')}-${reportModule}`
+
+      await writeSectionData(report, sectionPath, config, {
+        type: reportModule,
+        output: processed
+      })
 
       report.kind = report.kind || 'markdown'
 
@@ -266,6 +279,7 @@ export async function generate(
 
         await writeDrillIn(
           report,
+          sectionPath,
           drillIn.identifier,
           drillIn.cards,
           drillInReport
@@ -318,13 +332,22 @@ async function deleteFilesInPath(targetPath: string) {
 
 async function writeDrillIn(
   report: ReportConfig,
+  reportModule: string,
   identifier: string,
   cards: ProjectIssue[],
   contents: string
 ) {
   console.log(`Writing drill-in data for ${identifier} ...`)
+
+  util.mkdirP(path.join(report.details.dataPath, reportModule, 'details'))
+
   fs.writeFileSync(
-    path.join(report.details.dataPath, `${identifier}.json`),
+    path.join(
+      report.details.dataPath,
+      reportModule,
+      'details',
+      `${identifier}.json`
+    ),
     JSON.stringify(cards, null, 2)
   )
   fs.writeFileSync(
@@ -369,11 +392,11 @@ async function writeSectionData(
   util.mkdirP(sectionPath)
 
   fs.writeFileSync(
-    path.join(sectionPath, 'settings.json'),
+    path.join(sectionPath, 'config.json'),
     JSON.stringify(settings, null, 2)
   )
   fs.writeFileSync(
-    path.join(sectionPath, 'processed.json'),
+    path.join(sectionPath, 'output.json'),
     JSON.stringify(processed, null, 2)
   )
 }
