@@ -82,15 +82,18 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
-const project_reports_lib_1 = __webpack_require__(369);
-const rptLib = __importStar(__webpack_require__(369));
-const tablemark = __webpack_require__(611);
+const clone_1 = __importDefault(__webpack_require__(97));
 const os = __importStar(__webpack_require__(87));
+const tablemark_1 = __importDefault(__webpack_require__(611));
+const rptLib = __importStar(__webpack_require__(189));
+const project_reports_lib_1 = __webpack_require__(189);
 const moment = __webpack_require__(431);
-let now = moment();
-let clone = __webpack_require__(97);
+const now = moment();
 const reportType = 'project';
 exports.reportType = reportType;
 /*
@@ -100,13 +103,13 @@ exports.reportType = reportType;
  */
 function getDefaultConfiguration() {
     return {
-        "report-on-label": "feature",
-        "group-by-label-prefix": "> ",
-        "target-date-scheme": "LastCommentField",
-        "target-date-scheme-data": "Target Date",
-        "flag-in-progress-days": 21,
-        "wip-limit": 2,
-        "status-label-match": "(?:green|yellow|red)",
+        'report-on-label': 'feature',
+        'group-by-label-prefix': '> ',
+        'target-date-scheme': 'LastCommentField',
+        'target-date-scheme-data': 'Target Date',
+        'flag-in-progress-days': 21,
+        'wip-limit': 2,
+        'status-label-match': '(?:green|yellow|red)'
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -114,64 +117,69 @@ function drillInName(name, column) {
     return `${name}-${column}`;
 }
 function getBreakdown(config, name, issues, drillIn) {
-    let groupByData = {};
-    let stageData = rptLib.getProjectStageIssues(issues);
+    const groupByData = {};
+    const stageData = rptLib.getProjectStageIssues(issues);
     groupByData.stages = {};
     groupByData.stages.proposed = stageData[project_reports_lib_1.ProjectStages.Proposed] || [];
-    drillIn(drillInName(name, "proposed"), `${name} proposed`, groupByData.stages.proposed);
+    drillIn(drillInName(name, 'proposed'), `${name} proposed`, groupByData.stages.proposed);
     groupByData.stages.accepted = stageData[project_reports_lib_1.ProjectStages.Accepted] || [];
-    drillIn(drillInName(name, "accepted"), `${name} accepted`, groupByData.stages.accepted);
+    drillIn(drillInName(name, 'accepted'), `${name} accepted`, groupByData.stages.accepted);
     groupByData.stages.inProgress = stageData[project_reports_lib_1.ProjectStages.InProgress] || [];
-    drillIn(drillInName(name, "in-progress"), `${name} in progress`, groupByData.stages.inProgress);
+    drillIn(drillInName(name, 'in-progress'), `${name} in progress`, groupByData.stages.inProgress);
     groupByData.stages.done = stageData[project_reports_lib_1.ProjectStages.Done] || [];
-    drillIn(drillInName(name, "done"), `${name} done`, groupByData.stages.done);
+    drillIn(drillInName(name, 'done'), `${name} done`, groupByData.stages.done);
     groupByData.flagged = {};
-    let exceeded = issues.filter(issue => issue.project_in_progress_at &&
-        moment().diff(moment(issue.project_in_progress_at), 'days') > config["flag-in-progress-days"]);
-    let statusRegEx = new RegExp(config["status-label-match"]);
-    groupByData.flagged.red = issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'red') || [];
-    drillIn(drillInName(name, "red"), `${name} with a status red`, groupByData.flagged.red);
-    groupByData.flagged.yellow = issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'yellow') || [];
-    drillIn(drillInName(name, "yellow"), `${name} with a status yellow`, groupByData.flagged.yellow);
+    const exceeded = issues.filter(issue => issue.project_in_progress_at &&
+        moment().diff(moment(issue.project_in_progress_at), 'days') >
+            config['flag-in-progress-days']);
+    const statusRegEx = new RegExp(config['status-label-match']);
+    groupByData.flagged.red =
+        issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'red') || [];
+    drillIn(drillInName(name, 'red'), `${name} with a status red`, groupByData.flagged.red);
+    groupByData.flagged.yellow =
+        issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'yellow') || [];
+    drillIn(drillInName(name, 'yellow'), `${name} with a status yellow`, groupByData.flagged.yellow);
     groupByData.flagged.inProgressDuration = exceeded;
-    drillIn(drillInName(name, "duration"), `${name} > ${config["flag-in-progress-days"]} in progress duration`, groupByData.flagged.inProgressDuration);
+    drillIn(drillInName(name, 'duration'), `${name} > ${config['flag-in-progress-days']} in progress duration`, groupByData.flagged.inProgressDuration);
     groupByData.flagged.noTarget = [];
-    drillIn(drillInName(name, "no-target"), `${name} with no target date`, groupByData.flagged.red);
+    drillIn(drillInName(name, 'no-target'), `${name} with no target date`, groupByData.flagged.red);
     groupByData.flagged.pastTarget = [];
-    drillIn(drillInName(name, "past-target"), `${name} past the target date`, groupByData.flagged.red);
+    drillIn(drillInName(name, 'past-target'), `${name} past the target date`, groupByData.flagged.red);
     return groupByData;
 }
 function process(config, issueList, drillIn) {
-    console.log("> project-group-by::process");
-    let groupData = {};
-    groupData.durationDays = config["flag-in-progress-days"];
-    groupData.wipLimit = config["wip-limit"];
+    console.log('> project-group-by::process');
+    const groupData = {};
+    groupData.durationDays = config['flag-in-progress-days'];
+    groupData.wipLimit = config['wip-limit'];
     groupData.groups = {};
-    let issues = issueList.getItems();
-    let label = config["report-on-label"];
+    const issues = issueList.getItems();
+    const label = config['report-on-label'];
     if (!label) {
-        throw new Error("report-on-label is required");
+        throw new Error('report-on-label is required');
     }
     console.log(`Getting issues for ${label}`);
-    let issuesForLabel = label === '*' ? clone(issues) : clone(rptLib.filterByLabel(issues, label.trim().toLowerCase()));
+    const issuesForLabel = label === '*'
+        ? clone_1.default(issues)
+        : clone_1.default(rptLib.filterByLabel(issues, label.trim().toLowerCase()));
     // get distinct group by labels
-    let prefix = config["group-by-label-prefix"];
+    const prefix = config['group-by-label-prefix'];
     if (!prefix) {
-        throw new Error("group-by-label-prefix is required");
+        throw new Error('group-by-label-prefix is required');
     }
-    let pattern = `(?<=${prefix}).*`;
-    let regex = new RegExp(pattern);
-    let groupByLabels = [];
-    for (let issue of issuesForLabel) {
-        let labelValue = (rptLib.getStringFromLabel(issue, regex) || "").trim();
+    const pattern = `(?<=${prefix}).*`;
+    const regex = new RegExp(pattern);
+    const groupByLabels = [];
+    for (const issue of issuesForLabel) {
+        const labelValue = (rptLib.getStringFromLabel(issue, regex) || '').trim();
         if (labelValue && groupByLabels.indexOf(labelValue) === -1) {
             groupByLabels.push(labelValue);
         }
     }
     console.log(`labels: ${JSON.stringify(groupByLabels)}`);
-    groupData.total = getBreakdown(config, "Total", issuesForLabel, drillIn);
-    for (let group of groupByLabels) {
-        let issuesForGroup = rptLib.filterByLabel(issuesForLabel, `${prefix}${group}`);
+    groupData.total = getBreakdown(config, 'Total', issuesForLabel, drillIn);
+    for (const group of groupByLabels) {
+        const issuesForGroup = rptLib.filterByLabel(issuesForLabel, `${prefix}${group}`);
         console.log(`${group} ${issuesForGroup.length}`);
         groupData.groups[group] = getBreakdown(config, group, issuesForGroup, drillIn);
     }
@@ -180,60 +188,72 @@ function process(config, issueList, drillIn) {
 }
 exports.process = process;
 function getFlagContents(count, limit) {
-    return count <= limit ? "" : `${count} :triangular_flag_on_post:`;
+    return count <= limit ? '' : `${count} :triangular_flag_on_post:`;
 }
 function getLimitContents(count, limit) {
-    return `${count} ${count > limit ? ":triangular_flag_on_post:" : ""}`;
+    return `${count} ${count > limit ? ':triangular_flag_on_post:' : ''}`;
 }
 function getRow(name, days, wips, data, lines) {
-    let breakdownRow = {};
+    const breakdownRow = {};
     breakdownRow.name = `**${name}**`;
-    breakdownRow.proposed = `[${data.stages.proposed.length}](./${drillInName(name, "proposed")}.md)`;
-    breakdownRow.accepted = `[${data.stages.accepted.length}](./${drillInName(name, "accepted")}.md)`;
-    breakdownRow.inProgress = `[${getLimitContents(data.stages.inProgress.length, wips)}](./${drillInName(name, "in-progress")}.md)`;
-    breakdownRow.done = `[${data.stages.done.length.toString()}](./${drillInName(name, "done")}.md)`;
-    breakdownRow.spacer = "";
-    breakdownRow.yellow = `[${getFlagContents(data.flagged.yellow.length, 0)}](./${drillInName(name, "yellow")}.md)`;
-    breakdownRow.red = `[${getFlagContents(data.flagged.red.length, 0)}](./${drillInName(name, "red")}.md)`;
-    breakdownRow.inProgressDuration = `[${getFlagContents(data.flagged.inProgressDuration.length, 0)}](./${drillInName(name, "duration")}.md)`;
-    breakdownRow.noTarget = `[${getFlagContents(data.flagged.noTarget.length, 0)}](./${drillInName(name, "no-target")}.md)`;
-    breakdownRow.pastTarget = `[${getFlagContents(data.flagged.pastTarget.length, 0)}](./${drillInName(name, "past-target")}.md)`;
+    breakdownRow.proposed = `[${data.stages.proposed.length}](./${drillInName(name, 'proposed')}.md)`;
+    breakdownRow.accepted = `[${data.stages.accepted.length}](./${drillInName(name, 'accepted')}.md)`;
+    breakdownRow.inProgress = `[${getLimitContents(data.stages.inProgress.length, wips)}](./${drillInName(name, 'in-progress')}.md)`;
+    breakdownRow.done = `[${data.stages.done.length.toString()}](./${drillInName(name, 'done')}.md)`;
+    breakdownRow.spacer = '';
+    breakdownRow.yellow = `[${getFlagContents(data.flagged.yellow.length, 0)}](./${drillInName(name, 'yellow')}.md)`;
+    breakdownRow.red = `[${getFlagContents(data.flagged.red.length, 0)}](./${drillInName(name, 'red')}.md)`;
+    breakdownRow.inProgressDuration = `[${getFlagContents(data.flagged.inProgressDuration.length, 0)}](./${drillInName(name, 'duration')}.md)`;
+    breakdownRow.noTarget = `[${getFlagContents(data.flagged.noTarget.length, 0)}](./${drillInName(name, 'no-target')}.md)`;
+    breakdownRow.pastTarget = `[${getFlagContents(data.flagged.pastTarget.length, 0)}](./${drillInName(name, 'past-target')}.md)`;
     return breakdownRow;
 }
 function renderMarkdown(targets, processedData) {
-    console.log("> project-groupby-status::renderMarkdown");
-    let lines = [];
-    lines.push("## :rocket: Execution  ");
-    let groupBy = processedData;
-    let rows = [];
-    rows.push(getRow("Total", groupBy.durationDays, groupBy.wipLimit, groupBy.total, lines));
+    console.log('> project-groupby-status::renderMarkdown');
+    const lines = [];
+    lines.push('## :rocket: Execution  ');
+    const groupBy = processedData;
+    const rows = [];
+    rows.push(getRow('Total', groupBy.durationDays, groupBy.wipLimit, groupBy.total, lines));
     lines.push('&nbsp;  ');
-    for (let group in groupBy.groups) {
+    for (const group in groupBy.groups) {
         rows.push(getRow(group, groupBy.durationDays, groupBy.wipLimit, groupBy.groups[group], lines));
     }
-    lines.push(tablemark(rows, {
+    lines.push(tablemark_1.default(rows, {
         columns: [
-            "...",
+            '...',
             { name: ':new:', align: 'center' },
             { name: ':white_check_mark:', align: 'center' },
-            { name: `:hourglass_flowing_sand: <sub><sup>(${groupBy.wipLimit})</sup></sub>`, align: 'center' },
+            {
+                name: `:hourglass_flowing_sand: <sub><sup>(${groupBy.wipLimit})</sup></sub>`,
+                align: 'center'
+            },
             { name: ':checkered_flag:', align: 'center' },
-            "...",
+            '...',
             { name: ':yellow_heart:', align: 'center' },
             { name: ':heart:', align: 'center' },
-            { name: `:calendar: <sub><sup>(>${groupBy.durationDays} days)</sup></sub>`, align: 'center' },
-            { name: ':man_shrugging: <sub><sup>Target Date</sup></sub>', align: 'center' },
-            { name: ':alarm_clock: <sub><sup>Target Date</sup></sub>', align: 'center' },
+            {
+                name: `:calendar: <sub><sup>(>${groupBy.durationDays} days)</sup></sub>`,
+                align: 'center'
+            },
+            {
+                name: ':man_shrugging: <sub><sup>Target Date</sup></sub>',
+                align: 'center'
+            },
+            {
+                name: ':alarm_clock: <sub><sup>Target Date</sup></sub>',
+                align: 'center'
+            }
         ]
     }));
-    lines.push("<sub><sup>:new: Proposed => :white_check_mark: Accepted => :hourglass_flowing_sand: In-Progress => :checkered_flag: Done</sup></sub>");
+    lines.push('<sub><sup>:new: Proposed => :white_check_mark: Accepted => :hourglass_flowing_sand: In-Progress => :checkered_flag: Done</sup></sub>');
     lines.push('&nbsp;  ');
     return lines.join(os.EOL);
 }
 exports.renderMarkdown = renderMarkdown;
 function renderHtml() {
     // Not supported yet
-    return "";
+    return '';
 }
 exports.renderHtml = renderHtml;
 
@@ -512,6 +532,344 @@ module.exports = /([A-Z\xC0-\xD6\xD8-\xDE\u0100\u0102\u0104\u0106\u0108\u010A\u0
 
 /***/ }),
 
+/***/ 189:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(431));
+const url = __importStar(__webpack_require__(835));
+// TODO: separate npm module.  for now it's a file till we flush out
+__exportStar(__webpack_require__(385), exports);
+function repoPropsFromUrl(htmlUrl) {
+    const rUrl = new url.URL(htmlUrl);
+    const parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
+//
+// filter cards by label
+//
+function filterByLabel(issues, name) {
+    return issues.filter(card => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+}
+exports.filterByLabel = filterByLabel;
+//
+// Get number from a label by regex.
+// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
+// returns NaN if no labels match
+//
+function getCountFromLabel(card, re) {
+    let num = NaN;
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            num = parseInt(matches[1]);
+            if (num) {
+                break;
+            }
+        }
+    }
+    return num;
+}
+exports.getCountFromLabel = getCountFromLabel;
+function getStringFromLabel(card, re) {
+    let str = '';
+    for (const label of card.labels) {
+        const matches = label.name.trim().match(re);
+        if (matches && matches.length > 0) {
+            str = matches[0];
+            if (str) {
+                break;
+            }
+        }
+    }
+    if (str) {
+        str = str.trim();
+    }
+    return str;
+}
+exports.getStringFromLabel = getStringFromLabel;
+function sumCardProperty(cards, prop) {
+    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
+}
+exports.sumCardProperty = sumCardProperty;
+function fuzzyMatch(content, match) {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+    let isMatch = true;
+    for (const matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+exports.fuzzyMatch = fuzzyMatch;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: 'Proposed',
+    Accepted: 'Accepted',
+    InProgress: 'In-Progress',
+    Done: 'Done',
+    Missing: 'Missing'
+};
+function getProjectStageIssues(issues) {
+    const projIssues = {};
+    for (const projIssue of issues) {
+        const stage = projIssue['project_stage'];
+        if (!stage) {
+            // the engine will handle and add to an issues list
+            continue;
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
+const stageLevel = {
+    None: 0,
+    Proposed: 1,
+    Accepted: 2,
+    'In-Progress': 3,
+    Done: 4,
+    Unmapped: 5
+};
+class IssueList {
+    constructor(identifier) {
+        // keep in order indexed by level above
+        // TODO: unify both to avoid out of sync problems
+        this.stageAtNames = [
+            'none',
+            'project_proposed_at',
+            'project_accepted_at',
+            'project_in_progress_at',
+            'project_done_at'
+        ];
+        this.seen = new Map();
+        this.identifier = identifier;
+        this.items = [];
+    }
+    // returns whether any were added
+    add(data) {
+        this.processed = null;
+        let added = false;
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const res = this.add_item(item);
+                if (!added) {
+                    added = res;
+                }
+            }
+        }
+        else {
+            return this.add_item(data);
+        }
+        return added;
+    }
+    add_item(item) {
+        const id = this.identifier(item);
+        if (!this.seen.has(id)) {
+            this.items.push(item);
+            this.seen.set(id, item);
+            return true;
+        }
+        return false;
+    }
+    getItem(identifier) {
+        return this.seen.get(identifier);
+    }
+    getItems() {
+        if (this.processed) {
+            return this.processed;
+        }
+        // call process
+        for (const item of this.items) {
+            this.processStages(item);
+        }
+        this.processed = this.items;
+        return this.processed;
+    }
+    //
+    // Gets an issue from a number of days, hours ago.
+    // Clones the issue and Replays events (labels, column moves, milestones)
+    // and reprocesses the stages.
+    // If the issue doesn't exist in the list, returns null
+    //
+    getItemAsof(identifier, datetime) {
+        console.log(`getting asof ${datetime} : ${identifier}`);
+        let issue = this.getItem(identifier);
+        if (!issue) {
+            return issue;
+        }
+        issue = clone_1.default(issue);
+        const momentAgo = moment_1.default(datetime);
+        // clear everything we're going to re-apply
+        issue.labels = [];
+        delete issue.project_added_at;
+        delete issue.project_proposed_at;
+        delete issue.project_in_progress_at;
+        delete issue.project_accepted_at;
+        delete issue.project_done_at;
+        delete issue.project_stage;
+        delete issue.closed_at;
+        // stages and labels
+        const filteredEvents = [];
+        const labelMap = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
+                    continue;
+                }
+                filteredEvents.push(event);
+                if (event.event === 'labeled') {
+                    labelMap[event.label.name] = event.label;
+                }
+                else if (event.event === 'unlabeled') {
+                    delete labelMap[event.label.name];
+                }
+                if (event.event === 'closed') {
+                    issue.closed_at = event.created_at;
+                }
+                if (event.event === 'reopened') {
+                    delete issue.closed_at;
+                }
+            }
+        }
+        issue.events = filteredEvents;
+        for (const labelName in labelMap) {
+            issue.labels.push(labelMap[labelName]);
+        }
+        this.processStages(issue);
+        // comments
+        const filteredComments = [];
+        for (const comment of issue.comments) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
+                continue;
+            }
+            filteredComments.push(comment);
+        }
+        issue.comments = filteredComments;
+        return issue;
+    }
+    //
+    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
+    // Call initially and then call again if events are filtered (get issue asof)
+    //
+    processStages(issue) {
+        console.log(`Processing stages for ${issue.html_url}`);
+        // card events should be in order chronologically
+        let currentStage;
+        let doneTime;
+        let addedTime;
+        const tempLabels = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                let eventDateTime;
+                if (event.created_at) {
+                    eventDateTime = event.created_at;
+                }
+                //
+                // Process Project Stages
+                //
+                let toStage;
+                let toLevel;
+                let fromStage;
+                let fromLevel = 0;
+                if (event.project_card && event.project_card.column_name) {
+                    if (!addedTime) {
+                        addedTime = eventDateTime;
+                    }
+                    if (!event.project_card.stage_name) {
+                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
+                    }
+                    toStage = event.project_card.stage_name;
+                    toLevel = stageLevel[toStage];
+                    currentStage = toStage;
+                }
+                if (event.project_card && event.project_card.previous_column_name) {
+                    if (!event.project_card.previous_stage_name) {
+                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
+                    }
+                    fromStage = event.project_card.previous_stage_name;
+                    fromLevel = stageLevel[fromStage];
+                }
+                // last occurence of moving to these columns from a lesser or no column
+                // example. if moved to accepted from proposed (or less),
+                //      then in-progress (greater) and then back to accepted, first wins
+                if (toStage === 'Proposed' ||
+                    toStage === 'Accepted' ||
+                    toStage === 'In-Progress') {
+                    if (toLevel > fromLevel) {
+                        issue[this.stageAtNames[toLevel]] = eventDateTime;
+                    }
+                    //moving back, clear the stage at dates up to fromLevel
+                    else if (toLevel < fromLevel) {
+                        for (let i = toLevel + 1; i <= fromLevel; i++) {
+                            delete issue[this.stageAtNames[i]];
+                        }
+                    }
+                }
+                if (toStage === 'Done') {
+                    doneTime = eventDateTime;
+                }
+            }
+            // done_at and blocked_at is only set if it's currently at that stage
+            if (currentStage === 'Done') {
+                issue.project_done_at = doneTime;
+                console.log(`project_done_at: ${issue.project_done_at}`);
+            }
+            if (addedTime) {
+                issue.project_added_at = addedTime;
+                console.log(`project_added_at: ${issue.project_added_at}`);
+            }
+            issue.project_stage = currentStage;
+            console.log(`project_stage: ${issue.project_stage}`);
+        }
+    }
+}
+exports.IssueList = IssueList;
+
+
+/***/ }),
+
 /***/ 205:
 /***/ (function(module) {
 
@@ -628,336 +986,37 @@ module.exports = /[^A-Za-z\xAA\xB5\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02C1\u02C6-\u02D1
 
 /***/ }),
 
-/***/ 369:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
+/***/ 385:
+/***/ (function(module, exports) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
-const url = __importStar(__webpack_require__(835));
-const clone = __webpack_require__(97);
-const moment = __webpack_require__(431);
-// TODO: separate npm module.  for now it's a file till we flush out
-__exportStar(__webpack_require__(714), exports);
-function repoPropsFromUrl(htmlUrl) {
-    let rUrl = new url.URL(htmlUrl);
-    let parts = rUrl.pathname.split('/').filter(e => e);
-    return {
-        owner: parts[0],
-        repo: parts[1]
-    };
+exports.getLastCommentPattern = exports.dataFromCard = void 0;
+function dataFromCard(card, filterBy, data) {
+    const fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
 }
-exports.repoPropsFromUrl = repoPropsFromUrl;
+exports.dataFromCard = dataFromCard;
 //
-// filter cards by label
+// returns last updated using last comment with a body matching a pattern
 //
-function filterByLabel(issues, name) {
-    return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    const re = new RegExp(pattern);
+    const comment = card.comments.filter(comment => comment.body.match(re)).pop();
+    return comment ? comment['updated_at'] : null;
 }
-exports.filterByLabel = filterByLabel;
-//
-// Get number from a label by regex.  
-// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
-// returns NaN if no labels match
-//
-function getCountFromLabel(card, re) {
-    let num = NaN;
-    for (let label of card.labels) {
-        let matches = label.name.match(re);
-        if (matches && matches.length > 0) {
-            num = parseInt(matches[1]);
-            if (num) {
-                break;
-            }
-        }
-    }
-    return num;
-}
-exports.getCountFromLabel = getCountFromLabel;
-function getStringFromLabel(card, re) {
-    let str = '';
-    for (let label of card.labels) {
-        let matches = label.name.trim().match(re);
-        if (matches && matches.length > 0) {
-            str = matches[0];
-            if (str) {
-                break;
-            }
-        }
-    }
-    if (str) {
-        str = str.trim();
-    }
-    return str;
-}
-exports.getStringFromLabel = getStringFromLabel;
-function sumCardProperty(cards, prop) {
-    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
-}
-exports.sumCardProperty = sumCardProperty;
-function fuzzyMatch(content, match) {
-    let matchWords = match.match(/[a-zA-Z0-9]+/g);
-    matchWords = matchWords.map(item => item.toLowerCase());
-    let contentWords = content.match(/[a-zA-Z0-9]+/g);
-    contentWords = contentWords.map(item => item.toLowerCase());
-    let isMatch = true;
-    for (let matchWord of matchWords) {
-        if (contentWords.indexOf(matchWord) === -1) {
-            isMatch = false;
-            break;
-        }
-    }
-    return isMatch;
-}
-exports.fuzzyMatch = fuzzyMatch;
-// stages more discoverable
-exports.ProjectStages = {
-    Proposed: "Proposed",
-    Accepted: "Accepted",
-    InProgress: "In-Progress",
-    Done: "Done",
-    Missing: "Missing"
-};
-function getProjectStageIssues(issues) {
-    let projIssues = {};
-    for (let projIssue of issues) {
-        let stage = projIssue["project_stage"];
-        if (!stage) {
-            // the engine will handle and add to an issues list
-            continue;
-        }
-        if (!projIssues[stage]) {
-            projIssues[stage] = [];
-        }
-        projIssues[stage].push(projIssue);
-    }
-    return projIssues;
-}
-exports.getProjectStageIssues = getProjectStageIssues;
-let stageLevel = {
-    "None": 0,
-    "Proposed": 1,
-    "Accepted": 2,
-    "In-Progress": 3,
-    "Done": 4,
-    "Unmapped": 5
-};
-class IssueList {
-    constructor(identifier) {
-        // keep in order indexed by level above
-        // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
-        this.seen = new Map();
-        this.identifier = identifier;
-        this.items = [];
-    }
-    // returns whether any were added
-    add(data) {
-        this.processed = null;
-        let added = false;
-        if (Array.isArray(data)) {
-            for (let item of data) {
-                let res = this.add_item(item);
-                if (!added) {
-                    added = res;
-                }
-            }
-        }
-        else {
-            return this.add_item(data);
-        }
-        return added;
-    }
-    add_item(item) {
-        let id = this.identifier(item);
-        if (!this.seen.has(id)) {
-            this.items.push(item);
-            this.seen.set(id, item);
-            return true;
-        }
-        return false;
-    }
-    getItem(identifier) {
-        return this.seen.get(identifier);
-    }
-    getItems() {
-        if (this.processed) {
-            return this.processed;
-        }
-        // call process
-        for (let item of this.items) {
-            this.processStages(item);
-        }
-        this.processed = this.items;
-        return this.processed;
-    }
-    //
-    // Gets an issue from a number of days, hours ago.
-    // Clones the issue and Replays events (labels, column moves, milestones)
-    // and reprocesses the stages.
-    // If the issue doesn't exist in the list, returns null
-    //
-    getItemAsof(identifier, datetime) {
-        console.log(`getting asof ${datetime} : ${identifier}`);
-        let issue = this.getItem(identifier);
-        if (!issue) {
-            return issue;
-        }
-        issue = clone(issue);
-        let momentAgo = moment(datetime);
-        // clear everything we're going to re-apply
-        issue.labels = [];
-        delete issue.project_added_at;
-        delete issue.project_proposed_at;
-        delete issue.project_in_progress_at;
-        delete issue.project_accepted_at;
-        delete issue.project_done_at;
-        delete issue.project_stage;
-        delete issue.closed_at;
-        // stages and labels
-        let filteredEvents = [];
-        let labelMap = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                if (moment(event.created_at).isAfter(momentAgo)) {
-                    continue;
-                }
-                filteredEvents.push(event);
-                if (event.event === 'labeled') {
-                    labelMap[event.label.name] = event.label;
-                }
-                else if (event.event === 'unlabeled') {
-                    delete labelMap[event.label.name];
-                }
-                if (event.event === 'closed') {
-                    issue.closed_at = event.created_at;
-                }
-                if (event.event === 'reopened') {
-                    delete issue.closed_at;
-                }
-            }
-        }
-        issue.events = filteredEvents;
-        for (let labelName in labelMap) {
-            issue.labels.push(labelMap[labelName]);
-        }
-        this.processStages(issue);
-        // comments
-        let filteredComments = [];
-        for (let comment of issue.comments) {
-            if (moment(comment.created_at).isAfter(momentAgo)) {
-                continue;
-            }
-            filteredComments.push(comment);
-        }
-        issue.comments = filteredComments;
-        return issue;
-    }
-    //
-    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
-    // Call initially and then call again if events are filtered (get issue asof)
-    //
-    processStages(issue) {
-        console.log(`Processing stages for ${issue.html_url}`);
-        // card events should be in order chronologically
-        let currentStage;
-        let doneTime;
-        let addedTime;
-        let tempLabels = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                let eventDateTime;
-                if (event.created_at) {
-                    eventDateTime = event.created_at;
-                }
-                //
-                // Process Project Stages
-                //
-                let toStage;
-                let toLevel;
-                let fromStage;
-                let fromLevel = 0;
-                if (event.project_card && event.project_card.column_name) {
-                    if (!addedTime) {
-                        addedTime = eventDateTime;
-                    }
-                    if (!event.project_card.stage_name) {
-                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
-                    }
-                    toStage = event.project_card.stage_name;
-                    toLevel = stageLevel[toStage];
-                    currentStage = toStage;
-                }
-                if (event.project_card && event.project_card.previous_column_name) {
-                    if (!event.project_card.previous_stage_name) {
-                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
-                    }
-                    fromStage = event.project_card.previous_stage_name;
-                    fromLevel = stageLevel[fromStage];
-                }
-                // last occurence of moving to these columns from a lesser or no column
-                // example. if moved to accepted from proposed (or less), 
-                //      then in-progress (greater) and then back to accepted, first wins            
-                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                    if (toLevel > fromLevel) {
-                        issue[this.stageAtNames[toLevel]] = eventDateTime;
-                    }
-                    //moving back, clear the stage at dates up to fromLevel
-                    else if (toLevel < fromLevel) {
-                        for (let i = toLevel + 1; i <= fromLevel; i++) {
-                            delete issue[this.stageAtNames[i]];
-                        }
-                    }
-                }
-                if (toStage === 'Done') {
-                    doneTime = eventDateTime;
-                }
-            }
-            // done_at and blocked_at is only set if it's currently at that stage
-            if (currentStage === 'Done') {
-                issue.project_done_at = doneTime;
-                console.log(`project_done_at: ${issue.project_done_at}`);
-            }
-            if (addedTime) {
-                issue.project_added_at = addedTime;
-                console.log(`project_added_at: ${issue.project_added_at}`);
-            }
-            issue.project_stage = currentStage;
-            console.log(`project_stage: ${issue.project_stage}`);
-        }
-    }
-}
-exports.IssueList = IssueList;
-//# sourceMappingURL=project-reports-lib.js.map
+exports.getLastCommentPattern = getLastCommentPattern;
+// export function diffHours(date1: Date, date2: Date): number {
+//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
+// }
+
 
 /***/ }),
 
@@ -6952,40 +7011,6 @@ module.exports = function (str, locale) {
   return upperCase(str.charAt(0), locale) + str.substr(1)
 }
 
-
-/***/ }),
-
-/***/ 714:
-/***/ (function(module, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getLastCommentPattern = exports.dataFromCard = void 0;
-function dataFromCard(card, filterBy, data) {
-    let fn = module.exports[`get${filterBy}`];
-    if (!fn) {
-        throw new Error(`Invalid filter: ${filterBy}`);
-    }
-    return fn(card, data);
-}
-exports.dataFromCard = dataFromCard;
-//
-// returns last updated using last comment with a body matching a pattern
-//
-function getLastCommentPattern(card, pattern) {
-    if (!card.comments) {
-        return '';
-    }
-    let re = new RegExp(pattern);
-    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
-    return comment ? comment["updated_at"] : null;
-}
-exports.getLastCommentPattern = getLastCommentPattern;
-// export function diffHours(date1: Date, date2: Date): number {
-//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
-// }
-//# sourceMappingURL=project-reports-schemes.js.map
 
 /***/ }),
 

@@ -405,7 +405,7 @@ exports.getCountFromLabel = getCountFromLabel;
 function getStringFromLabel(card, re) {
     let str = '';
     for (const label of card.labels) {
-        const matches = label.name.match(re);
+        const matches = label.name.trim().match(re);
         if (matches && matches.length > 0) {
             str = matches[0];
             if (str) {

@@ -1,3 +1,3 @@
 declare module 'tablemark' {
-  export default function tablemark(input: any[]): string
+  export default function tablemark(input: any[], options?: any): string
 }

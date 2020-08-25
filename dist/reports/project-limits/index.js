@@ -405,7 +405,7 @@ exports.getCountFromLabel = getCountFromLabel;
 function getStringFromLabel(card, re) {
     let str = '';
     for (const label of card.labels) {
-        const matches = label.name.match(re);
+        const matches = label.name.trim().match(re);
         if (matches && matches.length > 0) {
             str = matches[0];
             if (str) {
@@ -6928,7 +6928,7 @@ function getDefaultConfiguration() {
     return {
         // Epic for now.  Supports others.
         // Will appear on report in this casing but matches labels with lowercase version.
-        'report-on-label': 'Epic',
+        'report-on-label': 'Feature',
         'proposed-limit': 0,
         'accepted-limit': 0,
         'in-progress-limit': 4,
