@@ -330,6 +330,344 @@ module.exports = /([A-Z\xC0-\xD6\xD8-\xDE\u0100\u0102\u0104\u0106\u0108\u010A\u0
 
 /***/ }),
 
+/***/ 189:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(431));
+const url = __importStar(__webpack_require__(835));
+// TODO: separate npm module.  for now it's a file till we flush out
+__exportStar(__webpack_require__(385), exports);
+function repoPropsFromUrl(htmlUrl) {
+    const rUrl = new url.URL(htmlUrl);
+    const parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
+//
+// filter cards by label
+//
+function filterByLabel(issues, name) {
+    return issues.filter(card => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+}
+exports.filterByLabel = filterByLabel;
+//
+// Get number from a label by regex.
+// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
+// returns NaN if no labels match
+//
+function getCountFromLabel(card, re) {
+    let num = NaN;
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            num = parseInt(matches[1]);
+            if (num) {
+                break;
+            }
+        }
+    }
+    return num;
+}
+exports.getCountFromLabel = getCountFromLabel;
+function getStringFromLabel(card, re) {
+    let str = '';
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            str = matches[0];
+            if (str) {
+                break;
+            }
+        }
+    }
+    if (str) {
+        str = str.trim();
+    }
+    return str;
+}
+exports.getStringFromLabel = getStringFromLabel;
+function sumCardProperty(cards, prop) {
+    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
+}
+exports.sumCardProperty = sumCardProperty;
+function fuzzyMatch(content, match) {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+    let isMatch = true;
+    for (const matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+exports.fuzzyMatch = fuzzyMatch;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: 'Proposed',
+    Accepted: 'Accepted',
+    InProgress: 'In-Progress',
+    Done: 'Done',
+    Missing: 'Missing'
+};
+function getProjectStageIssues(issues) {
+    const projIssues = {};
+    for (const projIssue of issues) {
+        const stage = projIssue['project_stage'];
+        if (!stage) {
+            // the engine will handle and add to an issues list
+            continue;
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
+const stageLevel = {
+    None: 0,
+    Proposed: 1,
+    Accepted: 2,
+    'In-Progress': 3,
+    Done: 4,
+    Unmapped: 5
+};
+class IssueList {
+    constructor(identifier) {
+        // keep in order indexed by level above
+        // TODO: unify both to avoid out of sync problems
+        this.stageAtNames = [
+            'none',
+            'project_proposed_at',
+            'project_accepted_at',
+            'project_in_progress_at',
+            'project_done_at'
+        ];
+        this.seen = new Map();
+        this.identifier = identifier;
+        this.items = [];
+    }
+    // returns whether any were added
+    add(data) {
+        this.processed = null;
+        let added = false;
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const res = this.add_item(item);
+                if (!added) {
+                    added = res;
+                }
+            }
+        }
+        else {
+            return this.add_item(data);
+        }
+        return added;
+    }
+    add_item(item) {
+        const id = this.identifier(item);
+        if (!this.seen.has(id)) {
+            this.items.push(item);
+            this.seen.set(id, item);
+            return true;
+        }
+        return false;
+    }
+    getItem(identifier) {
+        return this.seen.get(identifier);
+    }
+    getItems() {
+        if (this.processed) {
+            return this.processed;
+        }
+        // call process
+        for (const item of this.items) {
+            this.processStages(item);
+        }
+        this.processed = this.items;
+        return this.processed;
+    }
+    //
+    // Gets an issue from a number of days, hours ago.
+    // Clones the issue and Replays events (labels, column moves, milestones)
+    // and reprocesses the stages.
+    // If the issue doesn't exist in the list, returns null
+    //
+    getItemAsof(identifier, datetime) {
+        console.log(`getting asof ${datetime} : ${identifier}`);
+        let issue = this.getItem(identifier);
+        if (!issue) {
+            return issue;
+        }
+        issue = clone_1.default(issue);
+        const momentAgo = moment_1.default(datetime);
+        // clear everything we're going to re-apply
+        issue.labels = [];
+        delete issue.project_added_at;
+        delete issue.project_proposed_at;
+        delete issue.project_in_progress_at;
+        delete issue.project_accepted_at;
+        delete issue.project_done_at;
+        delete issue.project_stage;
+        delete issue.closed_at;
+        // stages and labels
+        const filteredEvents = [];
+        const labelMap = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
+                    continue;
+                }
+                filteredEvents.push(event);
+                if (event.event === 'labeled') {
+                    labelMap[event.label.name] = event.label;
+                }
+                else if (event.event === 'unlabeled') {
+                    delete labelMap[event.label.name];
+                }
+                if (event.event === 'closed') {
+                    issue.closed_at = event.created_at;
+                }
+                if (event.event === 'reopened') {
+                    delete issue.closed_at;
+                }
+            }
+        }
+        issue.events = filteredEvents;
+        for (const labelName in labelMap) {
+            issue.labels.push(labelMap[labelName]);
+        }
+        this.processStages(issue);
+        // comments
+        const filteredComments = [];
+        for (const comment of issue.comments) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
+                continue;
+            }
+            filteredComments.push(comment);
+        }
+        issue.comments = filteredComments;
+        return issue;
+    }
+    //
+    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
+    // Call initially and then call again if events are filtered (get issue asof)
+    //
+    processStages(issue) {
+        console.log(`Processing stages for ${issue.html_url}`);
+        // card events should be in order chronologically
+        let currentStage;
+        let doneTime;
+        let addedTime;
+        const tempLabels = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                let eventDateTime;
+                if (event.created_at) {
+                    eventDateTime = event.created_at;
+                }
+                //
+                // Process Project Stages
+                //
+                let toStage;
+                let toLevel;
+                let fromStage;
+                let fromLevel = 0;
+                if (event.project_card && event.project_card.column_name) {
+                    if (!addedTime) {
+                        addedTime = eventDateTime;
+                    }
+                    if (!event.project_card.stage_name) {
+                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
+                    }
+                    toStage = event.project_card.stage_name;
+                    toLevel = stageLevel[toStage];
+                    currentStage = toStage;
+                }
+                if (event.project_card && event.project_card.previous_column_name) {
+                    if (!event.project_card.previous_stage_name) {
+                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
+                    }
+                    fromStage = event.project_card.previous_stage_name;
+                    fromLevel = stageLevel[fromStage];
+                }
+                // last occurence of moving to these columns from a lesser or no column
+                // example. if moved to accepted from proposed (or less),
+                //      then in-progress (greater) and then back to accepted, first wins
+                if (toStage === 'Proposed' ||
+                    toStage === 'Accepted' ||
+                    toStage === 'In-Progress') {
+                    if (toLevel > fromLevel) {
+                        issue[this.stageAtNames[toLevel]] = eventDateTime;
+                    }
+                    //moving back, clear the stage at dates up to fromLevel
+                    else if (toLevel < fromLevel) {
+                        for (let i = toLevel + 1; i <= fromLevel; i++) {
+                            delete issue[this.stageAtNames[i]];
+                        }
+                    }
+                }
+                if (toStage === 'Done') {
+                    doneTime = eventDateTime;
+                }
+            }
+            // done_at and blocked_at is only set if it's currently at that stage
+            if (currentStage === 'Done') {
+                issue.project_done_at = doneTime;
+                console.log(`project_done_at: ${issue.project_done_at}`);
+            }
+            if (addedTime) {
+                issue.project_added_at = addedTime;
+                console.log(`project_added_at: ${issue.project_added_at}`);
+            }
+            issue.project_stage = currentStage;
+            console.log(`project_stage: ${issue.project_stage}`);
+        }
+    }
+}
+exports.IssueList = IssueList;
+
+
+/***/ }),
+
 /***/ 205:
 /***/ (function(module) {
 
@@ -446,339 +784,37 @@ module.exports = /[^A-Za-z\xAA\xB5\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02C1\u02C6-\u02D1
 
 /***/ }),
 
-/***/ 369:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
+/***/ 385:
+/***/ (function(module, exports) {
 
 "use strict";
 
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
-const url = __importStar(__webpack_require__(835));
-const clone_1 = __importDefault(__webpack_require__(97));
-const moment_1 = __importDefault(__webpack_require__(431));
-// TODO: separate npm module.  for now it's a file till we flush out
-__exportStar(__webpack_require__(714), exports);
-function repoPropsFromUrl(htmlUrl) {
-    let rUrl = new url.URL(htmlUrl);
-    let parts = rUrl.pathname.split('/').filter(e => e);
-    return {
-        owner: parts[0],
-        repo: parts[1]
-    };
+exports.getLastCommentPattern = exports.dataFromCard = void 0;
+function dataFromCard(card, filterBy, data) {
+    const fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
 }
-exports.repoPropsFromUrl = repoPropsFromUrl;
+exports.dataFromCard = dataFromCard;
 //
-// filter cards by label
+// returns last updated using last comment with a body matching a pattern
 //
-function filterByLabel(issues, name) {
-    return issues.filter((card) => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    const re = new RegExp(pattern);
+    const comment = card.comments.filter(comment => comment.body.match(re)).pop();
+    return comment ? comment['updated_at'] : null;
 }
-exports.filterByLabel = filterByLabel;
-//
-// Get number from a label by regex.  
-// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
-// returns NaN if no labels match
-//
-function getCountFromLabel(card, re) {
-    let num = NaN;
-    for (let label of card.labels) {
-        let matches = label.name.match(re);
-        if (matches && matches.length > 0) {
-            num = parseInt(matches[1]);
-            if (num) {
-                break;
-            }
-        }
-    }
-    return num;
-}
-exports.getCountFromLabel = getCountFromLabel;
-function getStringFromLabel(card, re) {
-    let str = '';
-    for (let label of card.labels) {
-        let matches = label.name.trim().match(re);
-        if (matches && matches.length > 0) {
-            str = matches[0];
-            if (str) {
-                break;
-            }
-        }
-    }
-    if (str) {
-        str = str.trim();
-    }
-    return str;
-}
-exports.getStringFromLabel = getStringFromLabel;
-function sumCardProperty(cards, prop) {
-    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
-}
-exports.sumCardProperty = sumCardProperty;
-function fuzzyMatch(content, match) {
-    let matchWords = match.match(/[a-zA-Z0-9]+/g);
-    matchWords = matchWords.map(item => item.toLowerCase());
-    let contentWords = content.match(/[a-zA-Z0-9]+/g);
-    contentWords = contentWords.map(item => item.toLowerCase());
-    let isMatch = true;
-    for (let matchWord of matchWords) {
-        if (contentWords.indexOf(matchWord) === -1) {
-            isMatch = false;
-            break;
-        }
-    }
-    return isMatch;
-}
-exports.fuzzyMatch = fuzzyMatch;
-// stages more discoverable
-exports.ProjectStages = {
-    Proposed: "Proposed",
-    Accepted: "Accepted",
-    InProgress: "In-Progress",
-    Done: "Done",
-    Missing: "Missing"
-};
-function getProjectStageIssues(issues) {
-    let projIssues = {};
-    for (let projIssue of issues) {
-        let stage = projIssue["project_stage"];
-        if (!stage) {
-            // the engine will handle and add to an issues list
-            continue;
-        }
-        if (!projIssues[stage]) {
-            projIssues[stage] = [];
-        }
-        projIssues[stage].push(projIssue);
-    }
-    return projIssues;
-}
-exports.getProjectStageIssues = getProjectStageIssues;
-let stageLevel = {
-    "None": 0,
-    "Proposed": 1,
-    "Accepted": 2,
-    "In-Progress": 3,
-    "Done": 4,
-    "Unmapped": 5
-};
-class IssueList {
-    constructor(identifier) {
-        // keep in order indexed by level above
-        // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
-        this.seen = new Map();
-        this.identifier = identifier;
-        this.items = [];
-    }
-    // returns whether any were added
-    add(data) {
-        this.processed = null;
-        let added = false;
-        if (Array.isArray(data)) {
-            for (let item of data) {
-                let res = this.add_item(item);
-                if (!added) {
-                    added = res;
-                }
-            }
-        }
-        else {
-            return this.add_item(data);
-        }
-        return added;
-    }
-    add_item(item) {
-        let id = this.identifier(item);
-        if (!this.seen.has(id)) {
-            this.items.push(item);
-            this.seen.set(id, item);
-            return true;
-        }
-        return false;
-    }
-    getItem(identifier) {
-        return this.seen.get(identifier);
-    }
-    getItems() {
-        if (this.processed) {
-            return this.processed;
-        }
-        // call process
-        for (let item of this.items) {
-            this.processStages(item);
-        }
-        this.processed = this.items;
-        return this.processed;
-    }
-    //
-    // Gets an issue from a number of days, hours ago.
-    // Clones the issue and Replays events (labels, column moves, milestones)
-    // and reprocesses the stages.
-    // If the issue doesn't exist in the list, returns null
-    //
-    getItemAsof(identifier, datetime) {
-        console.log(`getting asof ${datetime} : ${identifier}`);
-        let issue = this.getItem(identifier);
-        if (!issue) {
-            return issue;
-        }
-        issue = clone_1.default(issue);
-        let momentAgo = moment_1.default(datetime);
-        // clear everything we're going to re-apply
-        issue.labels = [];
-        delete issue.project_added_at;
-        delete issue.project_proposed_at;
-        delete issue.project_in_progress_at;
-        delete issue.project_accepted_at;
-        delete issue.project_done_at;
-        delete issue.project_stage;
-        delete issue.closed_at;
-        // stages and labels
-        let filteredEvents = [];
-        let labelMap = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
-                    continue;
-                }
-                filteredEvents.push(event);
-                if (event.event === 'labeled') {
-                    labelMap[event.label.name] = event.label;
-                }
-                else if (event.event === 'unlabeled') {
-                    delete labelMap[event.label.name];
-                }
-                if (event.event === 'closed') {
-                    issue.closed_at = event.created_at;
-                }
-                if (event.event === 'reopened') {
-                    delete issue.closed_at;
-                }
-            }
-        }
-        issue.events = filteredEvents;
-        for (let labelName in labelMap) {
-            issue.labels.push(labelMap[labelName]);
-        }
-        this.processStages(issue);
-        // comments
-        let filteredComments = [];
-        for (let comment of issue.comments) {
-            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
-                continue;
-            }
-            filteredComments.push(comment);
-        }
-        issue.comments = filteredComments;
-        return issue;
-    }
-    //
-    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
-    // Call initially and then call again if events are filtered (get issue asof)
-    //
-    processStages(issue) {
-        console.log(`Processing stages for ${issue.html_url}`);
-        // card events should be in order chronologically
-        let currentStage;
-        let doneTime;
-        let addedTime;
-        let tempLabels = {};
-        if (issue.events) {
-            for (let event of issue.events) {
-                let eventDateTime;
-                if (event.created_at) {
-                    eventDateTime = event.created_at;
-                }
-                //
-                // Process Project Stages
-                //
-                let toStage;
-                let toLevel;
-                let fromStage;
-                let fromLevel = 0;
-                if (event.project_card && event.project_card.column_name) {
-                    if (!addedTime) {
-                        addedTime = eventDateTime;
-                    }
-                    if (!event.project_card.stage_name) {
-                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
-                    }
-                    toStage = event.project_card.stage_name;
-                    toLevel = stageLevel[toStage];
-                    currentStage = toStage;
-                }
-                if (event.project_card && event.project_card.previous_column_name) {
-                    if (!event.project_card.previous_stage_name) {
-                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
-                    }
-                    fromStage = event.project_card.previous_stage_name;
-                    fromLevel = stageLevel[fromStage];
-                }
-                // last occurence of moving to these columns from a lesser or no column
-                // example. if moved to accepted from proposed (or less), 
-                //      then in-progress (greater) and then back to accepted, first wins            
-                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                    if (toLevel > fromLevel) {
-                        issue[this.stageAtNames[toLevel]] = eventDateTime;
-                    }
-                    //moving back, clear the stage at dates up to fromLevel
-                    else if (toLevel < fromLevel) {
-                        for (let i = toLevel + 1; i <= fromLevel; i++) {
-                            delete issue[this.stageAtNames[i]];
-                        }
-                    }
-                }
-                if (toStage === 'Done') {
-                    doneTime = eventDateTime;
-                }
-            }
-            // done_at and blocked_at is only set if it's currently at that stage
-            if (currentStage === 'Done') {
-                issue.project_done_at = doneTime;
-                console.log(`project_done_at: ${issue.project_done_at}`);
-            }
-            if (addedTime) {
-                issue.project_added_at = addedTime;
-                console.log(`project_added_at: ${issue.project_added_at}`);
-            }
-            issue.project_stage = currentStage;
-            console.log(`project_stage: ${issue.project_stage}`);
-        }
-    }
-}
-exports.IssueList = IssueList;
-//# sourceMappingURL=project-reports-lib.js.map
+exports.getLastCommentPattern = getLastCommentPattern;
+// export function diffHours(date1: Date, date2: Date): number {
+//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
+// }
+
 
 /***/ }),
 
@@ -6776,40 +6812,6 @@ module.exports = function (str, locale) {
 
 /***/ }),
 
-/***/ 714:
-/***/ (function(module, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.getLastCommentPattern = exports.dataFromCard = void 0;
-function dataFromCard(card, filterBy, data) {
-    let fn = module.exports[`get${filterBy}`];
-    if (!fn) {
-        throw new Error(`Invalid filter: ${filterBy}`);
-    }
-    return fn(card, data);
-}
-exports.dataFromCard = dataFromCard;
-//
-// returns last updated using last comment with a body matching a pattern
-//
-function getLastCommentPattern(card, pattern) {
-    if (!card.comments) {
-        return '';
-    }
-    let re = new RegExp(pattern);
-    let comment = card.comments.filter((comment) => comment.body.match(re)).pop();
-    return comment ? comment["updated_at"] : null;
-}
-exports.getLastCommentPattern = getLastCommentPattern;
-// export function diffHours(date1: Date, date2: Date): number {
-//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
-// }
-//# sourceMappingURL=project-reports-schemes.js.map
-
-/***/ }),
-
 /***/ 736:
 /***/ (function(module) {
 
@@ -6911,10 +6913,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
-const rptLib = __importStar(__webpack_require__(369));
-const tablemark_1 = __importDefault(__webpack_require__(611));
-const os = __importStar(__webpack_require__(87));
 const clone_1 = __importDefault(__webpack_require__(97));
+const os = __importStar(__webpack_require__(87));
+const tablemark_1 = __importDefault(__webpack_require__(611));
+const rptLib = __importStar(__webpack_require__(189));
 const reportType = 'project';
 exports.reportType = reportType;
 /*
@@ -6924,36 +6926,39 @@ exports.reportType = reportType;
  */
 function getDefaultConfiguration() {
     return {
-        // Epic for now.  Supports others. 
+        // Epic for now.  Supports others.
         // Will appear on report in this casing but matches labels with lowercase version.
-        "report-on-label": 'Feature',
-        "proposed-limit": 0,
-        "accepted-limit": 0,
-        "in-progress-limit": 4,
-        "done-limit": -1
+        'report-on-label': 'Epic',
+        'proposed-limit': 0,
+        'accepted-limit': 0,
+        'in-progress-limit': 4,
+        'done-limit': -1
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
 function getDrillName(cardType, stage) {
-    return `limits-${cardType}-${stage}`.split(" ").join("-");
+    return `limits-${cardType}-${stage}`.split(' ').join('-');
 }
 function process(config, issueList, drillIn) {
-    let limitsData = {};
+    const limitsData = {};
     limitsData.data = {};
     // epic, etc..
-    limitsData.cardType = config["report-on-label"];
-    let issues = issueList.getItems();
-    let projData = rptLib.getProjectStageIssues(issues);
+    limitsData.cardType = config['report-on-label'];
+    const issues = issueList.getItems();
+    const projData = rptLib.getProjectStageIssues(issues);
     // proposed, in-progress, etc...
-    for (let stage in projData) {
-        let stageData = {};
-        let cards = projData[stage];
-        let cardsForType = limitsData.cardType === '*' ? clone_1.default(cards) : clone_1.default(rptLib.filterByLabel(cards, limitsData.cardType.toLowerCase()));
+    for (const stage in projData) {
+        const stageData = {};
+        const cards = projData[stage];
+        const cardsForType = limitsData.cardType === '*'
+            ? clone_1.default(cards)
+            : clone_1.default(rptLib.filterByLabel(cards, limitsData.cardType.toLowerCase()));
         stageData.items = cardsForType;
         drillIn(getDrillName(limitsData.cardType, stage), `Issues for ${stage} ${limitsData.cardType}s`, cardsForType);
-        let limitKey = `${stage.toLocaleLowerCase()}-limit`;
+        const limitKey = `${stage.toLocaleLowerCase()}-limit`;
         stageData.limit = config[limitKey] || 0;
-        stageData.flag = stageData.limit > -1 && cardsForType.length > stageData.limit;
+        stageData.flag =
+            stageData.limit > -1 && cardsForType.length > stageData.limit;
         limitsData.data[stage] = stageData;
     }
     return limitsData;
@@ -6961,32 +6966,32 @@ function process(config, issueList, drillIn) {
 exports.process = process;
 function renderMarkdown(targets, processedData) {
     console.log(`Rendering for ${targets.length} targets`);
-    let stageData = processedData;
-    let lines = [];
+    const stageData = processedData;
+    const lines = [];
     // create a report for each type.  e.g. "Epic"
-    let typeLabel = stageData.cardType === '*' ? "" : stageData.cardType;
+    const typeLabel = stageData.cardType === '*' ? '' : stageData.cardType;
     lines.push(`## :ship: ${typeLabel} Limits  `);
-    let rows = [];
-    for (let stageName in stageData.data) {
-        let stage = stageData.data[stageName];
-        let stageRow = {};
+    const rows = [];
+    for (const stageName in stageData.data) {
+        const stage = stageData.data[stageName];
+        const stageRow = {};
         stageRow.stage = stageName;
         // data folder is part of the contract here.  make a lib function to create this path
         stageRow.count = `[${stage.items.length}](./${getDrillName(stageData.cardType, stageName)}.md)`;
         if (stage.flag) {
-            stageRow.count += "  :triangular_flag_on_post:";
+            stageRow.count += '  :triangular_flag_on_post:';
         }
-        stageRow.limit = stage.limit >= 0 ? stage.limit.toString() : "";
+        stageRow.limit = stage.limit >= 0 ? stage.limit.toString() : '';
         rows.push(stageRow);
     }
-    let table = tablemark_1.default(rows);
+    const table = tablemark_1.default(rows);
     lines.push(table);
     return lines.join(os.EOL);
 }
 exports.renderMarkdown = renderMarkdown;
 function renderHtml() {
     // Not supported yet
-    return "";
+    return '';
 }
 exports.renderHtml = renderHtml;
 

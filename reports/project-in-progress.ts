@@ -48,6 +48,7 @@ export interface IssueCardEx extends ProjectIssue {
   status: string
   previousStatus: string
   flagHoursLastUpdated: boolean
+  lastUpdatedAt: string
   lastUpdatedAgo: string
   hoursInProgress: number
   inProgressSince: string
@@ -130,6 +131,7 @@ export function process(
     )
     console.log(`last updated: ${lastUpdatedDate}`)
 
+    card.lastUpdatedAt = lastUpdatedDate
     card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : ''
     console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`)
 

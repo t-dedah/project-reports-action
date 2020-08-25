@@ -8,7 +8,8 @@
     "test": "jest",
     "check:format": "prettier --write *.ts **/*.ts",
     "check:lint": "eslint *.ts **/*.ts __tests__ github reports types",
-    "check": "run-s check:format check:lint"
+    "check:compile": "tsc",
+    "check": "run-s check:format check:lint check:compile"
   },
   "husky": {
     "hooks": {

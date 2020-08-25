@@ -80,13 +80,13 @@ const reportType = 'any';
 exports.reportType = reportType;
 function getDefaultConfiguration() {
     return {
-        "add-age": 'days'
+        'add-age': 'days'
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
 // processing the data does a js map on each items and adds data that the report rendering (generate) needs
-// we will dump the json data used to generate the reports next to the rendered report 
-// e.g. this function should look at the transition times and added wip status of yellow, red etc. 
+// we will dump the json data used to generate the reports next to the rendered report
+// e.g. this function should look at the transition times and added wip status of yellow, red etc.
 function process(config, data) {
     // TODO: process and add age in hours
     if (config) {
@@ -97,19 +97,19 @@ function process(config, data) {
 exports.process = process;
 function renderMarkdown(targets, data) {
     console.log(`rendering for ${targets.length} targets`);
-    let lines = [];
+    const lines = [];
     lines.push(`## Echo data `);
-    lines.push("");
-    lines.push("```javascript");
+    lines.push('');
+    lines.push('```javascript');
     lines.push(JSON.stringify(data, null, 2));
-    lines.push("```");
+    lines.push('```');
     // TODO
     return lines.join(os.EOL);
 }
 exports.renderMarkdown = renderMarkdown;
 function renderHtml() {
     // Not supported yet
-    return "";
+    return '';
 }
 exports.renderHtml = renderHtml;
 
