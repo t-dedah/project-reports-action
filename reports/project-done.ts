@@ -49,7 +49,7 @@ export function process(
   const cardsForType =
     cardType === '*'
       ? issues
-      : (rptLib.filterByLabel(issues, cardType.toLowerCase()) as ProjectIssue[])
+      : rptLib.filterByLabel(issues, cardType.toLowerCase())
 
   const cards = cardsForType.filter(
     issue =>
@@ -75,7 +75,7 @@ export function renderMarkdown(
   processedData: CompletedCards
 ): string {
   console.log('> project-done::renderMarkdown')
-  const completedCards = processedData as CompletedCards
+  const completedCards = processedData
 
   const lines: string[] = []
   const typeLabel =
@@ -87,21 +87,25 @@ export function renderMarkdown(
   lines.push('  ')
 
   const rows: CompletedRow[] = []
-  for (const card of processedData.cards) {
-    const doneRow = <CompletedRow>{}
 
-    let assigned = card.assignee
-    if (!assigned && card.assignees && card.assignees.length > 0) {
-      assigned = card.assignees[0]
+  for (const card of processedData.cards) {
+    let assignee = card.assignee
+    if (!assignee && card.assignees && card.assignees.length > 0) {
+      assignee = card.assignees[0]
     }
 
-    doneRow.assigned = assigned
-      ? `<img height="20" width="20" alt="@${assigned.login}" src="${assigned.avatar_url}"/> <a href="${assigned.html_url}">${assigned.login}</a>`
+    const assigned = assignee
+      ? `<img height="20" width="20" alt="@${assignee.login}" src="${assignee.avatar_url}"/> <a href="${assignee.html_url}">${assignee.login}</a>`
       : ':triangular_flag_on_post:'
-    doneRow.title = `[${card.title}](${card.html_url})`
-    doneRow.completed = now.to(moment(card['project_done_at']))
 
-    rows.push(doneRow)
+    const title = `[${card.title}](${card.html_url})`
+    const completed = now.to(moment(card['project_done_at']))
+
+    rows.push({
+      assigned,
+      title,
+      completed
+    })
   }
 
   let table: string
