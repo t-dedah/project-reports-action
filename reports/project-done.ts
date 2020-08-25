@@ -4,7 +4,7 @@ import tablemark from 'tablemark'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
 import {IssueList, ProjectIssue} from '../project-reports-lib'
-import {getConfigValue} from '../util/config'
+import {getConfigValue, UserConfig} from '../util/config'
 
 const now = moment()
 
@@ -34,7 +34,7 @@ export type CompletedCards = {
 }
 
 export function process(
-  config: Record<string, unknown>,
+  config: UserConfig,
   issueList: IssueList
 ): CompletedCards {
   console.log('> project-done::process')

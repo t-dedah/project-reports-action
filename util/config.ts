@@ -1,19 +1,21 @@
 import {assertNumber, assertString} from './assert'
 
+export type UserConfig = Record<string, unknown>
+
 export function getConfigValue(
-  config: Record<string, unknown>,
+  config: UserConfig,
   key: string,
   type: 'string',
   defaultValue?: string
 ): string
 export function getConfigValue(
-  config: Record<string, unknown>,
+  config: UserConfig,
   key: string,
   type: 'number',
   defaultValue?: number
 ): number
 export function getConfigValue(
-  config: Record<string, unknown>,
+  config: UserConfig,
   key: string,
   type: 'string' | 'number',
   defaultValue?: string | number
