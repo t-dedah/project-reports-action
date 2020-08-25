@@ -21,7 +21,7 @@ export function getDefaultConfiguration(): any {
   return <any>{
     // Epic for now.  Supports others.
     // Will appear on report in this casing but matches labels with lowercase version.
-    'report-on-label': 'Epic',
+    'report-on-label': 'Feature',
     'proposed-limit': 0,
     'accepted-limit': 0,
     'in-progress-limit': 4,
