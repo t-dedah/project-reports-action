@@ -4,19 +4,24 @@ import tablemark from 'tablemark'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
 import {IssueList, ProjectIssue} from '../project-reports-lib'
+import {getConfigValue} from '../util/config'
 
 const now = moment()
 
-const reportType = 'project'
-export {reportType}
+export const reportType = 'project'
+
+export type ProjectDoneConfig = {
+  'report-on-label': string
+  daysAgo: number
+}
 
 /*
  * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
  * how focused the team is (e.g. how many efforts are going on)
  * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
  */
-export function getDefaultConfiguration(): any {
-  return <any>{
+export function getDefaultConfiguration(): ProjectDoneConfig {
+  return {
     'report-on-label': 'Feature',
     daysAgo: 7
   }
@@ -29,41 +34,34 @@ export type CompletedCards = {
 }
 
 export function process(
-  config: any,
-  issueList: IssueList,
-  drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void
-): any {
+  config: Record<string, unknown>,
+  issueList: IssueList
+): CompletedCards {
   console.log('> project-done::process')
-  const completedCards = <CompletedCards>{}
 
-  completedCards.cardType = config['report-on'] || config['report-on-label']
+  const cardType = getConfigValue(config, 'report-on-label', 'string')
+  const daysAgo = getConfigValue(config, 'daysAgo', 'number', 7)
+  const daysAgoMoment = moment().subtract(daysAgo, 'days')
 
-  const daysAgo = config['daysAgo'] || 7
-  if (isNaN(daysAgo)) {
-    throw new Error('daysAgo is not a number')
-  }
-  completedCards.daysAgo = daysAgo
-
-  const daysAgoMoment = moment().subtract(config['daysAgo'] || 7, 'days')
-
-  console.log(`Getting cards for ${completedCards.cardType}`)
+  console.log(`Getting cards for ${cardType}`)
 
   const issues = issueList.getItems()
   const cardsForType =
-    completedCards.cardType === '*'
+    cardType === '*'
       ? issues
-      : (rptLib.filterByLabel(
-          issues,
-          completedCards.cardType.toLowerCase()
-        ) as ProjectIssue[])
+      : (rptLib.filterByLabel(issues, cardType.toLowerCase()) as ProjectIssue[])
 
-  completedCards.cards = cardsForType.filter(
+  const cards = cardsForType.filter(
     issue =>
       issue['project_done_at'] &&
       moment(issue['project_done_at']).isAfter(daysAgoMoment)
   )
 
-  return completedCards
+  return {
+    cardType,
+    daysAgo,
+    cards
+  }
 }
 
 interface CompletedRow {
@@ -73,8 +71,8 @@ interface CompletedRow {
 }
 
 export function renderMarkdown(
-  targets: CrawlingTarget[],
-  processedData: any
+  _targets: CrawlingTarget[],
+  processedData: CompletedCards
 ): string {
   console.log('> project-done::renderMarkdown')
   const completedCards = processedData as CompletedCards
