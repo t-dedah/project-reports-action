@@ -1,27 +1,27 @@
 import * as rptLib from '../project-reports-lib'
-import {IssueList, ProjectIssue} from '../project-reports-lib'
+import { IssueList, ProjectIssue } from '../project-reports-lib'
 import projectData from './project-data.test.json'
 
 const testCards: ProjectIssue[] = [
   <ProjectIssue>{
     number: 1,
     title: 'one',
-    labels: [{name: 'One'}]
+    labels: [{ name: 'One' }]
   },
   <ProjectIssue>{
     number: 2,
     title: 'twothree',
-    labels: [{name: 'Two'}, {name: 'three'}]
+    labels: [{ name: 'Two' }, { name: 'three' }]
   },
   <ProjectIssue>{
     number: 3,
     title: 'other',
-    labels: [{name: 'two'}, {name: '11-dev'}, {name: 'foo:baz'}]
+    labels: [{ name: 'two' }, { name: '11-dev' }, { name: 'foo:baz' }]
   },
   <ProjectIssue>{
     number: 4,
     title: 'more',
-    labels: [{name: 'five'}, {name: '13-DEV'}, {name: 'Foo: bar '}]
+    labels: [{ name: 'five' }, { name: '13-DEV' }, { name: 'Foo: bar ' }]
   }
 ]
 
@@ -140,7 +140,7 @@ describe('report-lib', () => {
 
   it('does not gets last comment if no comments', async () => {
     const d = rptLib.getLastCommentPattern(
-      <ProjectIssue>{comments: []},
+      <ProjectIssue>{ comments: [] },
       '^(#){1,4} update'
     )
     expect(d).toBeFalsy()
@@ -152,18 +152,18 @@ describe('report-lib', () => {
   })
 
   it('handles no comments for field value from issue', async () => {
-    const v = rptLib.getLastCommentField(<ProjectIssue>{comments: []}, 'foo')
+    const v = rptLib.getLastCommentField(<ProjectIssue>{ comments: [] }, 'foo')
     expect(v).toBeFalsy()
   })
 
   it('gets last comments date field value from issue', async () => {
     const v = rptLib.getLastCommentDateField(card, 'target date')
-    expect(v.toISOString()).toBe('2020-08-04T04:00:00.000Z')
+    expect(v.toUTCString()).toBe('Tue, 04 Aug 2020 04:00:00 GMT')
   })
 
   it('handles no comments for field date value from issue', async () => {
     const v = rptLib.getLastCommentDateField(
-      <ProjectIssue>{comments: []},
+      <ProjectIssue>{ comments: [] },
       'target date'
     )
     expect(v).toBeFalsy()
@@ -184,22 +184,22 @@ describe('report-lib', () => {
     expect(set).toBeDefined()
     expect(set.getItems().length).toBe(0)
 
-    let added = set.add({name: 'one', number: 1})
+    let added = set.add({ name: 'one', number: 1 })
     expect(added).toBeTruthy()
     expect(set.getItems().length).toBe(1)
 
-    added = set.add({name: 'two', number: 2})
+    added = set.add({ name: 'two', number: 2 })
     expect(added).toBeTruthy()
     expect(set.getItems().length).toBe(2)
 
-    added = set.add({name: 'dupe', number: 1})
+    added = set.add({ name: 'dupe', number: 1 })
     expect(added).toBeFalsy()
     expect(set.getItems().length).toBe(2)
 
     added = set.add([
-      {name: 'three', number: 3},
-      {name: 'four', number: 4},
-      {name: 'dupe', number: 1}
+      { name: 'three', number: 3 },
+      { name: 'four', number: 4 },
+      { name: 'dupe', number: 1 }
     ])
     expect(added).toBeTruthy()
     expect(set.getItems().length).toBe(4)
