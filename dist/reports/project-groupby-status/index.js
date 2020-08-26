@@ -105,8 +105,7 @@ function getDefaultConfiguration() {
     return {
         'report-on-label': 'feature',
         'group-by-label-prefix': '> ',
-        'target-date-scheme': 'LastCommentField',
-        'target-date-scheme-data': 'Target Date',
+        'target-date-comment-field': 'target date',
         'flag-in-progress-days': 21,
         'wip-limit': 2,
         'status-label-match': '(?:green|yellow|red)'
@@ -141,10 +140,18 @@ function getBreakdown(config, name, issues, drillIn) {
     drillIn(drillInName(name, 'yellow'), `${name} with a status yellow`, groupByData.flagged.yellow);
     groupByData.flagged.inProgressDuration = exceeded;
     drillIn(drillInName(name, 'duration'), `${name} > ${config['flag-in-progress-days']} in progress duration`, groupByData.flagged.inProgressDuration);
-    groupByData.flagged.noTarget = [];
-    drillIn(drillInName(name, 'no-target'), `${name} with no target date`, groupByData.flagged.red);
-    groupByData.flagged.pastTarget = [];
-    drillIn(drillInName(name, 'past-target'), `${name} past the target date`, groupByData.flagged.red);
+    groupByData.flagged.noTarget =
+        issues.filter(issue => {
+            let d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field']);
+            return !d || isNaN(d.valueOf());
+        });
+    drillIn(drillInName(name, 'no-target'), `${name} with no target date`, groupByData.flagged.noTarget);
+    groupByData.flagged.pastTarget =
+        issues.filter(issue => {
+            let d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field']);
+            return d && !isNaN(d.valueOf()) && moment(d).isAfter(now);
+        });
+    drillIn(drillInName(name, 'past-target'), `${name} past the target date`, groupByData.flagged.pastTarget);
     return groupByData;
 }
 function process(config, issueList, drillIn) {
