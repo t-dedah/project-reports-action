@@ -25,8 +25,7 @@ export function getDefaultConfiguration(): any {
   return <any>{
     'report-on-label': 'feature',
     'group-by-label-prefix': '> ',
-    'target-date-scheme': 'LastCommentField',
-    'target-date-scheme-data': 'Target Date',
+    'target-date-comment-field': 'target date',
     'flag-in-progress-days': 21,
     'wip-limit': 2,
     'status-label-match': '(?:green|yellow|red)'
@@ -137,18 +136,30 @@ function getBreakdown(
     groupByData.flagged.inProgressDuration
   )
 
-  groupByData.flagged.noTarget = []
+  groupByData.flagged.noTarget = issues.filter(issue => {
+    const d = rptLib.getLastCommentDateField(
+      issue,
+      config['target-date-comment-field']
+    )
+    return !d || isNaN(d.valueOf())
+  })
   drillIn(
     drillInName(name, 'no-target'),
     `${name} with no target date`,
-    groupByData.flagged.red
+    groupByData.flagged.noTarget
   )
 
-  groupByData.flagged.pastTarget = []
+  groupByData.flagged.pastTarget = issues.filter(issue => {
+    const d = rptLib.getLastCommentDateField(
+      issue,
+      config['target-date-comment-field']
+    )
+    return d && !isNaN(d.valueOf()) && moment(d).isAfter(now)
+  })
   drillIn(
     drillInName(name, 'past-target'),
     `${name} past the target date`,
-    groupByData.flagged.red
+    groupByData.flagged.pastTarget
   )
 
   return groupByData
