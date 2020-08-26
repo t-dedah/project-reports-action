@@ -105,9 +105,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const clone_1 = __importDefault(__webpack_require__(263));
 const moment_1 = __importDefault(__webpack_require__(431));
+const os = __importStar(__webpack_require__(87));
 const url = __importStar(__webpack_require__(835));
 // TODO: separate npm module.  for now it's a file till we flush out
 __exportStar(__webpack_require__(385), exports);
@@ -163,6 +164,42 @@ function getStringFromLabel(card, re) {
     return str;
 }
 exports.getStringFromLabel = getStringFromLabel;
+function getLastCommentField(issue, field) {
+    let val = '';
+    if (!issue.comments) {
+        return '';
+    }
+    while (true) {
+        const comment = issue.comments.pop();
+        if (!comment) {
+            break;
+        }
+        const lines = comment.body.split(os.EOL);
+        for (const line of lines) {
+            const parts = line.trim().split(':');
+            if (parts.length === 2 && fuzzyMatch(parts[0], field)) {
+                val = parts[1].trim();
+                break;
+            }
+        }
+        if (val) {
+            break;
+        }
+    }
+    return val;
+}
+exports.getLastCommentField = getLastCommentField;
+// returns a valid date field value from a comment field 
+function getLastCommentDateField(issue, field) {
+    let d = null;
+    let val = getLastCommentField(issue, field);
+    try {
+        d = new Date(val);
+    }
+    catch (_a) { }
+    return d;
+}
+exports.getLastCommentDateField = getLastCommentDateField;
 function sumCardProperty(cards, prop) {
     return cards.reduce((a, b) => a + (b[prop] || 0), 0);
 }

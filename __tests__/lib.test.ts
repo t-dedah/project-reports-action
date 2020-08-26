@@ -116,6 +116,12 @@ describe('report-lib', () => {
         updated_at: new Date('2020-07-23T03:29:07.282Z')
       },
       {
+        body: ' foo: bar '
+      },
+      {
+        body: ' target date : 8-4-20 '
+      },
+      {
         body: '## update 3',
         updated_at: new Date('2020-07-23T03:31:35.918Z')
       }
@@ -140,12 +146,36 @@ describe('report-lib', () => {
     expect(d).toBeFalsy()
   })
 
+  it('gets last comments field value from issue', async () => {
+    const v = rptLib.getLastCommentField(card, 'foo')
+    expect(v).toBe('bar')
+  })
+
+  it('handles no comments for field value from issue', async () => {
+    const v = rptLib.getLastCommentField(<ProjectIssue>{comments: []}, 'foo')
+    expect(v).toBeFalsy()
+  })
+
+  it('gets last comments date field value from issue', async () => {
+    const v = rptLib.getLastCommentDateField(card, 'target date')
+    expect(v.toISOString()).toBe('2020-08-04T04:00:00.000Z')
+  })
+
+  it('handles no comments for field date value from issue', async () => {
+    const v = rptLib.getLastCommentDateField(
+      <ProjectIssue>{comments: []},
+      'target date'
+    )
+    expect(v).toBeFalsy()
+  })
+
   it('gets last comment updated_at value from dataFromCard', async () => {
     const d = rptLib.dataFromCard(
       card,
       'LastCommentPattern',
       '^(#){1,4} update'
     )
+    console.log(d)
     expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z')
   })
 
