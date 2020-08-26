@@ -169,8 +169,8 @@ function getLastCommentField(issue, field) {
     if (!issue.comments) {
         return '';
     }
-    while (true) {
-        const comment = issue.comments.pop();
+    for (let i = issue.comments.length - 1; i >= 0; i--) {
+        const comment = issue.comments[i];
         if (!comment) {
             break;
         }
@@ -189,14 +189,13 @@ function getLastCommentField(issue, field) {
     return val;
 }
 exports.getLastCommentField = getLastCommentField;
-// returns a valid date field value from a comment field 
+// returns a valid date field value from a comment field
 function getLastCommentDateField(issue, field) {
     let d = null;
-    let val = getLastCommentField(issue, field);
-    try {
+    const val = getLastCommentField(issue, field);
+    if (val) {
         d = new Date(val);
     }
-    catch (_a) { }
     return d;
 }
 exports.getLastCommentDateField = getLastCommentDateField;

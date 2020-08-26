@@ -158,9 +158,9 @@ describe('report-lib', () => {
 
   it('gets last comments date field value from issue', async () => {
     const v = rptLib.getLastCommentDateField(card, 'target date')
-    expect(v.getUTCMonth()).toBe(7); // 0 based
-    expect(v.getUTCDate()).toBe(4);
-    expect(v.getUTCFullYear()).toBe(2020);
+    expect(v.getUTCMonth()).toBe(7) // 0 based
+    expect(v.getUTCDate()).toBe(4)
+    expect(v.getUTCFullYear()).toBe(2020)
   })
 
   it('handles no comments for field date value from issue', async () => {
@@ -169,6 +169,19 @@ describe('report-lib', () => {
       'target date'
     )
     expect(v).toBeFalsy()
+  })
+
+  it('handles invalid dates for field date value from issue', async () => {
+    const v = rptLib.getLastCommentDateField(
+      <ProjectIssue>{
+        comments: [{
+          body: ' target date : 13-13-20 '
+        }]
+      },
+      'target date'
+    ) as Date
+
+    expect(v.valueOf()).toBe(NaN);
   })
 
   it('gets last comment updated_at value from dataFromCard', async () => {
