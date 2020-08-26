@@ -158,7 +158,9 @@ describe('report-lib', () => {
 
   it('gets last comments date field value from issue', async () => {
     const v = rptLib.getLastCommentDateField(card, 'target date')
-    expect(v.toUTCString()).toBe('Tue, 04 Aug 2020 04:00:00 GMT')
+    expect(v.getUTCMonth()).toBe(7); // 0 based
+    expect(v.getUTCDate()).toBe(4);
+    expect(v.getUTCFullYear()).toBe(2020);
   })
 
   it('handles no comments for field date value from issue', async () => {
