@@ -1,27 +1,27 @@
 import * as rptLib from '../project-reports-lib'
-import {IssueList, ProjectIssue} from '../project-reports-lib'
+import { IssueList, ProjectIssue } from '../project-reports-lib'
 import projectData from './project-data.test.json'
 
 const testCards: ProjectIssue[] = [
   <ProjectIssue>{
     number: 1,
     title: 'one',
-    labels: [{name: 'One'}]
+    labels: [{ name: 'One' }]
   },
   <ProjectIssue>{
     number: 2,
     title: 'twothree',
-    labels: [{name: 'Two'}, {name: 'three'}]
+    labels: [{ name: 'Two' }, { name: 'three' }]
   },
   <ProjectIssue>{
     number: 3,
     title: 'other',
-    labels: [{name: 'two'}, {name: '11-dev'}, {name: 'foo:baz'}]
+    labels: [{ name: 'two' }, { name: '11-dev' }, { name: 'foo:baz' }]
   },
   <ProjectIssue>{
     number: 4,
     title: 'more',
-    labels: [{name: 'five'}, {name: '13-DEV'}, {name: 'Foo: bar '}]
+    labels: [{ name: 'five' }, { name: '13-DEV' }, { name: 'Foo: bar ' }]
   }
 ]
 
@@ -116,6 +116,12 @@ describe('report-lib', () => {
         updated_at: new Date('2020-07-23T03:29:07.282Z')
       },
       {
+        body: ' foo: bar '
+      },
+      {
+        body: ' target date : 8-4-20 '
+      },
+      {
         body: '## update 3',
         updated_at: new Date('2020-07-23T03:31:35.918Z')
       }
@@ -134,10 +140,48 @@ describe('report-lib', () => {
 
   it('does not gets last comment if no comments', async () => {
     const d = rptLib.getLastCommentPattern(
-      <ProjectIssue>{comments: []},
+      <ProjectIssue>{ comments: [] },
       '^(#){1,4} update'
     )
     expect(d).toBeFalsy()
+  })
+
+  it('gets last comments field value from issue', async () => {
+    const v = rptLib.getLastCommentField(card, 'foo')
+    expect(v).toBe('bar')
+  })
+
+  it('handles no comments for field value from issue', async () => {
+    const v = rptLib.getLastCommentField(<ProjectIssue>{ comments: [] }, 'foo')
+    expect(v).toBeFalsy()
+  })
+
+  it('gets last comments date field value from issue', async () => {
+    const v = rptLib.getLastCommentDateField(card, 'target date')
+    expect(v.getUTCMonth()).toBe(7) // 0 based
+    expect(v.getUTCDate()).toBe(4)
+    expect(v.getUTCFullYear()).toBe(2020)
+  })
+
+  it('handles no comments for field date value from issue', async () => {
+    const v = rptLib.getLastCommentDateField(
+      <ProjectIssue>{ comments: [] },
+      'target date'
+    )
+    expect(v).toBeFalsy()
+  })
+
+  it('handles invalid dates for field date value from issue', async () => {
+    const v = rptLib.getLastCommentDateField(
+      <ProjectIssue>{
+        comments: [{
+          body: ' target date : 13-13-20 '
+        }]
+      },
+      'target date'
+    ) as Date
+
+    expect(v.valueOf()).toBe(NaN);
   })
 
   it('gets last comment updated_at value from dataFromCard', async () => {
@@ -146,6 +190,7 @@ describe('report-lib', () => {
       'LastCommentPattern',
       '^(#){1,4} update'
     )
+    console.log(d)
     expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z')
   })
 
@@ -154,22 +199,22 @@ describe('report-lib', () => {
     expect(set).toBeDefined()
     expect(set.getItems().length).toBe(0)
 
-    let added = set.add({name: 'one', number: 1})
+    let added = set.add({ name: 'one', number: 1 })
     expect(added).toBeTruthy()
     expect(set.getItems().length).toBe(1)
 
-    added = set.add({name: 'two', number: 2})
+    added = set.add({ name: 'two', number: 2 })
     expect(added).toBeTruthy()
     expect(set.getItems().length).toBe(2)
 
-    added = set.add({name: 'dupe', number: 1})
+    added = set.add({ name: 'dupe', number: 1 })
     expect(added).toBeFalsy()
     expect(set.getItems().length).toBe(2)
 
     added = set.add([
-      {name: 'three', number: 3},
-      {name: 'four', number: 4},
-      {name: 'dupe', number: 1}
+      { name: 'three', number: 3 },
+      { name: 'four', number: 4 },
+      { name: 'dupe', number: 1 }
     ])
     expect(added).toBeTruthy()
     expect(set.getItems().length).toBe(4)
