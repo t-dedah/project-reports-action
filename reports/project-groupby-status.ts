@@ -1,7 +1,7 @@
 import clone from 'clone'
 import * as os from 'os'
 import tablemark from 'tablemark'
-import { CrawlingTarget } from '../interfaces'
+import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
 import {
   IssueList,
@@ -14,7 +14,7 @@ import moment = require('moment')
 const now = moment()
 
 const reportType = 'project'
-export { reportType }
+export {reportType}
 
 /*
  * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
@@ -34,7 +34,7 @@ export function getDefaultConfiguration(): any {
 
 export interface GroupBy {
   total: GroupByData
-  groups: { [group: string]: GroupByData }
+  groups: {[group: string]: GroupByData}
   durationDays: number
   wipLimit: number
 }
@@ -103,7 +103,7 @@ function getBreakdown(
     issue =>
       issue.project_in_progress_at &&
       moment().diff(moment(issue.project_in_progress_at), 'days') >
-      config['flag-in-progress-days']
+        config['flag-in-progress-days']
   )
 
   const statusRegEx = new RegExp(config['status-label-match'])
@@ -188,11 +188,11 @@ export function process(
     label === '*'
       ? clone(issues)
       : clone(
-        rptLib.filterByLabel(
-          issues,
-          label.trim().toLowerCase()
-        ) as ProjectIssue[]
-      )
+          rptLib.filterByLabel(
+            issues,
+            label.trim().toLowerCase()
+          ) as ProjectIssue[]
+        )
 
   // get distinct group by labels
   const prefix = config['group-by-label-prefix']
@@ -340,16 +340,16 @@ export function renderMarkdown(
     tablemark(rows, {
       columns: [
         '...',
-        { name: ':new:', align: 'center' },
-        { name: ':white_check_mark:', align: 'center' },
+        {name: ':new:', align: 'center'},
+        {name: ':white_check_mark:', align: 'center'},
         {
           name: `:hourglass_flowing_sand: <sub><sup>(${groupBy.wipLimit})</sup></sub>`,
           align: 'center'
         },
-        { name: ':checkered_flag:', align: 'center' },
+        {name: ':checkered_flag:', align: 'center'},
         '...',
-        { name: ':yellow_heart:', align: 'center' },
-        { name: ':heart:', align: 'center' },
+        {name: ':yellow_heart:', align: 'center'},
+        {name: ':heart:', align: 'center'},
         {
           name: `:calendar: <sub><sup>(>${groupBy.durationDays} days)</sup></sub>`,
           align: 'center'
