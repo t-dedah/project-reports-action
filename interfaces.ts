@@ -22,7 +22,7 @@ export type CrawlingConfig = {[name: string]: CrawlingTarget}
 export interface ReportConfig {
   name: string
   title: string
-  kind: 'markdown' | 'html'
+  kind: 'markdown' | ''
   timezoneOffset: number
   targets: string[]
   sections: ReportSection[]

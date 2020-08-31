@@ -256,7 +256,7 @@ export async function generate(
         output: processed
       })
 
-      report.kind = report.kind || 'markdown'
+      report.kind = report.kind || ''
 
       if (report.kind === 'markdown') {
         console.log('Rendering markdown ...')
@@ -273,22 +273,25 @@ export async function generate(
             drillIn.title,
             clone(drillIn.cards)
           )
+
+          await writeDrillIn(
+            report,
+            sectionPath,
+            drillIn.identifier,
+            drillIn.cards,
+            drillInReport
+          )
         } else {
           console.log('Not processing reports.  Only output.')
         }
-
-        await writeDrillIn(
-          report,
-          sectionPath,
-          drillIn.identifier,
-          drillIn.cards,
-          drillInReport
-        )
       }
     }
 
-    console.log('Writing report')
-    writeReport(report, crawler.getTargetData(), output)
+    if (report.kind !== '') {
+      console.log('Writing report')
+      writeReport(report, crawler.getTargetData(), output)
+    }
+
     console.log('Done.')
   }
   console.log()

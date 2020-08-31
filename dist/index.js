@@ -7131,28 +7131,30 @@ function generate(token, configYaml) {
                     type: reportModule,
                     output: processed
                 });
-                report.kind = report.kind || 'markdown';
+                report.kind = report.kind || '';
                 if (report.kind === 'markdown') {
                     console.log('Rendering markdown ...');
                     // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
                     output += reportGenerator.renderMarkdown(targets, processed);
                 }
                 else {
-                    throw new Error(`Report kind ${report.kind} not supported`);
+                    console.log('Not processing reports.  Only output.');
                 }
                 for (const drillIn of drillIns) {
                     let drillInReport;
                     if (report.kind === 'markdown') {
                         drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone_1.default(drillIn.cards));
+                        yield writeDrillIn(report, sectionPath, drillIn.identifier, drillIn.cards, drillInReport);
                     }
                     else {
                         console.log('Not processing reports.  Only output.');
                     }
-                    yield writeDrillIn(report, sectionPath, drillIn.identifier, drillIn.cards, drillInReport);
                 }
             }
-            console.log('Writing report');
-            writeReport(report, crawler.getTargetData(), output);
+            if (report.kind !== '') {
+                console.log('Writing report');
+                writeReport(report, crawler.getTargetData(), output);
+            }
             console.log('Done.');
         }
         console.log();
