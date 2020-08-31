@@ -148,9 +148,16 @@ function getBreakdown(config, name, issues, drillIn) {
     groupByData.flagged.yellow =
         issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'yellow') || [];
     drillIn(drillInName(name, 'yellow'), `${name} with a status yellow`, groupByData.flagged.yellow);
-    groupByData.flagged.inProgressDuration = issues.filter(issue => issue.project_in_progress_at &&
-        moment().diff(moment(issue.project_in_progress_at), 'days') >
-            config['flag-in-progress-days']);
+    groupByData.flagged.inProgressDuration = issues.filter(issue => {
+        if (issue.project_in_progress_at) {
+            const days = moment().diff(moment(issue.project_in_progress_at), 'days');
+            console.log(`In progress, ${days}: ${issue.title}`);
+            if (days > config['flag-in-progress-days']) {
+                console.log('flag');
+                return issue;
+            }
+        }
+    });
     drillIn(drillInName(name, 'duration'), `${name} > ${config['flag-in-progress-days']} in progress duration`, groupByData.flagged.inProgressDuration);
     groupByData.flagged.noTarget = issues.filter(issue => {
         const d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field']);
@@ -204,7 +211,7 @@ function process(config, issueList, drillIn) {
         console.log(`${group} ${issuesForGroup.length}`);
         groupData.groups[group] = getBreakdown(config, group, issuesForGroup, drillIn);
     }
-    console.log(JSON.stringify(groupData, null, 2));
+    //console.log(JSON.stringify(groupData, null, 2))
     return groupData;
 }
 exports.process = process;

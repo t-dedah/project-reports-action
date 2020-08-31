@@ -32,7 +32,7 @@ export async function generate(
   }
 
   const configPath = path.join(workspacePath, configYaml)
-  const cachePath = path.join(workspacePath, '_reports', '.data')
+  const cachePath = path.join(workspacePath, '.reports', '.data')
   util.mkdirP(cachePath)
 
   const config = <GeneratorConfiguration>(
@@ -49,7 +49,7 @@ export async function generate(
 
   snapshot.config = config
 
-  snapshot.config.output = snapshot.config.output || '_reports'
+  snapshot.config.output = snapshot.config.output || '.reports'
   snapshot.rootPath = path.join(workspacePath, snapshot.config.output)
 
   console.log(`Writing snapshot to ${snapshot.rootPath}`)
@@ -274,7 +274,7 @@ export async function generate(
             clone(drillIn.cards)
           )
         } else {
-          throw new Error(`Report kind ${report.kind} not supported`)
+          console.log('Not processing reports.  Only output.')
         }
 
         await writeDrillIn(

@@ -144,12 +144,16 @@ function getBreakdown(
     groupByData.flagged.yellow
   )
 
-  groupByData.flagged.inProgressDuration = issues.filter(
-    issue =>
-      issue.project_in_progress_at &&
-      moment().diff(moment(issue.project_in_progress_at), 'days') >
-        config['flag-in-progress-days']
-  )
+  groupByData.flagged.inProgressDuration = issues.filter(issue => {
+    if (issue.project_in_progress_at) {
+      const days = moment().diff(moment(issue.project_in_progress_at), 'days')
+      console.log(`In progress, ${days}: ${issue.title}`)
+      if (days > config['flag-in-progress-days']) {
+        console.log('flag')
+        return issue
+      }
+    }
+  })
   drillIn(
     drillInName(name, 'duration'),
     `${name} > ${config['flag-in-progress-days']} in progress duration`,
@@ -251,7 +255,7 @@ export function process(
     )
   }
 
-  console.log(JSON.stringify(groupData, null, 2))
+  //console.log(JSON.stringify(groupData, null, 2))
   return groupData
 }
 

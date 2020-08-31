@@ -6984,7 +6984,7 @@ function generate(token, configYaml) {
             throw new Error('GITHUB_WORKSPACE not defined');
         }
         const configPath = path.join(workspacePath, configYaml);
-        const cachePath = path.join(workspacePath, '_reports', '.data');
+        const cachePath = path.join(workspacePath, '.reports', '.data');
         util.mkdirP(cachePath);
         const config = (yaml.load(fs.readFileSync(configPath, 'utf-8')));
         const snapshot = {};
@@ -6994,7 +6994,7 @@ function generate(token, configYaml) {
             .utc()
             .format('YYYYMMDDTHHmmss.SSS[Z]');
         snapshot.config = config;
-        snapshot.config.output = snapshot.config.output || '_reports';
+        snapshot.config.output = snapshot.config.output || '.reports';
         snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
         console.log(`Writing snapshot to ${snapshot.rootPath}`);
         yield writeSnapshot(snapshot);
@@ -7146,7 +7146,7 @@ function generate(token, configYaml) {
                         drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone_1.default(drillIn.cards));
                     }
                     else {
-                        throw new Error(`Report kind ${report.kind} not supported`);
+                        console.log('Not processing reports.  Only output.');
                     }
                     yield writeDrillIn(report, sectionPath, drillIn.identifier, drillIn.cards, drillInReport);
                 }
