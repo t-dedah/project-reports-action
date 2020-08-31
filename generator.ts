@@ -263,7 +263,7 @@ export async function generate(
         // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
         output += reportGenerator.renderMarkdown(targets, processed)
       } else {
-        throw new Error(`Report kind ${report.kind} not supported`)
+        console.log('Not processing reports.  Only output.')
       }
 
       for (const drillIn of drillIns) {
