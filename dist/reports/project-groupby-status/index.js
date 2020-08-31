@@ -114,7 +114,7 @@ function getDefaultConfiguration() {
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
 function drillInName(name, column) {
-    return `${name}-${column}`;
+    return `${name}-${column}`.split(' ').join('-');
 }
 function getBreakdown(config, name, issues, drillIn) {
     const groupByData = {};
@@ -128,7 +128,7 @@ function getBreakdown(config, name, issues, drillIn) {
     drillIn(drillInName(name, 'in-progress'), `${name} in progress`, groupByData.stages.inProgress);
     // get the limit from config by fuzzy matching the group label with the setting
     let limit = Number.MAX_VALUE;
-    for (let limitKey in config['limits']) {
+    for (const limitKey in config['limits']) {
         if (rptLib.fuzzyMatch(name, limitKey)) {
             limit = config['limits'][limitKey];
             break;

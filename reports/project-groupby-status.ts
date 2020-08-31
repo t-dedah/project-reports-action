@@ -67,7 +67,7 @@ export interface Flagged {
 }
 
 function drillInName(name: string, column: string) {
-  return `${name}-${column}`
+  return `${name}-${column}`.split(' ').join('-')
 }
 
 function getBreakdown(
