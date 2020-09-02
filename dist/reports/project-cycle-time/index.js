@@ -564,11 +564,11 @@ function process(config, issueList, drillIn) {
     const filtered = rptLib.filterByLabel(issueList.getItems(), config['report-on-label']);
     const issues = new project_reports_lib_1.IssueList(issue => issue.html_url);
     issues.add(filtered);
-    const ago = moment_1.default(now);
+    let ago = moment_1.default(now);
     for (let i = 0; i < config['bucket-count']; i++) {
         const daysAgo = i * config['bucket-days'];
-        ago.subtract(daysAgo, 'days');
-        const label = ago.format('MMM Do');
+        ago = moment_1.default(ago.subtract(daysAgo, 'days'));
+        const label = ago.toISOString();
         console.log();
         console.log(`Processing asof ${label} ...`);
         const agoIssues = issues.getItemsAsof(ago.toDate());
@@ -584,7 +584,7 @@ function process(config, issueList, drillIn) {
             console.log(`${cycleTime} days: ${issue.title}`);
             cycleTotal += calculateCycleTime(issue);
         }
-        const averageCycleTime = (cycleTotal / cycleCount || 0).toFixed(1);
+        const averageCycleTime = cycleTotal / cycleCount || 0;
         console.log(`avg: ${averageCycleTime} (${cycleTotal} / ${cycleCount})`);
         cycleTimeData[label] = {
             count: cycleCount,

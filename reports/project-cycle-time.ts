@@ -20,7 +20,7 @@ export function getDefaultConfiguration(): any {
 export type CycleTimeData = {[date: string]: CycleTimeEntry}
 interface CycleTimeEntry {
   count: number
-  averageCycleTime: string
+  averageCycleTime: number
   flag: boolean
 }
 
@@ -36,11 +36,11 @@ export function process(
   const issues = new IssueList(issue => issue.html_url)
   issues.add(filtered)
 
-  const ago = moment(now)
+  let ago = moment(now)
   for (let i = 0; i < config['bucket-count']; i++) {
     const daysAgo = i * config['bucket-days']
-    ago.subtract(daysAgo, 'days')
-    const label = ago.format('MMM Do')
+    ago = moment(ago.subtract(daysAgo, 'days'))
+    const label = ago.toISOString()
 
     console.log()
     console.log(`Processing asof ${label} ...`)
@@ -59,7 +59,7 @@ export function process(
       console.log(`${cycleTime} days: ${issue.title}`)
       cycleTotal += calculateCycleTime(issue)
     }
-    const averageCycleTime = (cycleTotal / cycleCount || 0).toFixed(1)
+    const averageCycleTime = cycleTotal / cycleCount || 0
     console.log(`avg: ${averageCycleTime} (${cycleTotal} / ${cycleCount})`)
 
     cycleTimeData[label] = <CycleTimeEntry>{
