@@ -159,14 +159,15 @@ function getBreakdown(config, name, issues, drillIn) {
         }
     });
     drillIn(drillInName(name, 'duration'), `${name} > ${config['flag-in-progress-days']} in progress duration`, groupByData.flagged.inProgressDuration);
-    groupByData.flagged.noTarget = issues.filter(issue => {
+    // no target check should only be for work in-progress.
+    groupByData.flagged.noTarget = clone_1.default(groupByData.stages.inProgress).filter(issue => {
         const d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field']);
         return !d || isNaN(d.valueOf());
     });
     drillIn(drillInName(name, 'no-target'), `${name} with no target date`, groupByData.flagged.noTarget);
     groupByData.flagged.pastTarget = issues.filter(issue => {
         const d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field']);
-        return d && !isNaN(d.valueOf()) && moment(d).isAfter(now);
+        return d && !isNaN(d.valueOf()) && moment(d).isBefore(now);
     });
     drillIn(drillInName(name, 'past-target'), `${name} past the target date`, groupByData.flagged.pastTarget);
     return groupByData;

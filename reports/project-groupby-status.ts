@@ -129,7 +129,8 @@ function getBreakdown(
     groupByData.flagged.inProgressDuration
   )
 
-  groupByData.flagged.noTarget = issues.filter(issue => {
+  // no target check should only be for work in-progress.
+  groupByData.flagged.noTarget = clone(groupByData.stages.inProgress).filter(issue => {
     const d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field'])
     return !d || isNaN(d.valueOf())
   })
@@ -137,7 +138,7 @@ function getBreakdown(
 
   groupByData.flagged.pastTarget = issues.filter(issue => {
     const d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field'])
-    return d && !isNaN(d.valueOf()) && moment(d).isAfter(now)
+    return d && !isNaN(d.valueOf()) && moment(d).isBefore(now)
   })
   drillIn(drillInName(name, 'past-target'), `${name} past the target date`, groupByData.flagged.pastTarget)
 
