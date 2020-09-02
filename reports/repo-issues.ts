@@ -45,7 +45,7 @@ export function process(
   breakdown.repositories = [
     ...new Set(
       issues.map(issue => {
-        const nwoRegex = /^https:\/\/github.com\/(.+\/.+)\/.+$/
+        const nwoRegex = /^https:\/\/[^/]+\/([^/]+\/[^/]+).+$/
         const match = issue.html_url.match(nwoRegex)
         if (!match) throw new Error(`Unexpected issue HTML URL format ${issue.html_url}`)
         return match[1]
