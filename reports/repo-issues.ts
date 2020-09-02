@@ -1,7 +1,6 @@
 import clone from 'clone'
 import * as os from 'os'
 import tablemark from 'tablemark'
-import * as url from 'url'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
 import {IssueList, ProjectIssue} from '../project-reports-lib'
@@ -42,7 +41,17 @@ export function process(
   breakdown.issues = {}
 
   const issues = issueList.getItems()
-  breakdown.repositories = [...new Set(issues.map(issue => new url.URL(issue.html_url).pathname))]
+
+  breakdown.repositories = [
+    ...new Set(
+      issues.map(issue => {
+        const nwoRegex = /^https:\/\/github.com\/(.+)\/(.+)\/.+$/
+        const match = issue.html_url.match(nwoRegex)
+        return [match[1], match[2]].join('/')
+      })
+    )
+  ]
+
   for (const label of config['breakdown-by-labels']) {
     const slice = rptLib.filterByLabel(issues, label)
     breakdown.issues[label] = clone(slice)
