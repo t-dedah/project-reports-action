@@ -6,6 +6,7 @@ export interface GeneratorConfiguration {
   targets: string | CrawlingConfig
   filter: string
   output: string
+  processing: ProcessingSection[]
   reports: ReportConfig[]
 }
 
@@ -18,6 +19,12 @@ export interface CrawlingTarget {
 }
 
 export type CrawlingConfig = {[name: string]: CrawlingTarget}
+
+export interface ProcessingSection {
+  name: string
+  target: string
+  config: any
+}
 
 export interface ReportConfig {
   name: string
@@ -69,15 +76,23 @@ export interface IssueParameters {
   labels: string
 }
 
-export interface ProjectReportBuilder {
-  // a report accepts project data (and it's stages) or a list of issues from a repo (and it's stages)
-  reportType: 'project' | 'repo' | 'any'
+export interface RuntimeModule {
   getDefaultConfiguration(): any
+}
+
+// process a list of issues from a target
+export interface ProjectProcessor extends RuntimeModule {
+  targetType: 'project' | 'repo' | 'any'
+  process(target: CrawlingTarget, config: any, data: IssueList): void
+}
+
+export interface ProjectReportBuilder extends RuntimeModule {
+  reportType: 'project' | 'repo' | 'any'
+  // a report accepts project data (and it's stages) or a list of issues from a repo (and it's stages)
   process(
     config: any,
     data: IssueList,
     drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void
   ): any
   renderMarkdown(targets: CrawlingTarget[], processedData?: any): string
-  renderHtml(targets: CrawlingTarget[], processedData?: any): string
 }

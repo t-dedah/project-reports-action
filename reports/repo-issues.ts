@@ -1,6 +1,7 @@
 import clone from 'clone'
 import * as os from 'os'
 import tablemark from 'tablemark'
+import * as url from 'url'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
 import {IssueList, ProjectIssue} from '../project-reports-lib'
@@ -21,6 +22,7 @@ export function getDefaultConfiguration(): any {
 
 export interface IssueLabelBreakdown {
   identifier: number
+  repositories: string[]
   issues: {[label: string]: ProjectIssue[]}
 }
 
@@ -40,14 +42,11 @@ export function process(
   breakdown.issues = {}
 
   const issues = issueList.getItems()
+  breakdown.repositories = [...new Set(issues.map(issue => new url.URL(issue.html_url).pathname))]
   for (const label of config['breakdown-by-labels']) {
     const slice = rptLib.filterByLabel(issues, label)
     breakdown.issues[label] = clone(slice)
-    drillIn(
-      getDrillName(label, breakdown.identifier),
-      `Issues for ${label}`,
-      slice
-    )
+    drillIn(getDrillName(label, breakdown.identifier), `Issues for ${label}`, slice)
   }
 
   return breakdown
@@ -58,10 +57,7 @@ interface BreakdownRow {
   count: string
 }
 
-export function renderMarkdown(
-  targets: CrawlingTarget[],
-  processedData: any
-): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
   const breakdown = processedData as IssueLabelBreakdown
 
   const lines: string[] = []
@@ -85,10 +81,7 @@ export function renderMarkdown(
     const row = <BreakdownRow>{}
     row.label = `\`${label}\``
     // data folder is part of the contract here.  make a lib function to create this path
-    row.count = `[${breakdown.issues[label].length}](./${getDrillName(
-      label,
-      breakdown.identifier
-    )}.md)`
+    row.count = `[${breakdown.issues[label].length}](./${getDrillName(label, breakdown.identifier)}.md)`
     rows.push(row)
   }
 

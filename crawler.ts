@@ -1,13 +1,7 @@
 import {URL} from 'url'
 import {GitHubClient} from './github'
 import {CrawlingTarget} from './interfaces'
-import {
-  fuzzyMatch,
-  IssueEvent,
-  IssueList,
-  ProjectColumn,
-  ProjectIssue
-} from './project-reports-lib'
+import {fuzzyMatch, IssueEvent, IssueList, ProjectColumn, ProjectIssue} from './project-reports-lib'
 
 export class Crawler {
   // since multiple reports / sections can target (and rollup n targets), we need to crawl each once
@@ -102,17 +96,13 @@ class ProjectCrawler {
       throw new Error(`Could not find project ${target.htmlUrl}`)
     }
 
-    const columns: ProjectColumn[] = await this.github.getColumnsForProject(
-      projectData
-    )
+    const columns: ProjectColumn[] = await this.github.getColumnsForProject(projectData)
 
     let mappedColumns = []
     for (const stageName in target.columnMap) {
       const colNames = target.columnMap[stageName]
       if (!colNames || !Array.isArray) {
-        throw new Error(
-          `Invalid config. column map for ${stageName} is not an array`
-        )
+        throw new Error(`Invalid config. column map for ${stageName} is not an array`)
       }
 
       mappedColumns = mappedColumns.concat(colNames)
@@ -140,10 +130,7 @@ class ProjectCrawler {
           }
 
           for (const mention of mentioned) {
-            if (
-              mappedColumns.indexOf(mention.trim()) === -1 &&
-              seenUnmappedColumns.indexOf(mention) === -1
-            ) {
+            if (mappedColumns.indexOf(mention.trim()) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
               seenUnmappedColumns.push(mention)
             }
           }
@@ -152,10 +139,7 @@ class ProjectCrawler {
         // cached since real column could be mapped to two different mapped columns
         // read and build the event list once
 
-        const issueCard = await this.github.getIssueForCard(
-          card,
-          projectData.id
-        )
+        const issueCard = await this.github.getIssueForCard(card, projectData.id)
         if (issueCard) {
           this.processCard(issueCard, projectData.id, target, eventCallback)
           issues.push(issueCard)
@@ -178,9 +162,7 @@ class ProjectCrawler {
     console.log()
     if (seenUnmappedColumns.length > 0) {
       console.log()
-      console.log(
-        `WARNING: there are unmapped columns mentioned in existing cards on the project board`
-      )
+      console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`)
       seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`)
       console.log(`WARNING: Columns are ${seenUnmappedColumns.join(' ')}`)
       console.log()
@@ -226,30 +208,18 @@ class ProjectCrawler {
         eventCallback(event)
 
         if (event.project_card && event.project_card.column_name) {
-          const stage = this.getStageFromColumn(
-            event.project_card.column_name,
-            target
-          )
+          const stage = this.getStageFromColumn(event.project_card.column_name, target)
           if (!stage) {
-            console.log(
-              `WARNING: could not map for column ${event.project_card.column_name}`
-            )
+            console.log(`WARNING: could not map for column ${event.project_card.column_name}`)
           }
           event.project_card.stage_name = stage || 'Unmapped'
-          console.log(
-            `${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`
-          )
+          console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`)
         }
 
         if (event.project_card && event.project_card.previous_column_name) {
-          const previousStage = this.getStageFromColumn(
-            event.project_card.previous_column_name,
-            target
-          )
+          const previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target)
           if (!previousStage) {
-            console.log(
-              `WARNING: could not map for previous column ${event.project_card.previous_column_name}`
-            )
+            console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`)
           }
           event.project_card.previous_stage_name = previousStage || 'Unmapped'
           console.log(

@@ -52,14 +52,9 @@ export function process(
   const cardsForType =
     newCards.cardType === '*'
       ? issues
-      : (rptLib.filterByLabel(
-          issues,
-          newCards.cardType.toLowerCase()
-        ) as ProjectIssue[])
+      : (rptLib.filterByLabel(issues, newCards.cardType.toLowerCase()) as ProjectIssue[])
   newCards.cards = cardsForType.filter(
-    issue =>
-      issue['project_added_at'] &&
-      moment(issue['project_added_at']).isAfter(daysAgoMoment)
+    issue => issue['project_added_at'] && moment(issue['project_added_at']).isAfter(daysAgoMoment)
   )
 
   return newCards
@@ -71,16 +66,12 @@ interface NewRow {
   added: string
 }
 
-export function renderMarkdown(
-  targets: CrawlingTarget[],
-  processedData: any
-): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
   console.log('> in-progress::renderMarkdown')
   const newCards = processedData as NewCards
 
   const lines: string[] = []
-  const typeLabel =
-    processedData.cardType === '*' ? '' : `${newCards.cardType}s`
+  const typeLabel = processedData.cardType === '*' ? '' : `${newCards.cardType}s`
 
   lines.push(`## :wave: Added ${typeLabel} last ${newCards.daysAgo} days  `)
   lines.push('  ')

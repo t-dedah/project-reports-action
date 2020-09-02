@@ -52,15 +52,10 @@ export function process(
   const cardsForType =
     completedCards.cardType === '*'
       ? issues
-      : (rptLib.filterByLabel(
-          issues,
-          completedCards.cardType.toLowerCase()
-        ) as ProjectIssue[])
+      : (rptLib.filterByLabel(issues, completedCards.cardType.toLowerCase()) as ProjectIssue[])
 
   completedCards.cards = cardsForType.filter(
-    issue =>
-      issue['project_done_at'] &&
-      moment(issue['project_done_at']).isAfter(daysAgoMoment)
+    issue => issue['project_done_at'] && moment(issue['project_done_at']).isAfter(daysAgoMoment)
   )
 
   return completedCards
@@ -72,20 +67,14 @@ interface CompletedRow {
   completed: string
 }
 
-export function renderMarkdown(
-  targets: CrawlingTarget[],
-  processedData: any
-): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
   console.log('> project-done::renderMarkdown')
   const completedCards = processedData as CompletedCards
 
   const lines: string[] = []
-  const typeLabel =
-    processedData.cardType === '*' ? '' : `${completedCards.cardType}s`
+  const typeLabel = processedData.cardType === '*' ? '' : `${completedCards.cardType}s`
 
-  lines.push(
-    `## :checkered_flag: Completed ${typeLabel} last ${completedCards.daysAgo} days  `
-  )
+  lines.push(`## :checkered_flag: Completed ${typeLabel} last ${completedCards.daysAgo} days  `)
   lines.push('  ')
 
   const rows: CompletedRow[] = []

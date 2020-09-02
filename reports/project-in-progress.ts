@@ -4,12 +4,7 @@ import * as os from 'os'
 import tablemark from 'tablemark'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
-import {
-  IssueList,
-  ProjectIssue,
-  ProjectStageIssues,
-  ProjectStages
-} from '../project-reports-lib'
+import {IssueList, ProjectIssue, ProjectStageIssues, ProjectStages} from '../project-reports-lib'
 
 const now = moment()
 
@@ -105,12 +100,7 @@ export function process(
   const cardsForType =
     progressData.cardType === '*'
       ? clone(cards)
-      : clone(
-          rptLib.filterByLabel(
-            cards,
-            progressData.cardType.toLowerCase()
-          ) as IssueCardEx[]
-        )
+      : clone(rptLib.filterByLabel(cards, progressData.cardType.toLowerCase()) as IssueCardEx[])
 
   const previousMoment = moment()
     .day(config['status-day'])
@@ -124,48 +114,25 @@ export function process(
     console.log(`issue: ${card.html_url}`)
     const labels = card.labels.map(label => label.name)
 
-    const lastUpdatedDate = rptLib.dataFromCard(
-      card,
-      config['last-updated-scheme'],
-      config['last-updated-scheme-data']
-    )
+    const lastUpdatedDate = rptLib.dataFromCard(card, config['last-updated-scheme'], config['last-updated-scheme-data'])
     console.log(`last updated: ${lastUpdatedDate}`)
 
     card.lastUpdatedAt = lastUpdatedDate
     card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : ''
     console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`)
 
-    const daysSinceUpdate = lastUpdatedDate
-      ? now.diff(lastUpdatedDate, 'days')
-      : -1
-    card.flagHoursLastUpdated =
-      daysSinceUpdate < 0 || daysSinceUpdate > config['last-updated-days-flag']
+    const daysSinceUpdate = lastUpdatedDate ? now.diff(lastUpdatedDate, 'days') : -1
+    card.flagHoursLastUpdated = daysSinceUpdate < 0 || daysSinceUpdate > config['last-updated-days-flag']
 
-    const previousCard = issueList.getItemAsof(
-      card.html_url,
-      previousMoment.toDate()
-    )
+    const previousCard = issueList.getItemAsof(card.html_url, previousMoment.toDate())
 
-    const status = rptLib
-      .getStringFromLabel(card, new RegExp(config['status-label-match']))
-      .toLowerCase()
-    console.log(
-      `status: '${status}' - '${config['status-label-match']}':${JSON.stringify(
-        labels
-      )}`
-    )
+    const status = rptLib.getStringFromLabel(card, new RegExp(config['status-label-match'])).toLowerCase()
+    console.log(`status: '${status}' - '${config['status-label-match']}':${JSON.stringify(labels)}`)
 
     const previousStatus = rptLib
-      .getStringFromLabel(
-        previousCard,
-        new RegExp(config['status-label-match'])
-      )
+      .getStringFromLabel(previousCard, new RegExp(config['status-label-match']))
       .toLowerCase()
-    console.log(
-      `previousStatus: '${previousStatus}' - '${
-        config['status-label-match']
-      }':${JSON.stringify(labels)}`
-    )
+    console.log(`previousStatus: '${previousStatus}' - '${config['status-label-match']}':${JSON.stringify(labels)}`)
 
     card.status = statusLevels[status] ? status : ''
     card.previousStatus = statusLevels[previousStatus] ? previousStatus : ''
@@ -213,21 +180,15 @@ function getStatusEmoji(status: string) {
   return statusEmoji
 }
 
-export function renderMarkdown(
-  targets: CrawlingTarget[],
-  processedData: any
-): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
   console.log('> in-progress::renderMarkdown')
   const progressData = processedData as ProgressData
 
   const lines: string[] = []
-  const typeLabel =
-    processedData.cardType === '*' ? '' : `${progressData.cardType}s`
+  const typeLabel = processedData.cardType === '*' ? '' : `${progressData.cardType}s`
 
   lines.push(`## :hourglass_flowing_sand: In Progress ${typeLabel}  `)
-  lines.push(
-    `<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `
-  )
+  lines.push(`<sub><sup>Sorted by status and then in progress time descending</sup></sub>  `)
   lines.push('  ')
 
   const rows: ProgressRow[] = []

@@ -254,13 +254,7 @@ class IssueList {
     constructor(identifier) {
         // keep in order indexed by level above
         // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
+        this.stageAtNames = ['none', 'project_proposed_at', 'project_accepted_at', 'project_in_progress_at', 'project_done_at'];
         this.seen = new Map();
         this.identifier = identifier;
         this.items = [];
@@ -304,6 +298,14 @@ class IssueList {
         }
         this.processed = this.items;
         return this.processed;
+    }
+    getItemsAsof(datetime) {
+        const issues = [];
+        for (const item of this.items) {
+            const id = this.identifier(item);
+            issues.push(this.getItemAsof(id, datetime));
+        }
+        return issues;
     }
     //
     // Gets an issue from a number of days, hours ago.
@@ -375,6 +377,7 @@ class IssueList {
         console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage;
+        let currentColumn;
         let doneTime;
         let addedTime;
         const tempLabels = {};
@@ -401,6 +404,7 @@ class IssueList {
                     toStage = event.project_card.stage_name;
                     toLevel = stageLevel[toStage];
                     currentStage = toStage;
+                    currentColumn = event.project_card.column_name;
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
@@ -412,9 +416,7 @@ class IssueList {
                 // last occurence of moving to these columns from a lesser or no column
                 // example. if moved to accepted from proposed (or less),
                 //      then in-progress (greater) and then back to accepted, first wins
-                if (toStage === 'Proposed' ||
-                    toStage === 'Accepted' ||
-                    toStage === 'In-Progress') {
+                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         issue[this.stageAtNames[toLevel]] = eventDateTime;
                     }
@@ -440,6 +442,8 @@ class IssueList {
             }
             issue.project_stage = currentStage;
             console.log(`project_stage: ${issue.project_stage}`);
+            issue.project_column = currentColumn;
+            console.log(`project_column: ${issue.project_column}`);
         }
     }
 }
@@ -542,66 +546,62 @@ const moment_1 = __importDefault(__webpack_require__(431));
 const os = __importStar(__webpack_require__(87));
 const tablemark_1 = __importDefault(__webpack_require__(611));
 const rptLib = __importStar(__webpack_require__(189));
+const project_reports_lib_1 = __webpack_require__(189);
 const reportType = 'project';
 exports.reportType = reportType;
 function getDefaultConfiguration() {
     return {
-        'report-on-label': ['feature'],
-        'feature-cycletime-limit': 42,
-        'epic-cycletime-limit': 42
+        'report-on-label': 'feature',
+        'average-limit': 21,
+        'bucket-days': 7,
+        'bucket-count': 4
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(config, issueList, drillIn) {
+    const now = moment_1.default();
     const cycleTimeData = {};
-    // merge defaults and overriden config.
-    config = Object.assign({}, getDefaultConfiguration(), config);
-    const issues = issueList.getItems();
-    const projData = rptLib.getProjectStageIssues(issues);
-    for (const cardType of config['report-on-label']) {
-        const stageData = {};
-        const cards = projData['Done'];
-        const cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase());
-        // add cycle time to each card in this type.
-        cardsForType.map((card) => {
-            card.cycletime = calculateCycleTime(card);
-            return card;
-        });
-        stageData.title = cardType;
-        stageData.count = cardsForType.length;
-        if (cardsForType.length > 0) {
-            // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
-            stageData.cycletime =
-                cardsForType.reduce((a, b) => a + (b['cycletime'] || 0), 0) /
-                    cardsForType.length;
+    const filtered = rptLib.filterByLabel(issueList.getItems(), config['report-on-label']);
+    const issues = new project_reports_lib_1.IssueList(issue => issue.html_url);
+    issues.add(filtered);
+    const ago = moment_1.default(now);
+    for (let i = 0; i < config['bucket-count']; i++) {
+        const daysAgo = i * config['bucket-days'];
+        ago.subtract(daysAgo, 'days');
+        const label = ago.format('MMM Do');
+        console.log();
+        console.log(`Processing asof ${label} ...`);
+        const agoIssues = issues.getItemsAsof(ago.toDate());
+        const cycleTime = 0;
+        let cycleTotal = 0;
+        let cycleCount = 0;
+        for (const issue of agoIssues) {
+            if (issue.project_stage !== project_reports_lib_1.ProjectStages.Done) {
+                continue;
+            }
+            ++cycleCount;
+            const cycleTime = calculateCycleTime(issue);
+            console.log(`${cycleTime} days: ${issue.title}`);
+            cycleTotal += calculateCycleTime(issue);
         }
-        else {
-            stageData.cycletime = 0;
-        }
-        const limitKey = `${cardType
-            .toLocaleLowerCase()
-            .replace(/\s/g, '-')}-cycletime-limit`;
-        stageData.limit = config[limitKey] || 0;
-        stageData.flag =
-            stageData.limit > -1 && stageData.cycletime > stageData.limit;
-        cycleTimeData[cardType] = stageData;
+        const averageCycleTime = (cycleTotal / cycleCount || 0).toFixed(1);
+        console.log(`avg: ${averageCycleTime} (${cycleTotal} / ${cycleCount})`);
+        cycleTimeData[label] = {
+            count: cycleCount,
+            averageCycleTime: averageCycleTime,
+            flag: averageCycleTime > config['average-limit']
+        };
     }
     return cycleTimeData;
 }
 exports.process = process;
-function renderMarkdown(projData, processedData) {
+function renderMarkdown(targets, processedData) {
     const cycleTimeData = processedData;
     const lines = [];
     const rows = [];
-    lines.push(`## Issue Count & Cycle Time `);
-    for (const cardType in cycleTimeData) {
-        const stageData = cycleTimeData[cardType];
-        const ctRow = {};
-        ctRow.labels = `\`${cardType}\``;
-        ctRow.count = stageData.count;
-        ctRow.cycleTimeInDays = ` ${stageData.cycletime ? stageData.cycletime.toFixed(2) : ''} ${stageData.flag ? ':triangular_flag_on_post:' : ''}`;
-        ctRow.limit = stageData.limit >= 0 ? stageData.limit.toString() : '';
-        rows.push(ctRow);
+    for (const key in processedData) {
+        const entry = processedData[key];
+        rows.push({ label: key, count: entry.count, average: entry.averageCycleTime, flag: entry.flag });
     }
     const table = tablemark_1.default(rows);
     lines.push(table);

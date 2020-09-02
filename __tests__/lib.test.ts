@@ -31,13 +31,9 @@ describe('report-lib', () => {
     //                        are in this <== all these "words"
     expect(rptLib.fuzzyMatch('In progress', 'In progress')).toBeTruthy()
     expect(rptLib.fuzzyMatch('In progress', ' IN Progress.')).toBeTruthy()
-    expect(
-      rptLib.fuzzyMatch('In-Progress: A Category', 'in Progress')
-    ).toBeTruthy()
+    expect(rptLib.fuzzyMatch('In-Progress: A Category', 'in Progress')).toBeTruthy()
     expect(rptLib.fuzzyMatch(' In-Progress 👩🏼‍💻👨🏽‍💻 ', 'in progress!')).toBeTruthy()
-    expect(
-      rptLib.fuzzyMatch('\tIn-Progress 👩🏼‍💻 ', ' in...progress👨🏽‍💻')
-    ).toBeTruthy()
+    expect(rptLib.fuzzyMatch('\tIn-Progress 👩🏼‍💻 ', ' in...progress👨🏽‍💻')).toBeTruthy()
 
     // should not fuzzy match
     //                     are not in this <== all these "words"
@@ -139,10 +135,7 @@ describe('report-lib', () => {
   })
 
   it('does not gets last comment if no comments', async () => {
-    const d = rptLib.getLastCommentPattern(
-      <ProjectIssue>{comments: []},
-      '^(#){1,4} update'
-    )
+    const d = rptLib.getLastCommentPattern(<ProjectIssue>{comments: []}, '^(#){1,4} update')
     expect(d).toBeFalsy()
   })
 
@@ -164,10 +157,7 @@ describe('report-lib', () => {
   })
 
   it('handles no comments for field date value from issue', async () => {
-    const v = rptLib.getLastCommentDateField(
-      <ProjectIssue>{comments: []},
-      'target date'
-    )
+    const v = rptLib.getLastCommentDateField(<ProjectIssue>{comments: []}, 'target date')
     expect(v).toBeFalsy()
   })
 
@@ -189,21 +179,14 @@ describe('report-lib', () => {
   })
 
   it('handles missing entry for field date value from issue', async () => {
-    const v = rptLib.getLastCommentDateField(
-      <ProjectIssue>{comments: [{body: 'some text'}]},
-      'target date'
-    )
+    const v = rptLib.getLastCommentDateField(<ProjectIssue>{comments: [{body: 'some text'}]}, 'target date')
 
     // a missing value will return null so ! and Falsey work
     expect(!v).toBeTruthy()
   })
 
   it('gets last comment updated_at value from dataFromCard', async () => {
-    const d = rptLib.dataFromCard(
-      card,
-      'LastCommentPattern',
-      '^(#){1,4} update'
-    )
+    const d = rptLib.dataFromCard(card, 'LastCommentPattern', '^(#){1,4} update')
     console.log(d)
     expect(d.toISOString()).toBe('2020-07-23T03:31:35.918Z')
   })
@@ -279,9 +262,7 @@ describe('report-lib', () => {
   it('can getItem from IssueList', async () => {
     const list = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    const issue = list.getItem(
-      'https://github.com/bryanmacfarlane/quotes-feed/issues/8'
-    )
+    const issue = list.getItem('https://github.com/bryanmacfarlane/quotes-feed/issues/8')
 
     expect(issue).toBeDefined()
   })

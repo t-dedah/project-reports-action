@@ -510,13 +510,7 @@ class IssueList {
     constructor(identifier) {
         // keep in order indexed by level above
         // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
+        this.stageAtNames = ['none', 'project_proposed_at', 'project_accepted_at', 'project_in_progress_at', 'project_done_at'];
         this.seen = new Map();
         this.identifier = identifier;
         this.items = [];
@@ -560,6 +554,14 @@ class IssueList {
         }
         this.processed = this.items;
         return this.processed;
+    }
+    getItemsAsof(datetime) {
+        const issues = [];
+        for (const item of this.items) {
+            const id = this.identifier(item);
+            issues.push(this.getItemAsof(id, datetime));
+        }
+        return issues;
     }
     //
     // Gets an issue from a number of days, hours ago.
@@ -631,6 +633,7 @@ class IssueList {
         console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage;
+        let currentColumn;
         let doneTime;
         let addedTime;
         const tempLabels = {};
@@ -657,6 +660,7 @@ class IssueList {
                     toStage = event.project_card.stage_name;
                     toLevel = stageLevel[toStage];
                     currentStage = toStage;
+                    currentColumn = event.project_card.column_name;
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
@@ -668,9 +672,7 @@ class IssueList {
                 // last occurence of moving to these columns from a lesser or no column
                 // example. if moved to accepted from proposed (or less),
                 //      then in-progress (greater) and then back to accepted, first wins
-                if (toStage === 'Proposed' ||
-                    toStage === 'Accepted' ||
-                    toStage === 'In-Progress') {
+                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         issue[this.stageAtNames[toLevel]] = eventDateTime;
                     }
@@ -696,6 +698,8 @@ class IssueList {
             }
             issue.project_stage = currentStage;
             console.log(`project_stage: ${issue.project_stage}`);
+            issue.project_column = currentColumn;
+            console.log(`project_column: ${issue.project_column}`);
         }
     }
 }
@@ -6993,8 +6997,7 @@ function process(config, issueList, drillIn) {
         drillIn(getDrillName(limitsData.cardType, stage), `Issues for ${stage} ${limitsData.cardType}s`, cardsForType);
         const limitKey = `${stage.toLocaleLowerCase()}-limit`;
         stageData.limit = config[limitKey] || 0;
-        stageData.flag =
-            stageData.limit > -1 && cardsForType.length > stageData.limit;
+        stageData.flag = stageData.limit > -1 && cardsForType.length > stageData.limit;
         limitsData.data[stage] = stageData;
     }
     return limitsData;

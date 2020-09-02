@@ -2,6 +2,16 @@
 
 set -e 
 
+function build_module() {
+    filename=$(basename $1)
+    module=${filename%.*}
+
+    cmd="ncc build ${filepath} -o ./dist/$2/${module} > /dev/null"
+    echo
+    echo $cmd
+    eval ${cmd}
+}
+
 echo 
 echo Building generator
 echo
@@ -16,12 +26,10 @@ echo Building built-in reports
 mkdir -p ./dist/reports
 
 for filepath in ./reports/*.ts; do
-    filename=$(basename ${filepath})
-    report=${filename%.*}
+    build_module "${filepath}" reports
+done
 
-    cmd="ncc build ${filepath} -o ./dist/reports/${report} > /dev/null"
-    echo
-    echo $cmd
-    eval ${cmd}
+for filepath in ./processors/*.ts; do
+    build_module "${filepath}" processors
 done
  

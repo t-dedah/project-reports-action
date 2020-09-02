@@ -21,18 +21,13 @@ export function repoPropsFromUrl(htmlUrl: string): RepoProps {
     repo: parts[1]
   }
 }
+
 //
 // filter cards by label
 //
-export function filterByLabel(
-  issues: ProjectIssue[],
-  name: string
-): ProjectIssue[] {
+export function filterByLabel(issues: ProjectIssue[], name: string): ProjectIssue[] {
   return issues.filter(
-    card =>
-      card.labels.findIndex(
-        label => label.name.trim().toLowerCase() === name.toLowerCase()
-      ) >= 0
+    card => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0
   )
 }
 
@@ -76,10 +71,7 @@ export function getStringFromLabel(card: ProjectIssue, re: RegExp): string {
   return str
 }
 
-export function getLastCommentField(
-  issue: ProjectIssue,
-  field: string
-): string {
+export function getLastCommentField(issue: ProjectIssue, field: string): string {
   let val = ''
 
   if (!issue.comments) {
@@ -110,10 +102,7 @@ export function getLastCommentField(
 }
 
 // returns a valid date field value from a comment field
-export function getLastCommentDateField(
-  issue: ProjectIssue,
-  field: string
-): Date {
+export function getLastCommentDateField(issue: ProjectIssue, field: string): Date {
   let d: Date = null
   const val = getLastCommentField(issue, field)
 
@@ -267,6 +256,9 @@ export interface ProjectIssue {
 
   // current stage of this card on the board
   project_stage: string
+
+  // current column of this card on the board
+  project_column: string
 }
 
 const stageLevel = {
@@ -279,20 +271,14 @@ const stageLevel = {
 }
 
 export class IssueList {
-  seen
-  identifier
-  items: ProjectIssue[]
-  processed: ProjectIssue[]
+  private seen
+  private identifier
+  private items: ProjectIssue[]
+  private processed: ProjectIssue[]
 
   // keep in order indexed by level above
   // TODO: unify both to avoid out of sync problems
-  stageAtNames = [
-    'none',
-    'project_proposed_at',
-    'project_accepted_at',
-    'project_in_progress_at',
-    'project_done_at'
-  ]
+  stageAtNames = ['none', 'project_proposed_at', 'project_accepted_at', 'project_in_progress_at', 'project_done_at']
 
   constructor(identifier: (item) => any) {
     this.seen = new Map()
@@ -348,6 +334,16 @@ export class IssueList {
     return this.processed
   }
 
+  public getItemsAsof(datetime: Date): ProjectIssue[] {
+    const issues: ProjectIssue[] = []
+
+    for (const item of this.items) {
+      const id = this.identifier(item)
+      issues.push(this.getItemAsof(id, datetime))
+    }
+
+    return issues
+  }
   //
   // Gets an issue from a number of days, hours ago.
   // Clones the issue and Replays events (labels, column moves, milestones)
@@ -432,6 +428,7 @@ export class IssueList {
     console.log(`Processing stages for ${issue.html_url}`)
     // card events should be in order chronologically
     let currentStage: string
+    let currentColumn: string
     let doneTime: Date
     let addedTime: Date
 
@@ -458,14 +455,13 @@ export class IssueList {
           }
 
           if (!event.project_card.stage_name) {
-            throw new Error(
-              `stage_name should have been set already for ${event.project_card.column_name}`
-            )
+            throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`)
           }
 
           toStage = event.project_card.stage_name
           toLevel = stageLevel[toStage]
           currentStage = toStage
+          currentColumn = event.project_card.column_name
         }
 
         if (event.project_card && event.project_card.previous_column_name) {
@@ -482,11 +478,7 @@ export class IssueList {
         // last occurence of moving to these columns from a lesser or no column
         // example. if moved to accepted from proposed (or less),
         //      then in-progress (greater) and then back to accepted, first wins
-        if (
-          toStage === 'Proposed' ||
-          toStage === 'Accepted' ||
-          toStage === 'In-Progress'
-        ) {
+        if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
           if (toLevel > fromLevel) {
             issue[this.stageAtNames[toLevel]] = eventDateTime
           }
@@ -516,6 +508,9 @@ export class IssueList {
 
       issue.project_stage = currentStage
       console.log(`project_stage: ${issue.project_stage}`)
+
+      issue.project_column = currentColumn
+      console.log(`project_column: ${issue.project_column}`)
     }
   }
 }

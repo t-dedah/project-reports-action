@@ -1,10 +1,6 @@
 import {ProjectIssue} from './project-reports-lib'
 
-export function dataFromCard(
-  card: ProjectIssue,
-  filterBy: string,
-  data: string
-): any {
+export function dataFromCard(card: ProjectIssue, filterBy: string, data: string): any {
   const fn = module.exports[`get${filterBy}`]
   if (!fn) {
     throw new Error(`Invalid filter: ${filterBy}`)
@@ -16,10 +12,7 @@ export function dataFromCard(
 //
 // returns last updated using last comment with a body matching a pattern
 //
-export function getLastCommentPattern(
-  card: ProjectIssue,
-  pattern: string
-): any {
+export function getLastCommentPattern(card: ProjectIssue, pattern: string): any {
   if (!card.comments) {
     return ''
   }
