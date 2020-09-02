@@ -29,17 +29,13 @@ export function process(
   issueList: IssueList,
   drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void
 ): any {
-  const now = moment()
-
   const cycleTimeData = <CycleTimeData>{}
   const filtered = rptLib.filterByLabel(issueList.getItems(), config['report-on-label'])
   const issues = new IssueList(issue => issue.html_url)
   issues.add(filtered)
 
-  let ago = moment(now)
+  const ago = moment()
   for (let i = 0; i < config['bucket-count']; i++) {
-    const daysAgo = i * config['bucket-days']
-    ago = moment(ago.subtract(daysAgo, 'days'))
     const label = ago.toISOString()
 
     console.log()
@@ -67,6 +63,8 @@ export function process(
       averageCycleTime: averageCycleTime,
       flag: averageCycleTime > config['average-limit']
     }
+
+    ago.subtract(config['bucket-days'], 'days')
   }
 
   return cycleTimeData

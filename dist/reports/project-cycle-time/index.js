@@ -559,15 +559,12 @@ function getDefaultConfiguration() {
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
 function process(config, issueList, drillIn) {
-    const now = moment_1.default();
     const cycleTimeData = {};
     const filtered = rptLib.filterByLabel(issueList.getItems(), config['report-on-label']);
     const issues = new project_reports_lib_1.IssueList(issue => issue.html_url);
     issues.add(filtered);
-    let ago = moment_1.default(now);
+    let ago = moment_1.default();
     for (let i = 0; i < config['bucket-count']; i++) {
-        const daysAgo = i * config['bucket-days'];
-        ago = moment_1.default(ago.subtract(daysAgo, 'days'));
         const label = ago.toISOString();
         console.log();
         console.log(`Processing asof ${label} ...`);
@@ -591,6 +588,7 @@ function process(config, issueList, drillIn) {
             averageCycleTime: averageCycleTime,
             flag: averageCycleTime > config['average-limit']
         };
+        ago.subtract(config['bucket-days'], 'days');
     }
     return cycleTimeData;
 }
