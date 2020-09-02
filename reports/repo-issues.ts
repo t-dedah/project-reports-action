@@ -47,6 +47,7 @@ export function process(
       issues.map(issue => {
         const nwoRegex = /^https:\/\/github.com\/(.+)\/(.+)\/.+$/
         const match = issue.html_url.match(nwoRegex)
+        if (!match) throw new Error(`Unexpected issue HTML URL format ${issue.html_url}`)
         return [match[1], match[2]].join('/')
       })
     )
