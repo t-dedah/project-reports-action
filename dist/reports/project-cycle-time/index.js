@@ -563,7 +563,7 @@ function process(config, issueList, drillIn) {
     const filtered = rptLib.filterByLabel(issueList.getItems(), config['report-on-label']);
     const issues = new project_reports_lib_1.IssueList(issue => issue.html_url);
     issues.add(filtered);
-    let ago = moment_1.default();
+    const ago = moment_1.default();
     for (let i = 0; i < config['bucket-count']; i++) {
         const label = ago.toISOString();
         console.log();

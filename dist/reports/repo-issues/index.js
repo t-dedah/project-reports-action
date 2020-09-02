@@ -856,7 +856,6 @@ exports.renderHtml = exports.renderMarkdown = exports.process = exports.getDefau
 const clone_1 = __importDefault(__webpack_require__(97));
 const os = __importStar(__webpack_require__(87));
 const tablemark_1 = __importDefault(__webpack_require__(611));
-const url = __importStar(__webpack_require__(835));
 const rptLib = __importStar(__webpack_require__(189));
 const reportType = 'repo';
 exports.reportType = reportType;
@@ -880,7 +879,15 @@ function process(config, issueList, drillIn) {
     breakdown.identifier = new Date().getTime() / 1000;
     breakdown.issues = {};
     const issues = issueList.getItems();
-    breakdown.repositories = [...new Set(issues.map(issue => new url.URL(issue.html_url).pathname))];
+    breakdown.repositories = [
+        ...new Set(issues.map(issue => {
+            const nwoRegex = /^https:\/\/github.com\/(.+\/.+)\/.+$/;
+            const match = issue.html_url.match(nwoRegex);
+            if (!match)
+                throw new Error(`Unexpected issue HTML URL format ${issue.html_url}`);
+            return match[1];
+        }))
+    ];
     for (const label of config['breakdown-by-labels']) {
         const slice = rptLib.filterByLabel(issues, label);
         breakdown.issues[label] = clone_1.default(slice);
