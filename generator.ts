@@ -139,7 +139,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
   const crawler: Crawler = new Crawler(token, cachePath)
 
   heading('Processing')
-  for (const processor of config.processing) {
+  for (const processor of config.processing || []) {
     if (!processor.target) {
       throw new Error(`Target not specified for processor ${processor.name}`)
     }

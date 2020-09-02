@@ -7073,7 +7073,7 @@ function generate(token, configYaml) {
         console.log(JSON.stringify(crawlCfg, null, 2));
         const crawler = new crawler_1.Crawler(token, cachePath);
         heading('Processing');
-        for (const processor of config.processing) {
+        for (const processor of config.processing || []) {
             if (!processor.target) {
                 throw new Error(`Target not specified for processor ${processor.name}`);
             }
