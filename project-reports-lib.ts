@@ -363,6 +363,7 @@ export class IssueList {
 
     // clear everything we're going to re-apply
     issue.labels = []
+    delete issue.project_column
     delete issue.project_added_at
     delete issue.project_proposed_at
     delete issue.project_in_progress_at
@@ -425,6 +426,7 @@ export class IssueList {
   // Call initially and then call again if events are filtered (get issue asof)
   //
   private processStages(issue: ProjectIssue): void {
+    console.log()
     console.log(`Processing stages for ${issue.html_url}`)
     // card events should be in order chronologically
     let currentStage: string
@@ -506,10 +508,19 @@ export class IssueList {
         console.log(`project_added_at: ${issue.project_added_at}`)
       }
 
-      issue.project_stage = currentStage
-      console.log(`project_stage: ${issue.project_stage}`)
+      // current board processing does by column so we already know these
+      // asof replays events and it's possible to have the same time and therefore can be out of order.
+      // only take that fragility during narrow asof cases.
+      // asof clears these
+      if (!issue.project_column) {
+        issue.project_column = currentColumn
+      }
 
-      issue.project_column = currentColumn
+      if (!issue.project_stage) {
+        issue.project_stage = currentStage
+      }
+
+      console.log(`project_stage: ${issue.project_stage}`)
       console.log(`project_column: ${issue.project_column}`)
     }
   }

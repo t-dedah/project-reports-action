@@ -323,6 +323,7 @@ class IssueList {
         const momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
+        delete issue.project_column;
         delete issue.project_added_at;
         delete issue.project_proposed_at;
         delete issue.project_in_progress_at;
@@ -374,6 +375,7 @@ class IssueList {
     // Call initially and then call again if events are filtered (get issue asof)
     //
     processStages(issue) {
+        console.log();
         console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage;
@@ -440,9 +442,17 @@ class IssueList {
                 issue.project_added_at = addedTime;
                 console.log(`project_added_at: ${issue.project_added_at}`);
             }
-            issue.project_stage = currentStage;
+            // current board processing does by column so we already know these
+            // asof replays events and it's possible to have the same time and therefore can be out of order.
+            // only take that fragility during narrow asof cases.
+            // asof clears these
+            if (!issue.project_column) {
+                issue.project_column = currentColumn;
+            }
+            if (!issue.project_stage) {
+                issue.project_stage = currentStage;
+            }
             console.log(`project_stage: ${issue.project_stage}`);
-            issue.project_column = currentColumn;
             console.log(`project_column: ${issue.project_column}`);
         }
     }
@@ -568,7 +578,7 @@ function process(config, issueList, drillIn) {
         const label = ago.toISOString();
         console.log();
         console.log(`Processing asof ${label} ...`);
-        const agoIssues = issues.getItemsAsof(ago.toDate());
+        const agoIssues = i == 0 ? issues.getItems() : issues.getItemsAsof(ago.toDate());
         const cycleTime = 0;
         let cycleTotal = 0;
         let cycleCount = 0;

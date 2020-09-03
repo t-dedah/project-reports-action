@@ -1586,6 +1586,10 @@ class ProjectCrawler {
                     const issueCard = yield this.github.getIssueForCard(card, projectData.id);
                     if (issueCard) {
                         this.processCard(issueCard, projectData.id, target, eventCallback);
+                        issueCard['project_column'] = column.name;
+                        issueCard['project_stage'] = this.getStageFromColumn(column.name, target);
+                        console.log(`stage: ${issueCard.project_stage}`);
+                        console.log();
                         issues.push(issueCard);
                     }
                     else {
@@ -1625,12 +1629,8 @@ class ProjectCrawler {
         console.log(`Processing card ${card.title}`);
         console.log(card.html_url);
         const filteredEvents = [];
-        // card events should be in order chronologically
-        let currentStage;
-        let doneTime;
-        let blockedTime;
-        let addedTime;
         if (card.events) {
+            console.log(`Filtering ${card.events.length} events for project ${projectId}`);
             for (const event of card.events) {
                 // since we're adding this card to a projects / stage, let's filter out
                 // events for other project ids since an issue can be part of multiple boards
@@ -1644,7 +1644,7 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
                     }
                     event.project_card.stage_name = stage || 'Unmapped';
-                    console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`);
+                    console.log(`${event.created_at}(${event.project_card.project_id}): ${event.project_card.column_name} => ${event.project_card.stage_name}`);
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     const previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target);
@@ -1652,12 +1652,13 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
                     }
                     event.project_card.previous_stage_name = previousStage || 'Unmapped';
-                    console.log(`${event.created_at}: ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
+                    console.log(`${event.created_at}(${event.project_card.project_id}): ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
                 }
                 filteredEvents.push(event);
             }
             card.events = filteredEvents;
         }
+        console.log(`Filtered to ${card.events.length} events`);
     }
     getStageFromColumn(column, target) {
         if (this.resolvedColumns[column]) {
@@ -3272,6 +3273,7 @@ class IssueList {
         const momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
+        delete issue.project_column;
         delete issue.project_added_at;
         delete issue.project_proposed_at;
         delete issue.project_in_progress_at;
@@ -3323,6 +3325,7 @@ class IssueList {
     // Call initially and then call again if events are filtered (get issue asof)
     //
     processStages(issue) {
+        console.log();
         console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage;
@@ -3389,9 +3392,17 @@ class IssueList {
                 issue.project_added_at = addedTime;
                 console.log(`project_added_at: ${issue.project_added_at}`);
             }
-            issue.project_stage = currentStage;
+            // current board processing does by column so we already know these
+            // asof replays events and it's possible to have the same time and therefore can be out of order.
+            // only take that fragility during narrow asof cases.
+            // asof clears these
+            if (!issue.project_column) {
+                issue.project_column = currentColumn;
+            }
+            if (!issue.project_stage) {
+                issue.project_stage = currentStage;
+            }
             console.log(`project_stage: ${issue.project_stage}`);
-            issue.project_column = currentColumn;
             console.log(`project_column: ${issue.project_column}`);
         }
     }
@@ -7022,7 +7033,7 @@ function generate(token, configYaml) {
         snapshot.config.output = snapshot.config.output || '.reports';
         snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
         console.log(`Writing snapshot to ${snapshot.rootPath}`);
-        yield writeSnapshot(snapshot);
+        yield createDataDir(snapshot);
         // update report config details
         for (const report of config.reports || []) {
             report.timezoneOffset = report.timezoneOffset || -8;
@@ -7237,14 +7248,11 @@ function writeDrillIn(report, reportModule, identifier, cards, contents) {
     });
 }
 // creates directory structure for the reports and hands back the root path to write reports in
-function writeSnapshot(snapshot) {
+function createDataDir(snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log('Writing snapshot data ...');
         const genPath = path.join(snapshot.rootPath, '.data');
         util.mkdirP(genPath);
-        const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
-        console.log(`Writing to ${snapshotPath}`);
-        fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
     });
 }
 function createReportPath(report) {

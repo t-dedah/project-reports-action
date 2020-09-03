@@ -142,6 +142,10 @@ class ProjectCrawler {
         const issueCard = await this.github.getIssueForCard(card, projectData.id)
         if (issueCard) {
           this.processCard(issueCard, projectData.id, target, eventCallback)
+          issueCard['project_column'] = column.name
+          issueCard['project_stage'] = this.getStageFromColumn(column.name, target)
+          console.log(`stage: ${issueCard.project_stage}`)
+          console.log()
           issues.push(issueCard)
         } else {
           const contents = card['note']
@@ -191,13 +195,8 @@ class ProjectCrawler {
 
     const filteredEvents = []
 
-    // card events should be in order chronologically
-    let currentStage: string
-    let doneTime: Date
-    let blockedTime: Date
-    let addedTime: Date
-
     if (card.events) {
+      console.log(`Filtering ${card.events.length} events for project ${projectId}`)
       for (const event of card.events) {
         // since we're adding this card to a projects / stage, let's filter out
         // events for other project ids since an issue can be part of multiple boards
@@ -213,7 +212,9 @@ class ProjectCrawler {
             console.log(`WARNING: could not map for column ${event.project_card.column_name}`)
           }
           event.project_card.stage_name = stage || 'Unmapped'
-          console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`)
+          console.log(
+            `${event.created_at}(${event.project_card.project_id}): ${event.project_card.column_name} => ${event.project_card.stage_name}`
+          )
         }
 
         if (event.project_card && event.project_card.previous_column_name) {
@@ -223,7 +224,7 @@ class ProjectCrawler {
           }
           event.project_card.previous_stage_name = previousStage || 'Unmapped'
           console.log(
-            `${event.created_at}: ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`
+            `${event.created_at}(${event.project_card.project_id}): ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`
           )
         }
 
@@ -231,6 +232,7 @@ class ProjectCrawler {
       }
       card.events = filteredEvents
     }
+    console.log(`Filtered to ${card.events.length} events`)
   }
 
   private getStageFromColumn(column: string, target: CrawlingTarget): string {

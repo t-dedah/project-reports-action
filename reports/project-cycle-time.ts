@@ -41,7 +41,7 @@ export function process(
     console.log()
     console.log(`Processing asof ${label} ...`)
 
-    const agoIssues = issues.getItemsAsof(ago.toDate())
+    const agoIssues = i == 0 ? issues.getItems() : issues.getItemsAsof(ago.toDate())
 
     const cycleTime = 0
     let cycleTotal = 0

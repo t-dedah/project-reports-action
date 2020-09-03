@@ -77,7 +77,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
   snapshot.rootPath = path.join(workspacePath, snapshot.config.output)
 
   console.log(`Writing snapshot to ${snapshot.rootPath}`)
-  await writeSnapshot(snapshot)
+  await createDataDir(snapshot)
 
   // update report config details
   for (const report of config.reports || []) {
@@ -354,15 +354,10 @@ async function writeDrillIn(
 }
 
 // creates directory structure for the reports and hands back the root path to write reports in
-async function writeSnapshot(snapshot: ReportSnapshot) {
+async function createDataDir(snapshot: ReportSnapshot) {
   console.log('Writing snapshot data ...')
   const genPath = path.join(snapshot.rootPath, '.data')
   util.mkdirP(genPath)
-
-  const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`)
-  console.log(`Writing to ${snapshotPath}`)
-
-  fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2))
 }
 
 async function createReportPath(report: ReportConfig) {
