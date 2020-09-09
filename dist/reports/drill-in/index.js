@@ -97,9 +97,7 @@ function renderMarkdown(heading, cards) {
         // > [@bryanmacfarlane](https://github.com/bryanmacfarlane)
         //   `1-dev` `epic`
         lines.push(`### ${assigneeHtml} [${card.title}](${card.html_url})  `);
-        const assigneeLink = card.assignee
-            ? `[@${card.assignee.login}](${card.assignee.html_url})  `
-            : 'not assigned  ';
+        const assigneeLink = card.assignee ? `[@${card.assignee.login}](${card.assignee.html_url})  ` : 'not assigned  ';
         lines.push(`> ${assigneeLink}`);
         const labels = [];
         for (const label of card.labels) {

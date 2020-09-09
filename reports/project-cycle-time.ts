@@ -1,39 +1,27 @@
 import moment from 'moment'
 import * as os from 'os'
 import tablemark from 'tablemark'
-import {ProjectData} from '../interfaces'
+import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
-import {IssueList, ProjectIssue} from '../project-reports-lib'
+import {IssueList, ProjectIssue, ProjectStages} from '../project-reports-lib'
 
 const reportType = 'project'
 export {reportType}
 
-export type CycleTimeData = {[key: string]: CycleTimeStageData}
-interface CycleTimeStageData {
-  title: string
-  cycletime: number
-  limit: number
-  count: number
-  flag: boolean
-}
-
-interface CycleTimeRow {
-  labels: string
-  count: number
-  cycleTimeInDays: string
-  limit: string
-}
-
-export interface IssueCardCycleTime extends ProjectIssue {
-  cycletime: number
-}
-
 export function getDefaultConfiguration(): any {
   return <any>{
-    'report-on-label': ['feature'],
-    'feature-cycletime-limit': 42,
-    'epic-cycletime-limit': 42
+    'report-on-label': 'feature',
+    'average-limit': 21,
+    'bucket-days': 7,
+    'bucket-count': 4
   }
+}
+
+export type CycleTimeData = {[date: string]: CycleTimeEntry}
+interface CycleTimeEntry {
+  count: number
+  averageCycleTime: number
+  flag: boolean
 }
 
 export function process(
@@ -42,66 +30,60 @@ export function process(
   drillIn: (identifier: string, title: string, cards: ProjectIssue[]) => void
 ): any {
   const cycleTimeData = <CycleTimeData>{}
-  // merge defaults and overriden config.
-  config = Object.assign({}, getDefaultConfiguration(), config)
+  const filtered = rptLib.filterByLabel(issueList.getItems(), config['report-on-label'])
+  const issues = new IssueList(issue => issue.html_url)
+  issues.add(filtered)
 
-  const issues = issueList.getItems()
-  const projData: rptLib.ProjectStageIssues = rptLib.getProjectStageIssues(
-    issues
-  )
-  for (const cardType of config['report-on-label']) {
-    const stageData = <CycleTimeStageData>{}
-    const cards = projData['Done']
+  const ago = moment()
+  for (let i = 0; i < config['bucket-count']; i++) {
+    const label = ago.toISOString()
 
-    const cardsForType = rptLib.filterByLabel(cards, cardType.toLowerCase())
-    // add cycle time to each card in this type.
-    cardsForType.map((card: IssueCardCycleTime) => {
-      card.cycletime = calculateCycleTime(card)
-      return card
-    })
+    console.log()
+    console.log(`Processing asof ${label} ...`)
 
-    stageData.title = cardType
-    stageData.count = cardsForType.length
-    if (cardsForType.length > 0) {
-      // Cycle time is the average of cumulative time divided by number of issues in the `done` column for this label.
-      stageData.cycletime =
-        cardsForType.reduce((a, b) => a + (b['cycletime'] || 0), 0) /
-        cardsForType.length
-    } else {
-      stageData.cycletime = 0
+    const agoIssues = i == 0 ? issues.getItems() : issues.getItemsAsof(ago.toDate())
+
+    const cycleTime = 0
+    let cycleTotal = 0
+    let cycleCount = 0
+    for (const issue of agoIssues) {
+      if (issue.project_stage !== ProjectStages.Done) {
+        continue
+      }
+      ++cycleCount
+      const cycleTime = calculateCycleTime(issue)
+      console.log(`${cycleTime} days: ${issue.title}`)
+      cycleTotal += calculateCycleTime(issue)
+    }
+    const averageCycleTime = cycleTotal / cycleCount || 0
+    console.log(`avg: ${averageCycleTime} (${cycleTotal} / ${cycleCount})`)
+
+    cycleTimeData[label] = <CycleTimeEntry>{
+      count: cycleCount,
+      averageCycleTime: averageCycleTime,
+      flag: averageCycleTime > config['average-limit']
     }
 
-    const limitKey = `${cardType
-      .toLocaleLowerCase()
-      .replace(/\s/g, '-')}-cycletime-limit`
-    stageData.limit = config[limitKey] || 0
-    stageData.flag =
-      stageData.limit > -1 && stageData.cycletime > stageData.limit
-    cycleTimeData[cardType] = stageData
+    ago.subtract(config['bucket-days'], 'days')
   }
 
   return cycleTimeData
 }
 
-export function renderMarkdown(
-  projData: ProjectData,
-  processedData: any
-): string {
+interface CycleTimeRow {
+  label: string
+  count: number
+  average: string
+  flag: boolean
+}
+
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
   const cycleTimeData = processedData as CycleTimeData
   const lines: string[] = []
   const rows: CycleTimeRow[] = []
-
-  lines.push(`## Issue Count & Cycle Time `)
-  for (const cardType in cycleTimeData) {
-    const stageData = cycleTimeData[cardType]
-    const ctRow = <CycleTimeRow>{}
-    ctRow.labels = `\`${cardType}\``
-    ctRow.count = stageData.count
-    ctRow.cycleTimeInDays = ` ${
-      stageData.cycletime ? stageData.cycletime.toFixed(2) : ''
-    } ${stageData.flag ? ':triangular_flag_on_post:' : ''}`
-    ctRow.limit = stageData.limit >= 0 ? stageData.limit.toString() : ''
-    rows.push(ctRow)
+  for (const key in processedData) {
+    const entry = processedData[key]
+    rows.push(<CycleTimeRow>{label: key, count: entry.count, average: entry.averageCycleTime, flag: entry.flag})
   }
 
   const table: string = tablemark(rows)

@@ -3,11 +3,7 @@ import * as os from 'os'
 import tablemark from 'tablemark'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
-import {
-  IssueList,
-  ProjectIssue,
-  ProjectStageIssues
-} from '../project-reports-lib'
+import {IssueList, ProjectIssue, ProjectStageIssues} from '../project-reports-lib'
 
 const reportType = 'project'
 export {reportType}
@@ -81,24 +77,14 @@ export function process(
     const cardsForType =
       limitsData.cardType === '*'
         ? clone(cards)
-        : clone(
-            rptLib.filterByLabel(
-              cards,
-              limitsData.cardType.toLowerCase()
-            ) as ProjectIssue[]
-          )
+        : clone(rptLib.filterByLabel(cards, limitsData.cardType.toLowerCase()) as ProjectIssue[])
     stageData.items = cardsForType
 
-    drillIn(
-      getDrillName(limitsData.cardType, stage),
-      `Issues for ${stage} ${limitsData.cardType}s`,
-      cardsForType
-    )
+    drillIn(getDrillName(limitsData.cardType, stage), `Issues for ${stage} ${limitsData.cardType}s`, cardsForType)
 
     const limitKey = `${stage.toLocaleLowerCase()}-limit`
     stageData.limit = config[limitKey] || 0
-    stageData.flag =
-      stageData.limit > -1 && cardsForType.length > stageData.limit
+    stageData.flag = stageData.limit > -1 && cardsForType.length > stageData.limit
 
     limitsData.data[stage] = stageData
   }
@@ -112,10 +98,7 @@ interface StageRow {
   count: string
 }
 
-export function renderMarkdown(
-  targets: CrawlingTarget[],
-  processedData: any
-): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
   console.log(`Rendering for ${targets.length} targets`)
 
   const stageData = processedData as LimitsData
@@ -131,10 +114,7 @@ export function renderMarkdown(
     const stageRow = <StageRow>{}
     stageRow.stage = stageName
     // data folder is part of the contract here.  make a lib function to create this path
-    stageRow.count = `[${stage.items.length}](./${getDrillName(
-      stageData.cardType,
-      stageName
-    )}.md)`
+    stageRow.count = `[${stage.items.length}](./${getDrillName(stageData.cardType, stageName)}.md)`
     if (stage.flag) {
       stageRow.count += '  :triangular_flag_on_post:'
     }

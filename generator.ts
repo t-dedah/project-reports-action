@@ -13,65 +13,81 @@ import {
   CrawlingConfig,
   CrawlingTarget,
   GeneratorConfiguration,
+  ProjectProcessor,
   ProjectReportBuilder,
   ReportConfig,
   ReportDetails,
-  ReportSnapshot
+  ReportSnapshot,
+  RuntimeModule
 } from './interfaces'
 import {IssueList, ProjectIssue} from './project-reports-lib'
 import * as drillInRpt from './reports/drill-in'
 import * as util from './util'
 
-export async function generate(
-  token: string,
-  configYaml: string
-): Promise<ReportSnapshot> {
+function heading(contents: string) {
+  console.log()
+  console.log(contents)
+  console.log('-------------------------------------------------------------------------------')
+}
+
+function loadRuntimeModule(kind: 'report' | 'processor', moduleName: string) {
+  // if it's a relative path, find in the workflow repo relative path.
+  // this allows for consume of action to create their own modules
+  // else look for built-ins
+  let modulePath
+
+  if (moduleName.startsWith('./')) {
+    modulePath = path.join(process.env['GITHUB_WORKSPACE'], `${moduleName}`)
+  } else {
+    modulePath = path.join(__dirname, `./${kind}s/${moduleName}`)
+  }
+
+  console.log(`Loading: ${modulePath}`)
+
+  if (!fs.existsSync(modulePath)) {
+    throw new Error(`Module not found: ${moduleName}`)
+  }
+
+  /* eslint-disable-next-line @typescript-eslint/no-var-requires */
+  const runtimeModule = require(modulePath) as RuntimeModule
+  return runtimeModule
+}
+
+export async function generate(token: string, configYaml: string): Promise<ReportSnapshot> {
   const workspacePath = process.env['GITHUB_WORKSPACE']
   if (!workspacePath) {
     throw new Error('GITHUB_WORKSPACE not defined')
   }
 
   const configPath = path.join(workspacePath, configYaml)
-  const cachePath = path.join(workspacePath, '_reports', '.data')
+  const cachePath = path.join(workspacePath, '.reports', '.data')
   util.mkdirP(cachePath)
 
-  const config = <GeneratorConfiguration>(
-    yaml.load(fs.readFileSync(configPath, 'utf-8'))
-  )
+  const config = <GeneratorConfiguration>yaml.load(fs.readFileSync(configPath, 'utf-8'))
 
   const snapshot = <ReportSnapshot>{}
   snapshot.datetime = new Date()
 
   // ISO8601 without separators—supported by moment, etc.
-  snapshot.datetimeString = moment(snapshot.datetime)
-    .utc()
-    .format('YYYYMMDDTHHmmss.SSS[Z]')
+  snapshot.datetimeString = moment(snapshot.datetime).utc().format('YYYYMMDDTHHmmss.SSS[Z]')
 
   snapshot.config = config
 
-  snapshot.config.output = snapshot.config.output || '_reports'
+  snapshot.config.output = snapshot.config.output || '.reports'
   snapshot.rootPath = path.join(workspacePath, snapshot.config.output)
 
   console.log(`Writing snapshot to ${snapshot.rootPath}`)
-  await writeSnapshot(snapshot)
+  await createDataDir(snapshot)
 
   // update report config details
-  for (const report of config.reports) {
+  for (const report of config.reports || []) {
     report.timezoneOffset = report.timezoneOffset || -8
 
     report.details = <ReportDetails>{
-      time: moment()
-        .utcOffset(report.timezoneOffset)
-        .format('dddd, MMMM Do YYYY, h:mm:ss a')
+      time: moment().utcOffset(report.timezoneOffset).format('dddd, MMMM Do YYYY, h:mm:ss a')
     }
-    report.details.rootPath = path.join(
-      snapshot.rootPath,
-      sanitize(report.name)
-    )
-    report.details.fullPath = path.join(
-      report.details.rootPath,
-      snapshot.datetimeString
-    )
+    report.details.rootPath = path.join(snapshot.rootPath, sanitize(report.name))
+    report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString)
     report.details.dataPath = path.join(report.details.fullPath, 'data')
 
     report.title = mustache.render(report.title, {
@@ -96,13 +112,7 @@ export async function generate(
         target.columnMap = {}
       }
 
-      const defaultStages = [
-        'Proposed',
-        'Accepted',
-        'In-Progress',
-        'Done',
-        'Unmapped'
-      ]
+      const defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped']
       for (const phase of defaultStages) {
         if (!target.columnMap[phase]) {
           target.columnMap[phase] = []
@@ -110,12 +120,7 @@ export async function generate(
       }
 
       target.columnMap['Proposed'].push('Proposed', 'Not Started')
-      target.columnMap['In-Progress'].push(
-        'In-Progress',
-        'In progress',
-        'InProgress',
-        'Started'
-      )
+      target.columnMap['In-Progress'].push('In-Progress', 'In progress', 'InProgress', 'Started')
       target.columnMap['Accepted'].push('Accepted', 'Approved', 'Up Next')
       target.columnMap['Done'].push('Done', 'Completed', 'Complete')
 
@@ -123,9 +128,7 @@ export async function generate(
       target.columnMap['Proposed'].push('Triage', 'Not Started')
 
       for (const mapName in target.columnMap) {
-        target.columnMap[mapName] = target.columnMap[mapName].map(item =>
-          item.trim()
-        )
+        target.columnMap[mapName] = target.columnMap[mapName].map(item => item.trim())
       }
     }
   }
@@ -135,7 +138,37 @@ export async function generate(
 
   const crawler: Crawler = new Crawler(token, cachePath)
 
-  for (const report of config.reports) {
+  heading('Processing')
+  for (const processor of config.processing || []) {
+    if (!processor.target) {
+      throw new Error(`Target not specified for processor ${processor.name}`)
+    }
+
+    const target = crawlCfg[processor.target]
+    if (!target) {
+      throw new Error(`Target ${processor.target} not found in the config targets`)
+    }
+
+    const processingModule = loadRuntimeModule('processor', processor.name) as ProjectProcessor
+
+    // overlay user settings over default settings
+    const config = processingModule.getDefaultConfiguration()
+    for (const setting in processor.config || {}) {
+      config[setting] = processor.config[setting]
+    }
+
+    heading(`Crawling target: '${processor.target}' for processor: '${processor.name}'`)
+    const issues: ProjectIssue[] = await crawler.crawl(target)
+    const set = new IssueList(issue => issue.html_url)
+    set.add(issues)
+
+    heading(`Processing target: '${processor.target}' with processor: '${processor.name}'`)
+    processingModule.process(target, config, set)
+  }
+
+  console.log()
+  console.log('Generating Reports')
+  for (const report of config.reports || []) {
     let output = ''
 
     // gather all the markdown files in the root to delete before writing new files
@@ -146,11 +179,7 @@ export async function generate(
     console.log(`Generating ${report.name} ...`)
     await createReportPath(report)
 
-    for (
-      let sectionIdx = 0;
-      sectionIdx < report.sections.length;
-      sectionIdx++
-    ) {
+    for (let sectionIdx = 0; sectionIdx < report.sections.length; sectionIdx++) {
       const reportSection = report.sections[sectionIdx]
 
       // We only support rollup of repo issues.
@@ -161,32 +190,28 @@ export async function generate(
 
       const reportModule = `${reportSection.name}`
 
+      const reportGenerator = loadRuntimeModule('report', reportModule) as ProjectReportBuilder
+
       // if it's a relative path, find in the workflow repo relative path.
       // this allows for consume of action to create their own report sections
       // else look for built-ins
-      console.log(`Report module ${reportModule}`)
-      let reportModulePath
+      // console.log(`Report module ${reportModule}`)
+      // let reportModulePath
 
-      if (reportModule.startsWith('./')) {
-        reportModulePath = path.join(
-          process.env['GITHUB_WORKSPACE'],
-          `${reportModule}`
-        )
-      } else {
-        reportModulePath = path.join(
-          __dirname,
-          `./reports/${reportSection.name}`
-        )
-      }
+      // if (reportModule.startsWith('./')) {
+      //   reportModulePath = path.join(process.env['GITHUB_WORKSPACE'], `${reportModule}`)
+      // } else {
+      //   reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`)
+      // }
 
-      console.log(`Loading: ${reportModulePath}`)
+      // console.log(`Loading: ${reportModulePath}`)
 
-      if (!fs.existsSync(reportModulePath)) {
-        throw new Error(`Report not found: ${reportSection.name}`)
-      }
+      // if (!fs.existsSync(reportModulePath)) {
+      //   throw new Error(`Report not found: ${reportSection.name}`)
+      // }
 
-      /* eslint-disable-next-line @typescript-eslint/no-var-requires */
-      const reportGenerator = require(reportModulePath) as ProjectReportBuilder
+      // /* eslint-disable-next-line @typescript-eslint/no-var-requires */
+      // const reportGenerator = require(reportModulePath) as ProjectReportBuilder
 
       // overlay user settings over default settings
       const config = reportGenerator.getDefaultConfiguration()
@@ -205,19 +230,12 @@ export async function generate(
       const targets: CrawlingTarget[] = []
       for (const targetName of targetNames) {
         console.log()
-        console.log(
-          `Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`
-        )
-        console.log(
-          '-------------------------------------------------------------------------------'
-        )
+        console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`)
+        console.log('-------------------------------------------------------------------------------')
         const target = crawlCfg[targetName]
         targets.push(target)
 
-        if (
-          reportGenerator.reportType !== 'any' &&
-          reportGenerator.reportType !== target.type
-        ) {
+        if (reportGenerator.reportType !== 'any' && reportGenerator.reportType !== target.type) {
           throw new Error(
             `Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`
           )
@@ -233,11 +251,7 @@ export async function generate(
       console.log('Processing data ...')
 
       const drillIns = []
-      const drillInCb = (
-        identifier: string,
-        title: string,
-        cards: ProjectIssue[]
-      ) => {
+      const drillInCb = (identifier: string, title: string, cards: ProjectIssue[]) => {
         drillIns.push({
           identifier: identifier,
           title: title,
@@ -247,48 +261,42 @@ export async function generate(
 
       const processed = reportGenerator.process(config, clone(set), drillInCb)
 
-      const sectionPath = `${sectionIdx
-        .toString()
-        .padStart(2, '0')}-${reportModule}`
+      const sectionPath = `${sectionIdx.toString().padStart(2, '0')}-${reportModule}`
 
       await writeSectionData(report, sectionPath, config, {
         type: reportModule,
         output: processed
       })
 
-      report.kind = report.kind || 'markdown'
+      report.kind = report.kind || ''
 
       if (report.kind === 'markdown') {
         console.log('Rendering markdown ...')
         // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+        const resPath = path.join(report.details.fullPath, 'res')
+        util.mkdirP(resPath)
         output += reportGenerator.renderMarkdown(targets, processed)
       } else {
-        throw new Error(`Report kind ${report.kind} not supported`)
+        console.log('Not processing reports.  Only output.')
       }
 
       for (const drillIn of drillIns) {
         let drillInReport: string
         if (report.kind === 'markdown') {
-          drillInReport = drillInRpt.renderMarkdown(
-            drillIn.title,
-            clone(drillIn.cards)
-          )
-        } else {
-          throw new Error(`Report kind ${report.kind} not supported`)
-        }
+          drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone(drillIn.cards))
 
-        await writeDrillIn(
-          report,
-          sectionPath,
-          drillIn.identifier,
-          drillIn.cards,
-          drillInReport
-        )
+          await writeDrillIn(report, sectionPath, drillIn.identifier, drillIn.cards, drillInReport)
+        } else {
+          console.log('Not processing reports.  Only output.')
+        }
       }
     }
 
-    console.log('Writing report')
-    writeReport(report, crawler.getTargetData(), output)
+    if (report.kind !== '') {
+      console.log('Writing report')
+      writeReport(report, crawler.getTargetData(), output)
+    }
+
     console.log('Done.')
   }
   console.log()
@@ -318,12 +326,8 @@ async function deleteFilesInPath(targetPath: string) {
     return
   }
 
-  let existingRootFiles = fs
-    .readdirSync(targetPath)
-    .map(item => path.join(targetPath, item))
-  existingRootFiles = existingRootFiles.filter(item =>
-    fs.lstatSync(item).isFile()
-  )
+  let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item))
+  existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile())
   for (const file of existingRootFiles) {
     console.log(`cleaning up ${file}`)
     fs.unlinkSync(file)
@@ -342,34 +346,18 @@ async function writeDrillIn(
   util.mkdirP(path.join(report.details.dataPath, reportModule, 'details'))
 
   fs.writeFileSync(
-    path.join(
-      report.details.dataPath,
-      reportModule,
-      'details',
-      `${identifier}.json`
-    ),
+    path.join(report.details.dataPath, reportModule, 'details', `${identifier}.json`),
     JSON.stringify(cards, null, 2)
   )
-  fs.writeFileSync(
-    path.join(report.details.rootPath, `${identifier}.md`),
-    contents
-  )
-  fs.writeFileSync(
-    path.join(report.details.fullPath, `${identifier}.md`),
-    contents
-  )
+  fs.writeFileSync(path.join(report.details.rootPath, `${identifier}.md`), contents)
+  fs.writeFileSync(path.join(report.details.fullPath, `${identifier}.md`), contents)
 }
 
 // creates directory structure for the reports and hands back the root path to write reports in
-async function writeSnapshot(snapshot: ReportSnapshot) {
+async function createDataDir(snapshot: ReportSnapshot) {
   console.log('Writing snapshot data ...')
   const genPath = path.join(snapshot.rootPath, '.data')
   util.mkdirP(genPath)
-
-  const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`)
-  console.log(`Writing to ${snapshotPath}`)
-
-  fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2))
 }
 
 async function createReportPath(report: ReportConfig) {
@@ -381,31 +369,16 @@ async function createReportPath(report: ReportConfig) {
   util.mkdirP(report.details.dataPath)
 }
 
-async function writeSectionData(
-  report: ReportConfig,
-  name: string,
-  settings: any,
-  processed: any
-) {
+async function writeSectionData(report: ReportConfig, name: string, settings: any, processed: any) {
   console.log(`Writing section data for ${name}...`)
   const sectionPath = path.join(report.details.fullPath, 'data', sanitize(name))
   util.mkdirP(sectionPath)
 
-  fs.writeFileSync(
-    path.join(sectionPath, 'config.json'),
-    JSON.stringify(settings, null, 2)
-  )
-  fs.writeFileSync(
-    path.join(sectionPath, 'output.json'),
-    JSON.stringify(processed, null, 2)
-  )
+  fs.writeFileSync(path.join(sectionPath, 'config.json'), JSON.stringify(settings, null, 2))
+  fs.writeFileSync(path.join(sectionPath, 'output.json'), JSON.stringify(processed, null, 2))
 }
 
-async function writeReport(
-  report: ReportConfig,
-  targetData: any,
-  contents: string
-) {
+async function writeReport(report: ReportConfig, targetData: any, contents: string) {
   console.log('Writing the report ...')
   fs.writeFileSync(path.join(report.details.rootPath, '_report.md'), contents)
   fs.writeFileSync(path.join(report.details.fullPath, '_report.md'), contents)

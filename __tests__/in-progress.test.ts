@@ -26,11 +26,7 @@ describe('project-in-progress', () => {
 
   it('process returns InProgressData', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 
@@ -61,11 +57,7 @@ describe('project-in-progress', () => {
 
   it('renderMarkdown renders valid markdown', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 

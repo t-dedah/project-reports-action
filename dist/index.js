@@ -1576,8 +1576,7 @@ class ProjectCrawler {
                             mentioned.push(event.project_card.previous_column_name);
                         }
                         for (const mention of mentioned) {
-                            if (mappedColumns.indexOf(mention.trim()) === -1 &&
-                                seenUnmappedColumns.indexOf(mention) === -1) {
+                            if (mappedColumns.indexOf(mention.trim()) === -1 && seenUnmappedColumns.indexOf(mention) === -1) {
                                 seenUnmappedColumns.push(mention);
                             }
                         }
@@ -1587,6 +1586,10 @@ class ProjectCrawler {
                     const issueCard = yield this.github.getIssueForCard(card, projectData.id);
                     if (issueCard) {
                         this.processCard(issueCard, projectData.id, target, eventCallback);
+                        issueCard['project_column'] = column.name;
+                        issueCard['project_stage'] = this.getStageFromColumn(column.name, target);
+                        console.log(`stage: ${issueCard.project_stage}`);
+                        console.log();
                         issues.push(issueCard);
                     }
                     else {
@@ -1626,12 +1629,8 @@ class ProjectCrawler {
         console.log(`Processing card ${card.title}`);
         console.log(card.html_url);
         const filteredEvents = [];
-        // card events should be in order chronologically
-        let currentStage;
-        let doneTime;
-        let blockedTime;
-        let addedTime;
         if (card.events) {
+            console.log(`Filtering ${card.events.length} events for project ${projectId}`);
             for (const event of card.events) {
                 // since we're adding this card to a projects / stage, let's filter out
                 // events for other project ids since an issue can be part of multiple boards
@@ -1645,7 +1644,7 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for column ${event.project_card.column_name}`);
                     }
                     event.project_card.stage_name = stage || 'Unmapped';
-                    console.log(`${event.created_at}: ${event.project_card.column_name} => ${event.project_card.stage_name}`);
+                    console.log(`${event.created_at}(${event.project_card.project_id}): ${event.project_card.column_name} => ${event.project_card.stage_name}`);
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     const previousStage = this.getStageFromColumn(event.project_card.previous_column_name, target);
@@ -1653,12 +1652,13 @@ class ProjectCrawler {
                         console.log(`WARNING: could not map for previous column ${event.project_card.previous_column_name}`);
                     }
                     event.project_card.previous_stage_name = previousStage || 'Unmapped';
-                    console.log(`${event.created_at}: ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
+                    console.log(`${event.created_at}(${event.project_card.project_id}): ${event.project_card.previous_column_name} => ${event.project_card.previous_stage_name}`);
                 }
                 filteredEvents.push(event);
             }
             card.events = filteredEvents;
         }
+        console.log(`Filtered to ${card.events.length} events`);
     }
     getStageFromColumn(column, target) {
         if (this.resolvedColumns[column]) {
@@ -3204,13 +3204,7 @@ class IssueList {
     constructor(identifier) {
         // keep in order indexed by level above
         // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
+        this.stageAtNames = ['none', 'project_proposed_at', 'project_accepted_at', 'project_in_progress_at', 'project_done_at'];
         this.seen = new Map();
         this.identifier = identifier;
         this.items = [];
@@ -3255,6 +3249,14 @@ class IssueList {
         this.processed = this.items;
         return this.processed;
     }
+    getItemsAsof(datetime) {
+        const issues = [];
+        for (const item of this.items) {
+            const id = this.identifier(item);
+            issues.push(this.getItemAsof(id, datetime));
+        }
+        return issues;
+    }
     //
     // Gets an issue from a number of days, hours ago.
     // Clones the issue and Replays events (labels, column moves, milestones)
@@ -3271,6 +3273,7 @@ class IssueList {
         const momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
+        delete issue.project_column;
         delete issue.project_added_at;
         delete issue.project_proposed_at;
         delete issue.project_in_progress_at;
@@ -3322,9 +3325,11 @@ class IssueList {
     // Call initially and then call again if events are filtered (get issue asof)
     //
     processStages(issue) {
+        console.log();
         console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage;
+        let currentColumn;
         let doneTime;
         let addedTime;
         const tempLabels = {};
@@ -3351,6 +3356,7 @@ class IssueList {
                     toStage = event.project_card.stage_name;
                     toLevel = stageLevel[toStage];
                     currentStage = toStage;
+                    currentColumn = event.project_card.column_name;
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
@@ -3362,9 +3368,7 @@ class IssueList {
                 // last occurence of moving to these columns from a lesser or no column
                 // example. if moved to accepted from proposed (or less),
                 //      then in-progress (greater) and then back to accepted, first wins
-                if (toStage === 'Proposed' ||
-                    toStage === 'Accepted' ||
-                    toStage === 'In-Progress') {
+                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         issue[this.stageAtNames[toLevel]] = eventDateTime;
                     }
@@ -3388,8 +3392,18 @@ class IssueList {
                 issue.project_added_at = addedTime;
                 console.log(`project_added_at: ${issue.project_added_at}`);
             }
-            issue.project_stage = currentStage;
+            // current board processing does by column so we already know these
+            // asof replays events and it's possible to have the same time and therefore can be out of order.
+            // only take that fragility during narrow asof cases.
+            // asof clears these
+            if (!issue.project_column) {
+                issue.project_column = currentColumn;
+            }
+            if (!issue.project_stage) {
+                issue.project_stage = currentStage;
+            }
             console.log(`project_stage: ${issue.project_stage}`);
+            console.log(`project_column: ${issue.project_column}`);
         }
     }
 }
@@ -6977,6 +6991,30 @@ const crawler_1 = __webpack_require__(91);
 const project_reports_lib_1 = __webpack_require__(189);
 const drillInRpt = __importStar(__webpack_require__(398));
 const util = __importStar(__webpack_require__(873));
+function heading(contents) {
+    console.log();
+    console.log(contents);
+    console.log('-------------------------------------------------------------------------------');
+}
+function loadRuntimeModule(kind, moduleName) {
+    // if it's a relative path, find in the workflow repo relative path.
+    // this allows for consume of action to create their own modules
+    // else look for built-ins
+    let modulePath;
+    if (moduleName.startsWith('./')) {
+        modulePath = path.join(process.env['GITHUB_WORKSPACE'], `${moduleName}`);
+    }
+    else {
+        modulePath = path.join(__dirname, `./${kind}s/${moduleName}`);
+    }
+    console.log(`Loading: ${modulePath}`);
+    if (!fs.existsSync(modulePath)) {
+        throw new Error(`Module not found: ${moduleName}`);
+    }
+    /* eslint-disable-next-line @typescript-eslint/no-var-requires */
+    const runtimeModule = require(modulePath);
+    return runtimeModule;
+}
 function generate(token, configYaml) {
     return __awaiter(this, void 0, void 0, function* () {
         const workspacePath = process.env['GITHUB_WORKSPACE'];
@@ -6984,27 +7022,23 @@ function generate(token, configYaml) {
             throw new Error('GITHUB_WORKSPACE not defined');
         }
         const configPath = path.join(workspacePath, configYaml);
-        const cachePath = path.join(workspacePath, '_reports', '.data');
+        const cachePath = path.join(workspacePath, '.reports', '.data');
         util.mkdirP(cachePath);
-        const config = (yaml.load(fs.readFileSync(configPath, 'utf-8')));
+        const config = yaml.load(fs.readFileSync(configPath, 'utf-8'));
         const snapshot = {};
         snapshot.datetime = new Date();
         // ISO8601 without separators—supported by moment, etc.
-        snapshot.datetimeString = moment_1.default(snapshot.datetime)
-            .utc()
-            .format('YYYYMMDDTHHmmss.SSS[Z]');
+        snapshot.datetimeString = moment_1.default(snapshot.datetime).utc().format('YYYYMMDDTHHmmss.SSS[Z]');
         snapshot.config = config;
-        snapshot.config.output = snapshot.config.output || '_reports';
+        snapshot.config.output = snapshot.config.output || '.reports';
         snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
         console.log(`Writing snapshot to ${snapshot.rootPath}`);
-        yield writeSnapshot(snapshot);
+        yield createDataDir(snapshot);
         // update report config details
-        for (const report of config.reports) {
+        for (const report of config.reports || []) {
             report.timezoneOffset = report.timezoneOffset || -8;
             report.details = {
-                time: moment_1.default()
-                    .utcOffset(report.timezoneOffset)
-                    .format('dddd, MMMM Do YYYY, h:mm:ss a')
+                time: moment_1.default().utcOffset(report.timezoneOffset).format('dddd, MMMM Do YYYY, h:mm:ss a')
             };
             report.details.rootPath = path.join(snapshot.rootPath, sanitize_filename_1.default(report.name));
             report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString);
@@ -7029,13 +7063,7 @@ function generate(token, configYaml) {
                 if (!target.columnMap) {
                     target.columnMap = {};
                 }
-                const defaultStages = [
-                    'Proposed',
-                    'Accepted',
-                    'In-Progress',
-                    'Done',
-                    'Unmapped'
-                ];
+                const defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
                 for (const phase of defaultStages) {
                     if (!target.columnMap[phase]) {
                         target.columnMap[phase] = [];
@@ -7055,7 +7083,31 @@ function generate(token, configYaml) {
         console.log('crawlConfig');
         console.log(JSON.stringify(crawlCfg, null, 2));
         const crawler = new crawler_1.Crawler(token, cachePath);
-        for (const report of config.reports) {
+        heading('Processing');
+        for (const processor of config.processing || []) {
+            if (!processor.target) {
+                throw new Error(`Target not specified for processor ${processor.name}`);
+            }
+            const target = crawlCfg[processor.target];
+            if (!target) {
+                throw new Error(`Target ${processor.target} not found in the config targets`);
+            }
+            const processingModule = loadRuntimeModule('processor', processor.name);
+            // overlay user settings over default settings
+            const config = processingModule.getDefaultConfiguration();
+            for (const setting in processor.config || {}) {
+                config[setting] = processor.config[setting];
+            }
+            heading(`Crawling target: '${processor.target}' for processor: '${processor.name}'`);
+            const issues = yield crawler.crawl(target);
+            const set = new project_reports_lib_1.IssueList(issue => issue.html_url);
+            set.add(issues);
+            heading(`Processing target: '${processor.target}' with processor: '${processor.name}'`);
+            processingModule.process(target, config, set);
+        }
+        console.log();
+        console.log('Generating Reports');
+        for (const report of config.reports || []) {
             let output = '';
             // gather all the markdown files in the root to delete before writing new files
             deleteFilesInPath(report.details.rootPath);
@@ -7070,23 +7122,23 @@ function generate(token, configYaml) {
                 // let projectData: ProjectData = null;
                 output += `&nbsp;  ${os.EOL}`;
                 const reportModule = `${reportSection.name}`;
+                const reportGenerator = loadRuntimeModule('report', reportModule);
                 // if it's a relative path, find in the workflow repo relative path.
                 // this allows for consume of action to create their own report sections
                 // else look for built-ins
-                console.log(`Report module ${reportModule}`);
-                let reportModulePath;
-                if (reportModule.startsWith('./')) {
-                    reportModulePath = path.join(process.env['GITHUB_WORKSPACE'], `${reportModule}`);
-                }
-                else {
-                    reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`);
-                }
-                console.log(`Loading: ${reportModulePath}`);
-                if (!fs.existsSync(reportModulePath)) {
-                    throw new Error(`Report not found: ${reportSection.name}`);
-                }
-                /* eslint-disable-next-line @typescript-eslint/no-var-requires */
-                const reportGenerator = require(reportModulePath);
+                // console.log(`Report module ${reportModule}`)
+                // let reportModulePath
+                // if (reportModule.startsWith('./')) {
+                //   reportModulePath = path.join(process.env['GITHUB_WORKSPACE'], `${reportModule}`)
+                // } else {
+                //   reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`)
+                // }
+                // console.log(`Loading: ${reportModulePath}`)
+                // if (!fs.existsSync(reportModulePath)) {
+                //   throw new Error(`Report not found: ${reportSection.name}`)
+                // }
+                // /* eslint-disable-next-line @typescript-eslint/no-var-requires */
+                // const reportGenerator = require(reportModulePath) as ProjectReportBuilder
                 // overlay user settings over default settings
                 const config = reportGenerator.getDefaultConfiguration();
                 for (const setting in reportSection.config || {}) {
@@ -7105,8 +7157,7 @@ function generate(token, configYaml) {
                     console.log('-------------------------------------------------------------------------------');
                     const target = crawlCfg[targetName];
                     targets.push(target);
-                    if (reportGenerator.reportType !== 'any' &&
-                        reportGenerator.reportType !== target.type) {
+                    if (reportGenerator.reportType !== 'any' && reportGenerator.reportType !== target.type) {
                         throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
                     }
                     const data = yield crawler.crawl(target);
@@ -7124,35 +7175,37 @@ function generate(token, configYaml) {
                     });
                 };
                 const processed = reportGenerator.process(config, clone_1.default(set), drillInCb);
-                const sectionPath = `${sectionIdx
-                    .toString()
-                    .padStart(2, '0')}-${reportModule}`;
+                const sectionPath = `${sectionIdx.toString().padStart(2, '0')}-${reportModule}`;
                 yield writeSectionData(report, sectionPath, config, {
                     type: reportModule,
                     output: processed
                 });
-                report.kind = report.kind || 'markdown';
+                report.kind = report.kind || '';
                 if (report.kind === 'markdown') {
                     console.log('Rendering markdown ...');
                     // let data = reportGenerator.reportType == 'repo' ? targets : projectData;
+                    const resPath = path.join(report.details.fullPath, 'res');
+                    util.mkdirP(resPath);
                     output += reportGenerator.renderMarkdown(targets, processed);
                 }
                 else {
-                    throw new Error(`Report kind ${report.kind} not supported`);
+                    console.log('Not processing reports.  Only output.');
                 }
                 for (const drillIn of drillIns) {
                     let drillInReport;
                     if (report.kind === 'markdown') {
                         drillInReport = drillInRpt.renderMarkdown(drillIn.title, clone_1.default(drillIn.cards));
+                        yield writeDrillIn(report, sectionPath, drillIn.identifier, drillIn.cards, drillInReport);
                     }
                     else {
-                        throw new Error(`Report kind ${report.kind} not supported`);
+                        console.log('Not processing reports.  Only output.');
                     }
-                    yield writeDrillIn(report, sectionPath, drillIn.identifier, drillIn.cards, drillInReport);
                 }
             }
-            console.log('Writing report');
-            writeReport(report, crawler.getTargetData(), output);
+            if (report.kind !== '') {
+                console.log('Writing report');
+                writeReport(report, crawler.getTargetData(), output);
+            }
             console.log('Done.');
         }
         console.log();
@@ -7177,9 +7230,7 @@ function deleteFilesInPath(targetPath) {
         if (!fs.existsSync(targetPath)) {
             return;
         }
-        let existingRootFiles = fs
-            .readdirSync(targetPath)
-            .map(item => path.join(targetPath, item));
+        let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item));
         existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
         for (const file of existingRootFiles) {
             console.log(`cleaning up ${file}`);
@@ -7197,14 +7248,11 @@ function writeDrillIn(report, reportModule, identifier, cards, contents) {
     });
 }
 // creates directory structure for the reports and hands back the root path to write reports in
-function writeSnapshot(snapshot) {
+function createDataDir(snapshot) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log('Writing snapshot data ...');
         const genPath = path.join(snapshot.rootPath, '.data');
         util.mkdirP(genPath);
-        const snapshotPath = path.join(genPath, `${snapshot.datetimeString}.json`);
-        console.log(`Writing to ${snapshotPath}`);
-        fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2));
     });
 }
 function createReportPath(report) {
@@ -7924,9 +7972,7 @@ function renderMarkdown(heading, cards) {
         // > [@bryanmacfarlane](https://github.com/bryanmacfarlane)
         //   `1-dev` `epic`
         lines.push(`### ${assigneeHtml} [${card.title}](${card.html_url})  `);
-        const assigneeLink = card.assignee
-            ? `[@${card.assignee.login}](${card.assignee.html_url})  `
-            : 'not assigned  ';
+        const assigneeLink = card.assignee ? `[@${card.assignee.login}](${card.assignee.html_url})  ` : 'not assigned  ';
         lines.push(`> ${assigneeLink}`);
         const labels = [];
         for (const label of card.labels) {

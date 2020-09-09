@@ -17,21 +17,13 @@ describe('project-new', () => {
 
   it('process returns NewCards', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 
     const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    const processed = projectDone.process(
-      config,
-      list,
-      drillIn
-    ) as CompletedCards
+    const processed = projectDone.process(config, list, drillIn) as CompletedCards
     //console.log(JSON.stringify(processed, null, 2));
 
     expect(processed).toBeDefined()
@@ -44,21 +36,13 @@ describe('project-new', () => {
 
   it('renderMarkdown renders valid markdown', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 
     const list: IssueList = new IssueList(issue => issue.html_url)
     list.add(projectData)
-    const processed = projectDone.process(
-      config,
-      list,
-      drillIn
-    ) as CompletedCards
+    const processed = projectDone.process(config, list, drillIn) as CompletedCards
     expect(processed).toBeDefined()
 
     const markdown = projectDone.renderMarkdown([], processed)

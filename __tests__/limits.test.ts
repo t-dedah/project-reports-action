@@ -21,11 +21,7 @@ describe('report-lib', () => {
 
   it('process returns WipData', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 
@@ -52,11 +48,7 @@ describe('report-lib', () => {
 
   it('renderMarkdown renders valid markdown', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 
@@ -69,8 +61,6 @@ describe('report-lib', () => {
     const markdown = limits.renderMarkdown([], processed)
     expect(markdown).toBeDefined()
     expect(markdown).toContain('## :ship: Epic Limits')
-    expect(markdown).toContain(
-      '| In-Progress | [4](./limits-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |'
-    )
+    expect(markdown).toContain('| In-Progress | [4](./limits-Epic-In-Progress.md)  :triangular_flag_on_post: | 2     |')
   })
 })

@@ -17,11 +17,7 @@ describe('project-new', () => {
 
   it('process returns NewCards', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 
@@ -41,11 +37,7 @@ describe('project-new', () => {
 
   it('renderMarkdown renders valid markdown', async () => {
     const drillIns = []
-    const drillIn = (
-      identifier: string,
-      title: string,
-      cards: ProjectIssue[]
-    ) => {
+    const drillIn = (identifier: string, title: string, cards: ProjectIssue[]) => {
       drillIns.push(identifier)
     }
 

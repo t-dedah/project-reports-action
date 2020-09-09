@@ -173,15 +173,10 @@ function process(config, issueList, drillIn) {
         card.lastUpdatedAt = lastUpdatedDate;
         card.lastUpdatedAgo = lastUpdatedDate ? now.to(lastUpdatedDate) : '';
         console.log(`lastUpdatedAgo: ${card.lastUpdatedAgo}`);
-        const daysSinceUpdate = lastUpdatedDate
-            ? now.diff(lastUpdatedDate, 'days')
-            : -1;
-        card.flagHoursLastUpdated =
-            daysSinceUpdate < 0 || daysSinceUpdate > config['last-updated-days-flag'];
+        const daysSinceUpdate = lastUpdatedDate ? now.diff(lastUpdatedDate, 'days') : -1;
+        card.flagHoursLastUpdated = daysSinceUpdate < 0 || daysSinceUpdate > config['last-updated-days-flag'];
         const previousCard = issueList.getItemAsof(card.html_url, previousMoment.toDate());
-        const status = rptLib
-            .getStringFromLabel(card, new RegExp(config['status-label-match']))
-            .toLowerCase();
+        const status = rptLib.getStringFromLabel(card, new RegExp(config['status-label-match'])).toLowerCase();
         console.log(`status: '${status}' - '${config['status-label-match']}':${JSON.stringify(labels)}`);
         const previousStatus = rptLib
             .getStringFromLabel(previousCard, new RegExp(config['status-label-match']))
@@ -726,13 +721,7 @@ class IssueList {
     constructor(identifier) {
         // keep in order indexed by level above
         // TODO: unify both to avoid out of sync problems
-        this.stageAtNames = [
-            'none',
-            'project_proposed_at',
-            'project_accepted_at',
-            'project_in_progress_at',
-            'project_done_at'
-        ];
+        this.stageAtNames = ['none', 'project_proposed_at', 'project_accepted_at', 'project_in_progress_at', 'project_done_at'];
         this.seen = new Map();
         this.identifier = identifier;
         this.items = [];
@@ -777,6 +766,14 @@ class IssueList {
         this.processed = this.items;
         return this.processed;
     }
+    getItemsAsof(datetime) {
+        const issues = [];
+        for (const item of this.items) {
+            const id = this.identifier(item);
+            issues.push(this.getItemAsof(id, datetime));
+        }
+        return issues;
+    }
     //
     // Gets an issue from a number of days, hours ago.
     // Clones the issue and Replays events (labels, column moves, milestones)
@@ -793,6 +790,7 @@ class IssueList {
         const momentAgo = moment_1.default(datetime);
         // clear everything we're going to re-apply
         issue.labels = [];
+        delete issue.project_column;
         delete issue.project_added_at;
         delete issue.project_proposed_at;
         delete issue.project_in_progress_at;
@@ -844,9 +842,11 @@ class IssueList {
     // Call initially and then call again if events are filtered (get issue asof)
     //
     processStages(issue) {
+        console.log();
         console.log(`Processing stages for ${issue.html_url}`);
         // card events should be in order chronologically
         let currentStage;
+        let currentColumn;
         let doneTime;
         let addedTime;
         const tempLabels = {};
@@ -873,6 +873,7 @@ class IssueList {
                     toStage = event.project_card.stage_name;
                     toLevel = stageLevel[toStage];
                     currentStage = toStage;
+                    currentColumn = event.project_card.column_name;
                 }
                 if (event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
@@ -884,9 +885,7 @@ class IssueList {
                 // last occurence of moving to these columns from a lesser or no column
                 // example. if moved to accepted from proposed (or less),
                 //      then in-progress (greater) and then back to accepted, first wins
-                if (toStage === 'Proposed' ||
-                    toStage === 'Accepted' ||
-                    toStage === 'In-Progress') {
+                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
                     if (toLevel > fromLevel) {
                         issue[this.stageAtNames[toLevel]] = eventDateTime;
                     }
@@ -910,8 +909,18 @@ class IssueList {
                 issue.project_added_at = addedTime;
                 console.log(`project_added_at: ${issue.project_added_at}`);
             }
-            issue.project_stage = currentStage;
+            // current board processing does by column so we already know these
+            // asof replays events and it's possible to have the same time and therefore can be out of order.
+            // only take that fragility during narrow asof cases.
+            // asof clears these
+            if (!issue.project_column) {
+                issue.project_column = currentColumn;
+            }
+            if (!issue.project_stage) {
+                issue.project_stage = currentStage;
+            }
             console.log(`project_stage: ${issue.project_stage}`);
+            console.log(`project_column: ${issue.project_column}`);
         }
     }
 }

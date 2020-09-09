@@ -3,12 +3,7 @@ import * as os from 'os'
 import tablemark from 'tablemark'
 import {CrawlingTarget} from '../interfaces'
 import * as rptLib from '../project-reports-lib'
-import {
-  IssueList,
-  ProjectIssue,
-  ProjectStageIssues,
-  ProjectStages
-} from '../project-reports-lib'
+import {IssueList, ProjectIssue, ProjectStageIssues, ProjectStages} from '../project-reports-lib'
 import moment = require('moment')
 
 const now = moment()
@@ -82,25 +77,13 @@ function getBreakdown(
 
   groupByData.stages = <StageBreakdown>{}
   groupByData.stages.proposed = stageData[ProjectStages.Proposed] || []
-  drillIn(
-    drillInName(name, 'proposed'),
-    `${name} proposed`,
-    groupByData.stages.proposed
-  )
+  drillIn(drillInName(name, 'proposed'), `${name} proposed`, groupByData.stages.proposed)
 
   groupByData.stages.accepted = stageData[ProjectStages.Accepted] || []
-  drillIn(
-    drillInName(name, 'accepted'),
-    `${name} accepted`,
-    groupByData.stages.accepted
-  )
+  drillIn(drillInName(name, 'accepted'), `${name} accepted`, groupByData.stages.accepted)
 
   groupByData.stages.inProgress = stageData[ProjectStages.InProgress] || []
-  drillIn(
-    drillInName(name, 'in-progress'),
-    `${name} in progress`,
-    groupByData.stages.inProgress
-  )
+  drillIn(drillInName(name, 'in-progress'), `${name} in progress`, groupByData.stages.inProgress)
 
   // get the limit from config by fuzzy matching the group label with the setting
   let limit = Number.MAX_VALUE
@@ -123,64 +106,42 @@ function getBreakdown(
 
   const statusRegEx = new RegExp(config['status-label-match'])
   groupByData.flagged.red =
-    issues.filter(
-      issue =>
-        rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'red'
-    ) || []
-  drillIn(
-    drillInName(name, 'red'),
-    `${name} with a status red`,
-    groupByData.flagged.red
-  )
+    issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'red') || []
+  drillIn(drillInName(name, 'red'), `${name} with a status red`, groupByData.flagged.red)
 
   groupByData.flagged.yellow =
-    issues.filter(
-      issue =>
-        rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'yellow'
-    ) || []
-  drillIn(
-    drillInName(name, 'yellow'),
-    `${name} with a status yellow`,
-    groupByData.flagged.yellow
-  )
+    issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'yellow') || []
+  drillIn(drillInName(name, 'yellow'), `${name} with a status yellow`, groupByData.flagged.yellow)
 
-  groupByData.flagged.inProgressDuration = issues.filter(
-    issue =>
-      issue.project_in_progress_at &&
-      moment().diff(moment(issue.project_in_progress_at), 'days') >
-        config['flag-in-progress-days']
-  )
+  groupByData.flagged.inProgressDuration = issues.filter(issue => {
+    if (issue.project_in_progress_at) {
+      const days = moment().diff(moment(issue.project_in_progress_at), 'days')
+      console.log(`In progress, ${days}: ${issue.title}`)
+      if (days > config['flag-in-progress-days']) {
+        console.log('flag')
+        return issue
+      }
+    }
+  })
   drillIn(
     drillInName(name, 'duration'),
     `${name} > ${config['flag-in-progress-days']} in progress duration`,
     groupByData.flagged.inProgressDuration
   )
 
-  groupByData.flagged.noTarget = issues.filter(issue => {
-    const d = rptLib.getLastCommentDateField(
-      issue,
-      config['target-date-comment-field']
-    )
+  // no target check should only be for work in-progress.
+  groupByData.flagged.noTarget = clone(groupByData.stages.inProgress).filter(issue => {
+    const d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field'])
     return !d || isNaN(d.valueOf())
   })
-  drillIn(
-    drillInName(name, 'no-target'),
-    `${name} with no target date`,
-    groupByData.flagged.noTarget
-  )
+  drillIn(drillInName(name, 'no-target'), `${name} with no target date`, groupByData.flagged.noTarget)
 
-  groupByData.flagged.pastTarget = issues.filter(issue => {
-    const d = rptLib.getLastCommentDateField(
-      issue,
-      config['target-date-comment-field']
-    )
-    return d && !isNaN(d.valueOf()) && moment(d).isAfter(now)
+  // we only care about in progress being past the target date
+  groupByData.flagged.pastTarget = clone(groupByData.stages.inProgress).filter(issue => {
+    const d = rptLib.getLastCommentDateField(issue, config['target-date-comment-field'])
+    return d && !isNaN(d.valueOf()) && moment(d).isBefore(now)
   })
-  drillIn(
-    drillInName(name, 'past-target'),
-    `${name} past the target date`,
-    groupByData.flagged.pastTarget
-  )
+  drillIn(drillInName(name, 'past-target'), `${name} past the target date`, groupByData.flagged.pastTarget)
 
   return groupByData
 }
@@ -204,14 +165,7 @@ export function process(
   }
   console.log(`Getting issues for ${label}`)
   const issuesForLabel =
-    label === '*'
-      ? clone(issues)
-      : clone(
-          rptLib.filterByLabel(
-            issues,
-            label.trim().toLowerCase()
-          ) as ProjectIssue[]
-        )
+    label === '*' ? clone(issues) : clone(rptLib.filterByLabel(issues, label.trim().toLowerCase()) as ProjectIssue[])
   console.log(`Retrieved ${issuesForLabel.length} issues`)
 
   // get distinct group by labels
@@ -237,21 +191,13 @@ export function process(
   // get a breakdown for total and then for each group
   groupData.total = getBreakdown(config, 'Total', issuesForLabel, drillIn)
   for (const group of groupByLabels) {
-    const issuesForGroup = rptLib.filterByLabel(
-      issuesForLabel,
-      `${prefix}${group}`
-    )
+    const issuesForGroup = rptLib.filterByLabel(issuesForLabel, `${prefix}${group}`)
     console.log(`${group} ${issuesForGroup.length}`)
 
-    groupData.groups[group] = getBreakdown(
-      config,
-      group,
-      issuesForGroup,
-      drillIn
-    )
+    groupData.groups[group] = getBreakdown(config, group, issuesForGroup, drillIn)
   }
 
-  console.log(JSON.stringify(groupData, null, 2))
+  //console.log(JSON.stringify(groupData, null, 2))
   return groupData
 }
 
@@ -277,64 +223,37 @@ function getLimitContents(count: number, flag: boolean) {
   return `${count} ${flag ? ':triangular_flag_on_post:' : ''}`
 }
 
-function getRow(
-  name: string,
-  days: number,
-  wips: number,
-  data: GroupByData,
-  lines: string[]
-): BreakdownRow {
+function getRow(name: string, days: number, wips: number, data: GroupByData, lines: string[]): BreakdownRow {
   const breakdownRow = <BreakdownRow>{}
-  breakdownRow.name =
-    name === 'Total'
-      ? `**${name}**`
-      : `**${name} (${data.stages.inProgressLimits.limit})**`
+  breakdownRow.name = name === 'Total' ? `**${name}**` : `**${name} (${data.stages.inProgressLimits.limit})**`
 
-  breakdownRow.proposed = `[${data.stages.proposed.length}](./${drillInName(
-    name,
-    'proposed'
-  )}.md)`
-  breakdownRow.accepted = `[${data.stages.accepted.length}](./${drillInName(
-    name,
-    'accepted'
-  )}.md)`
+  breakdownRow.proposed = `[${data.stages.proposed.length}](./${drillInName(name, 'proposed')}.md)`
+  breakdownRow.accepted = `[${data.stages.accepted.length}](./${drillInName(name, 'accepted')}.md)`
   breakdownRow.inProgress = `[${getLimitContents(
     data.stages.inProgress.length,
     data.stages.inProgressLimits.flag
   )}](./${drillInName(name, 'in-progress')}.md)`
-  breakdownRow.done = `[${data.stages.done.length.toString()}](./${drillInName(
-    name,
-    'done'
-  )}.md)`
+  breakdownRow.done = `[${data.stages.done.length.toString()}](./${drillInName(name, 'done')}.md)`
   breakdownRow.spacer = ''
-  breakdownRow.yellow = `[${getFlagContents(
-    data.flagged.yellow.length,
-    0
-  )}](./${drillInName(name, 'yellow')}.md)`
-  breakdownRow.red = `[${getFlagContents(
-    data.flagged.red.length,
-    0
-  )}](./${drillInName(name, 'red')}.md)`
-  breakdownRow.inProgressDuration = `[${getFlagContents(
-    data.flagged.inProgressDuration.length,
-    0
-  )}](./${drillInName(name, 'duration')}.md)`
-  breakdownRow.noTarget = `[${getFlagContents(
-    data.flagged.noTarget.length,
-    0
-  )}](./${drillInName(name, 'no-target')}.md)`
-  breakdownRow.pastTarget = `[${getFlagContents(
-    data.flagged.pastTarget.length,
-    0
-  )}](./${drillInName(name, 'past-target')}.md)`
+  breakdownRow.yellow = `[${getFlagContents(data.flagged.yellow.length, 0)}](./${drillInName(name, 'yellow')}.md)`
+  breakdownRow.red = `[${getFlagContents(data.flagged.red.length, 0)}](./${drillInName(name, 'red')}.md)`
+  breakdownRow.inProgressDuration = `[${getFlagContents(data.flagged.inProgressDuration.length, 0)}](./${drillInName(
+    name,
+    'duration'
+  )}.md)`
+  breakdownRow.noTarget = `[${getFlagContents(data.flagged.noTarget.length, 0)}](./${drillInName(
+    name,
+    'no-target'
+  )}.md)`
+  breakdownRow.pastTarget = `[${getFlagContents(data.flagged.pastTarget.length, 0)}](./${drillInName(
+    name,
+    'past-target'
+  )}.md)`
 
   return breakdownRow
 }
 
-export function renderMarkdown(
-  targets: CrawlingTarget[],
-  processedData: any
-): string {
+export function renderMarkdown(targets: CrawlingTarget[], processedData: any): string {
   console.log('> project-groupby-status::renderMarkdown')
 
   const lines: string[] = []
@@ -342,26 +261,10 @@ export function renderMarkdown(
   const groupBy = processedData as GroupBy
 
   const rows: BreakdownRow[] = []
-  rows.push(
-    getRow(
-      'Total',
-      groupBy.durationDays,
-      groupBy.wipLimit,
-      groupBy.total,
-      lines
-    )
-  )
+  rows.push(getRow('Total', groupBy.durationDays, groupBy.wipLimit, groupBy.total, lines))
   lines.push('&nbsp;  ')
   for (const group in groupBy.groups) {
-    rows.push(
-      getRow(
-        group,
-        groupBy.durationDays,
-        groupBy.wipLimit,
-        groupBy.groups[group],
-        lines
-      )
-    )
+    rows.push(getRow(group, groupBy.durationDays, groupBy.wipLimit, groupBy.groups[group], lines))
   }
 
   lines.push(

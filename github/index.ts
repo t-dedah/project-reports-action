@@ -1,12 +1,7 @@
 import {Octokit} from '@octokit/rest'
 import * as url from 'url'
 import {ProjectData} from '../interfaces'
-import {
-  IssueComment,
-  IssueList,
-  ProjectColumn,
-  ProjectIssue
-} from '../project-reports-lib'
+import {IssueComment, IssueList, ProjectColumn, ProjectIssue} from '../project-reports-lib'
 import * as restCache from './octokit-rest-cache'
 
 function DateOrNull(date: string): Date {
@@ -117,27 +112,17 @@ export class GitHubClient {
     return cards.data
   }
 
-  public async getIssueComments(
-    owner: string,
-    repo: string,
-    issue_number: string
-  ): Promise<IssueComment[]> {
-    return await this.octokit.paginate(
-      'GET /repos/:owner/:repo/issues/:id/comments',
-      {
-        owner: owner,
-        repo: repo,
-        id: issue_number,
-        per_page: 100
-      }
-    )
+  public async getIssueComments(owner: string, repo: string, issue_number: string): Promise<IssueComment[]> {
+    return await this.octokit.paginate('GET /repos/:owner/:repo/issues/:id/comments', {
+      owner: owner,
+      repo: repo,
+      id: issue_number,
+      per_page: 100
+    })
   }
 
   // returns null if not an issue
-  public async getIssueForCard(
-    card: any,
-    projectId: number
-  ): Promise<ProjectIssue> {
+  public async getIssueForCard(card: any, projectId: number): Promise<ProjectIssue> {
     if (!card.content_url) {
       return null
     }
@@ -176,22 +161,15 @@ export class GitHubClient {
 
     issueCard.comments = []
     if (issue.comments > 0) {
-      issueCard.comments = await this.getIssueComments(
-        owner,
-        repo,
-        issue_number
-      )
+      issueCard.comments = await this.getIssueComments(owner, repo, issue_number)
     }
 
-    issueCard.events = await this.octokit.paginate(
-      'GET /repos/:owner/:repo/issues/:id/events',
-      {
-        owner: owner,
-        repo: repo,
-        id: issue_number,
-        per_page: 100
-      }
-    )
+    issueCard.events = await this.octokit.paginate('GET /repos/:owner/:repo/issues/:id/events', {
+      owner: owner,
+      repo: repo,
+      id: issue_number,
+      per_page: 100
+    })
 
     return issueCard
   }
@@ -205,10 +183,7 @@ export class GitHubClient {
   //   2. Get cycle time (time opened to closed etc.)
   //
   // https://developer.github.com/v3/issues/#parameters-3
-  async getIssuesForRepo(
-    repoUrl: string,
-    daysAgo = 7
-  ): Promise<ProjectIssue[]> {
+  async getIssuesForRepo(repoUrl: string, daysAgo = 7): Promise<ProjectIssue[]> {
     const set = new IssueList(issue => issue.number)
 
     const rUrl = new url.URL(repoUrl)
@@ -247,9 +222,7 @@ export class GitHubClient {
       },
       response => response.data.filter(issue => !issue.pull_request)
     )
-    console.log(
-      `Found ${recentIssues.length} issues changed in last ${daysAgo} days.`
-    )
+    console.log(`Found ${recentIssues.length} issues changed in last ${daysAgo} days.`)
     set.add(recentIssues)
 
     const issues = set.getItems()
