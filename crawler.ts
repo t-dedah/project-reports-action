@@ -24,6 +24,10 @@ export class Crawler {
       data = await projectCrawler.crawl(target)
     } else if (target.type === 'repo') {
       console.log(`crawling repo ${target.htmlUrl}`)
+      if (target.stages) {
+        throw new Error('Invalid config.  repo targets do not have stages')
+      }
+
       const repoCrawler = new RepoCrawler(this.github)
       data = await repoCrawler.crawl(target)
     } else {
@@ -108,6 +112,10 @@ class ProjectCrawler {
       mappedColumns = mappedColumns.concat(colNames)
     }
 
+    if (!target.stages && mappedColumns.length > 0) {
+      throw new Error('Project target has mapped columns but stages is false.  Set stages: true')
+    }
+
     let seenUnmappedColumns: string[] = []
     for (const column of columns) {
       console.log()
@@ -139,11 +147,17 @@ class ProjectCrawler {
         // cached since real column could be mapped to two different mapped columns
         // read and build the event list once
 
-        const issueCard = await this.github.getIssueForCard(card, projectData.id)
+        const issueCard = await this.github.getIssueForCard(card)
+
         if (issueCard) {
-          this.processCard(issueCard, projectData.id, target, eventCallback)
+          issueCard['project_stage'] = 'None'
+          if (target.stages) {
+            this.processCard(issueCard, projectData.id, target, eventCallback)
+            issueCard['project_stage'] = this.getStageFromColumn(column.name, target)
+          }
+
           issueCard['project_column'] = column.name
-          issueCard['project_stage'] = this.getStageFromColumn(column.name, target)
+
           console.log(`stage: ${issueCard.project_stage}`)
           console.log()
           issues.push(issueCard)
@@ -164,7 +178,7 @@ class ProjectCrawler {
 
     console.log('Done processing.')
     console.log()
-    if (seenUnmappedColumns.length > 0) {
+    if (target.stages && seenUnmappedColumns.length > 0) {
       console.log()
       console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`)
       seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`)

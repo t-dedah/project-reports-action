@@ -361,7 +361,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.extractUrlsFromChecklist = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const clone_1 = __importDefault(__webpack_require__(97));
 const moment_1 = __importDefault(__webpack_require__(431));
 const os = __importStar(__webpack_require__(87));
@@ -474,6 +474,10 @@ function fuzzyMatch(content, match) {
     return isMatch;
 }
 exports.fuzzyMatch = fuzzyMatch;
+function extractUrlsFromChecklist(body) {
+    return (body === null || body === void 0 ? void 0 : body.match(/(?<=-\s*\[.*?\].*?)(https?:\/{2}(?:[/-\w.]|(?:%[\da-fA-F]{2}))+)/g)) || [];
+}
+exports.extractUrlsFromChecklist = extractUrlsFromChecklist;
 // stages more discoverable
 exports.ProjectStages = {
     Proposed: 'Proposed',
@@ -656,7 +660,7 @@ class IssueList {
                     if (!addedTime) {
                         addedTime = eventDateTime;
                     }
-                    if (!event.project_card.stage_name) {
+                    if (issue.project_stage !== 'None' && !event.project_card.stage_name) {
                         throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
                     }
                     toStage = event.project_card.stage_name;
@@ -664,7 +668,7 @@ class IssueList {
                     currentStage = toStage;
                     currentColumn = event.project_card.column_name;
                 }
-                if (event.project_card && event.project_card.previous_column_name) {
+                if (issue.project_stage !== 'None' && event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
                         throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
                     }

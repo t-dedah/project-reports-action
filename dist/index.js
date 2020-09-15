@@ -339,29 +339,79 @@ class GitHubClient {
             });
         });
     }
+    issueParts(issueUrl) {
+        const issURL = new url.URL(issueUrl);
+        // apiUrl: https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
+        // htmlUrl: https://github.com/bryanmacfarlane/quotes-feed/issues/9
+        const apiUrl = issURL.host.startsWith('api.');
+        const parts = issURL.pathname.split('/').filter(e => e);
+        const owner = parts[apiUrl ? 1 : 0];
+        const repo = parts[apiUrl ? 2 : 1];
+        const issue_number = parts[apiUrl ? 4 : 3];
+        return {
+            owner,
+            repo,
+            issue_number
+        };
+    }
+    ensureLabel(owner, repo, name, color) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(`ensure label ${owner} ${repo} ${name} ${color}`);
+            try {
+                const res = yield this.octokit.issues.getLabel({
+                    owner,
+                    repo,
+                    name
+                });
+                console.log(`${name} exists`);
+                return;
+            }
+            catch (_a) {
+                console.log(`Creating label ${name} ${color}`);
+            }
+            // create
+            const res = yield this.octokit.issues.createLabel({
+                owner,
+                repo,
+                name,
+                color
+            });
+            console.log('created');
+        });
+    }
+    ensureIssueHasLabel(issueUrl, name, color) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const issueParts = this.issueParts(issueUrl);
+            yield this.ensureLabel(issueParts.owner, issueParts.repo, name, color);
+            const labels = [name];
+            const res = yield this.octokit.issues.addLabels(Object.assign(Object.assign({}, issueParts), { labels }));
+            console.log('added');
+        });
+    }
+    removeIssueLabel(issueUrl, name) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.octokit.issues.removeLabel(Object.assign(Object.assign({}, this.issueParts(issueUrl)), { name }));
+            console.log(`removed ${name}`);
+        });
+    }
     // returns null if not an issue
-    getIssueForCard(card, projectId) {
+    getIssueForCard(card) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!card.content_url) {
                 return null;
             }
-            const cardUrl = new url.URL(card.content_url);
-            const cardParts = cardUrl.pathname.split('/').filter(e => e);
-            // /repos/:owner/:repo/issues/events/:event_id
-            // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
-            const owner = cardParts[1];
-            const repo = cardParts[2];
-            const issue_number = cardParts[4];
+            return this.getIssue(card.content_url);
+        });
+    }
+    getIssue(issueUrl) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const issueParts = this.issueParts(issueUrl);
             const issueCard = {};
-            const res = yield this.octokit.issues.get({
-                owner: owner,
-                repo: repo,
-                issue_number: issue_number,
-                per_page: 100
-            });
+            const res = yield this.octokit.issues.get(Object.assign(Object.assign({}, issueParts), { per_page: 100 }));
             const issue = res.data;
             issueCard.number = issue.number;
             issueCard.title = issue.title;
+            issueCard.body = issue.body;
             issueCard.number = issue.number;
             issueCard.html_url = issue.html_url;
             issueCard.closed_at = DateOrNull(issue.closed_at);
@@ -372,12 +422,12 @@ class GitHubClient {
             issueCard.labels = issue.labels;
             issueCard.comments = [];
             if (issue.comments > 0) {
-                issueCard.comments = yield this.getIssueComments(owner, repo, issue_number);
+                issueCard.comments = yield this.getIssueComments(issueParts.owner, issueParts.repo, issueParts.issue_number);
             }
             issueCard.events = yield this.octokit.paginate('GET /repos/:owner/:repo/issues/:id/events', {
-                owner: owner,
-                repo: repo,
-                id: issue_number,
+                owner: issueParts.owner,
+                repo: issueParts.repo,
+                id: issueParts.issue_number,
                 per_page: 100
             });
             return issueCard;
@@ -1488,6 +1538,9 @@ class Crawler {
             }
             else if (target.type === 'repo') {
                 console.log(`crawling repo ${target.htmlUrl}`);
+                if (target.stages) {
+                    throw new Error('Invalid config.  repo targets do not have stages');
+                }
                 const repoCrawler = new RepoCrawler(this.github);
                 data = yield repoCrawler.crawl(target);
             }
@@ -1558,6 +1611,9 @@ class ProjectCrawler {
                 }
                 mappedColumns = mappedColumns.concat(colNames);
             }
+            if (!target.stages && mappedColumns.length > 0) {
+                throw new Error('Project target has mapped columns but stages is false.  Set stages: true');
+            }
             let seenUnmappedColumns = [];
             for (const column of columns) {
                 console.log();
@@ -1583,11 +1639,14 @@ class ProjectCrawler {
                     };
                     // cached since real column could be mapped to two different mapped columns
                     // read and build the event list once
-                    const issueCard = yield this.github.getIssueForCard(card, projectData.id);
+                    const issueCard = yield this.github.getIssueForCard(card);
                     if (issueCard) {
-                        this.processCard(issueCard, projectData.id, target, eventCallback);
+                        issueCard['project_stage'] = 'None';
+                        if (target.stages) {
+                            this.processCard(issueCard, projectData.id, target, eventCallback);
+                            issueCard['project_stage'] = this.getStageFromColumn(column.name, target);
+                        }
                         issueCard['project_column'] = column.name;
-                        issueCard['project_stage'] = this.getStageFromColumn(column.name, target);
                         console.log(`stage: ${issueCard.project_stage}`);
                         console.log();
                         issues.push(issueCard);
@@ -1607,7 +1666,7 @@ class ProjectCrawler {
             }
             console.log('Done processing.');
             console.log();
-            if (seenUnmappedColumns.length > 0) {
+            if (target.stages && seenUnmappedColumns.length > 0) {
                 console.log();
                 console.log(`WARNING: there are unmapped columns mentioned in existing cards on the project board`);
                 seenUnmappedColumns = seenUnmappedColumns.map(col => `"${col}"`);
@@ -3055,7 +3114,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.extractUrlsFromChecklist = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const clone_1 = __importDefault(__webpack_require__(97));
 const moment_1 = __importDefault(__webpack_require__(482));
 const os = __importStar(__webpack_require__(87));
@@ -3168,6 +3227,10 @@ function fuzzyMatch(content, match) {
     return isMatch;
 }
 exports.fuzzyMatch = fuzzyMatch;
+function extractUrlsFromChecklist(body) {
+    return (body === null || body === void 0 ? void 0 : body.match(/(?<=-\s*\[.*?\].*?)(https?:\/{2}(?:[/-\w.]|(?:%[\da-fA-F]{2}))+)/g)) || [];
+}
+exports.extractUrlsFromChecklist = extractUrlsFromChecklist;
 // stages more discoverable
 exports.ProjectStages = {
     Proposed: 'Proposed',
@@ -3350,7 +3413,7 @@ class IssueList {
                     if (!addedTime) {
                         addedTime = eventDateTime;
                     }
-                    if (!event.project_card.stage_name) {
+                    if (issue.project_stage !== 'None' && !event.project_card.stage_name) {
                         throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
                     }
                     toStage = event.project_card.stage_name;
@@ -3358,7 +3421,7 @@ class IssueList {
                     currentStage = toStage;
                     currentColumn = event.project_card.column_name;
                 }
-                if (event.project_card && event.project_card.previous_column_name) {
+                if (issue.project_stage !== 'None' && event.project_card && event.project_card.previous_column_name) {
                     if (!event.project_card.previous_stage_name) {
                         throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
                     }
@@ -6982,12 +7045,12 @@ const fs = __importStar(__webpack_require__(747));
 const yaml = __importStar(__webpack_require__(414));
 const moment_1 = __importDefault(__webpack_require__(482));
 const mustache = __importStar(__webpack_require__(174));
-// import {GitHubClient} from './github'
 const os = __importStar(__webpack_require__(87));
 const path = __importStar(__webpack_require__(622));
 const sanitize_filename_1 = __importDefault(__webpack_require__(834));
 const url = __importStar(__webpack_require__(835));
 const crawler_1 = __webpack_require__(91);
+const github_1 = __webpack_require__(13);
 const project_reports_lib_1 = __webpack_require__(189);
 const drillInRpt = __importStar(__webpack_require__(398));
 const util = __importStar(__webpack_require__(873));
@@ -7043,10 +7106,15 @@ function generate(token, configYaml) {
             report.details.rootPath = path.join(snapshot.rootPath, sanitize_filename_1.default(report.name));
             report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString);
             report.details.dataPath = path.join(report.details.fullPath, 'data');
-            report.title = mustache.render(report.title, {
-                config: config,
-                report: report
-            });
+            if (report.title) {
+                report.title = mustache.render(report.title, {
+                    config: config,
+                    report: report
+                });
+            }
+            else {
+                report.title = '';
+            }
         }
         let crawlCfg;
         if (typeof config.targets === 'string') {
@@ -7062,6 +7130,9 @@ function generate(token, configYaml) {
             if (target.type === 'project') {
                 if (!target.columnMap) {
                     target.columnMap = {};
+                }
+                if (!target.stages) {
+                    continue;
                 }
                 const defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped'];
                 for (const phase of defaultStages) {
@@ -7084,6 +7155,7 @@ function generate(token, configYaml) {
         console.log(JSON.stringify(crawlCfg, null, 2));
         const crawler = new crawler_1.Crawler(token, cachePath);
         heading('Processing');
+        const github = new github_1.GitHubClient(token, cachePath);
         for (const processor of config.processing || []) {
             if (!processor.target) {
                 throw new Error(`Target not specified for processor ${processor.name}`);
@@ -7103,18 +7175,21 @@ function generate(token, configYaml) {
             const set = new project_reports_lib_1.IssueList(issue => issue.html_url);
             set.add(issues);
             heading(`Processing target: '${processor.target}' with processor: '${processor.name}'`);
-            processingModule.process(target, config, set);
+            yield processingModule.process(target, config, set, github);
         }
         console.log();
         console.log('Generating Reports');
         for (const report of config.reports || []) {
             let output = '';
-            // gather all the markdown files in the root to delete before writing new files
-            deleteFilesInPath(report.details.rootPath);
+            ensureCleanReportsFolder(report.details.rootPath);
             output += getReportHeading(report);
             console.log();
             console.log(`Generating ${report.name} ...`);
             yield createReportPath(report);
+            if (!report.sections || report.sections.length == 0) {
+                console.log('WARNING: report has no sections.  continuing');
+                continue;
+            }
             for (let sectionIdx = 0; sectionIdx < report.sections.length; sectionIdx++) {
                 const reportSection = report.sections[sectionIdx];
                 // We only support rollup of repo issues.
@@ -7123,22 +7198,6 @@ function generate(token, configYaml) {
                 output += `&nbsp;  ${os.EOL}`;
                 const reportModule = `${reportSection.name}`;
                 const reportGenerator = loadRuntimeModule('report', reportModule);
-                // if it's a relative path, find in the workflow repo relative path.
-                // this allows for consume of action to create their own report sections
-                // else look for built-ins
-                // console.log(`Report module ${reportModule}`)
-                // let reportModulePath
-                // if (reportModule.startsWith('./')) {
-                //   reportModulePath = path.join(process.env['GITHUB_WORKSPACE'], `${reportModule}`)
-                // } else {
-                //   reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`)
-                // }
-                // console.log(`Loading: ${reportModulePath}`)
-                // if (!fs.existsSync(reportModulePath)) {
-                //   throw new Error(`Report not found: ${reportSection.name}`)
-                // }
-                // /* eslint-disable-next-line @typescript-eslint/no-var-requires */
-                // const reportGenerator = require(reportModulePath) as ProjectReportBuilder
                 // overlay user settings over default settings
                 const config = reportGenerator.getDefaultConfiguration();
                 for (const setting in reportSection.config || {}) {
@@ -7156,6 +7215,7 @@ function generate(token, configYaml) {
                     console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`);
                     console.log('-------------------------------------------------------------------------------');
                     const target = crawlCfg[targetName];
+                    console.log(`Stages: ${target.stages}`);
                     targets.push(target);
                     if (reportGenerator.reportType !== 'any' && reportGenerator.reportType !== target.type) {
                         throw new Error(`Report target mismatch.  Target is of type ${target.type} but report section is ${reportGenerator.reportType}`);
@@ -7224,18 +7284,12 @@ function getReportHeading(report) {
     }
     return lines.join(os.EOL);
 }
-function deleteFilesInPath(targetPath) {
+function ensureCleanReportsFolder(targetPath) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log();
-        if (!fs.existsSync(targetPath)) {
-            return;
-        }
-        let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item));
-        existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile());
-        for (const file of existingRootFiles) {
-            console.log(`cleaning up ${file}`);
-            fs.unlinkSync(file);
-        }
+        console.log(`Cleaning report path: ${targetPath}`);
+        fs.rmdirSync(targetPath, { recursive: true });
+        fs.mkdirSync(targetPath, { recursive: true });
     });
 }
 function writeDrillIn(report, reportModule, identifier, cards, contents) {
@@ -19217,19 +19271,18 @@ var store_1 = __webpack_require__(221);
 Object.defineProperty(exports, "FileSystemStore", { enumerable: true, get: function () { return store_1.FileSystemStore; } });
 function wrap(store) {
     return (request, options) => __awaiter(this, void 0, void 0, function* () {
-        // only cache GET requests
-        if (options.method !== 'GET') {
-            return request;
-        }
         if (process.env['https_proxy']) {
             options.request = { agent: new https_proxy_agent_1.HttpsProxyAgent(process.env['https_proxy']) };
         }
         //
         // check whether in cache. if so, return the etag
         //
-        const etag = yield store.check(options);
-        if (etag) {
-            options.headers['If-None-Match'] = etag;
+        let etag;
+        if (options.method === 'GET') {
+            etag = yield store.check(options);
+            if (etag) {
+                options.headers['If-None-Match'] = etag;
+            }
         }
         // make the request.
         let response;
@@ -19245,6 +19298,7 @@ function wrap(store) {
                 fromCache = true;
             }
             else {
+                console.log(`[${err.status}]`);
                 throw err;
             }
         }

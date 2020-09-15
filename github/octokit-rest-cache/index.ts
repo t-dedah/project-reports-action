@@ -5,11 +5,6 @@ export {FileSystemStore} from './store'
 
 export function wrap(store: IStore) {
   return async (request, options) => {
-    // only cache GET requests
-    if (options.method !== 'GET') {
-      return request
-    }
-
     if (process.env['https_proxy']) {
       options.request = {agent: new HttpsProxyAgent(process.env['https_proxy'])}
     }
@@ -17,10 +12,13 @@ export function wrap(store: IStore) {
     //
     // check whether in cache. if so, return the etag
     //
-    const etag = await store.check(options)
+    let etag
+    if (options.method === 'GET') {
+      etag = await store.check(options)
 
-    if (etag) {
-      options.headers['If-None-Match'] = etag
+      if (etag) {
+        options.headers['If-None-Match'] = etag
+      }
     }
 
     // make the request.
@@ -35,14 +33,13 @@ export function wrap(store: IStore) {
         response = await store.read(request, options)
         fromCache = true
       } else {
+        console.log(`[${err.status}]`)
         throw err
       }
     }
 
     if (!fromCache) {
-      console.log(
-        `rate : ${response.headers['x-ratelimit-remaining']}/${response.headers['x-ratelimit-limit']}`
-      )
+      console.log(`rate : ${response.headers['x-ratelimit-remaining']}/${response.headers['x-ratelimit-limit']}`)
       await store.write(response, options)
     }
 

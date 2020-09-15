@@ -134,6 +134,10 @@ export function fuzzyMatch(content: string, match: string): boolean {
   return isMatch
 }
 
+export function extractUrlsFromChecklist(body: string): string[] {
+  return body?.match(/(?<=-\s*\[.*?\].*?)(https?:\/{2}(?:[/-\w.]|(?:%[\da-fA-F]{2}))+)/g) || []
+}
+
 // Project issues keyed by the stage they are in
 export interface ProjectIssues {
   stages: {[key: string]: ProjectIssue[]}
@@ -177,6 +181,7 @@ export function getProjectStageIssues(issues: ProjectIssue[]) {
 
 export interface IssueLabel {
   name: string
+  color: string
 }
 
 export interface IssueCardEventProject {
@@ -219,6 +224,7 @@ export interface IssueComment {
 
 export interface ProjectIssue {
   title: string
+  body: string
   number: number
   html_url: string
   state: string
@@ -456,7 +462,7 @@ export class IssueList {
             addedTime = eventDateTime
           }
 
-          if (!event.project_card.stage_name) {
+          if (issue.project_stage !== 'None' && !event.project_card.stage_name) {
             throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`)
           }
 
@@ -466,7 +472,7 @@ export class IssueList {
           currentColumn = event.project_card.column_name
         }
 
-        if (event.project_card && event.project_card.previous_column_name) {
+        if (issue.project_stage !== 'None' && event.project_card && event.project_card.previous_column_name) {
           if (!event.project_card.previous_stage_name) {
             throw new Error(
               `previous_stage_name should have been set already for ${event.project_card.previous_column_name}`

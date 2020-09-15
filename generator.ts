@@ -3,12 +3,12 @@ import * as fs from 'fs'
 import * as yaml from 'js-yaml'
 import moment from 'moment'
 import * as mustache from 'mustache'
-// import {GitHubClient} from './github'
 import * as os from 'os'
 import * as path from 'path'
 import sanitize from 'sanitize-filename'
 import * as url from 'url'
 import {Crawler} from './crawler'
+import {GitHubClient} from './github'
 import {
   CrawlingConfig,
   CrawlingTarget,
@@ -90,10 +90,14 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     report.details.fullPath = path.join(report.details.rootPath, snapshot.datetimeString)
     report.details.dataPath = path.join(report.details.fullPath, 'data')
 
-    report.title = mustache.render(report.title, {
-      config: config,
-      report: report
-    })
+    if (report.title) {
+      report.title = mustache.render(report.title, {
+        config: config,
+        report: report
+      })
+    } else {
+      report.title = ''
+    }
   }
 
   let crawlCfg: CrawlingConfig
@@ -110,6 +114,10 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     if (target.type === 'project') {
       if (!target.columnMap) {
         target.columnMap = {}
+      }
+
+      if (!target.stages) {
+        continue
       }
 
       const defaultStages = ['Proposed', 'Accepted', 'In-Progress', 'Done', 'Unmapped']
@@ -139,6 +147,8 @@ export async function generate(token: string, configYaml: string): Promise<Repor
   const crawler: Crawler = new Crawler(token, cachePath)
 
   heading('Processing')
+
+  const github = new GitHubClient(token, cachePath)
   for (const processor of config.processing || []) {
     if (!processor.target) {
       throw new Error(`Target not specified for processor ${processor.name}`)
@@ -163,7 +173,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
     set.add(issues)
 
     heading(`Processing target: '${processor.target}' with processor: '${processor.name}'`)
-    processingModule.process(target, config, set)
+    await processingModule.process(target, config, set, github)
   }
 
   console.log()
@@ -171,13 +181,17 @@ export async function generate(token: string, configYaml: string): Promise<Repor
   for (const report of config.reports || []) {
     let output = ''
 
-    // gather all the markdown files in the root to delete before writing new files
-    deleteFilesInPath(report.details.rootPath)
+    ensureCleanReportsFolder(report.details.rootPath)
 
     output += getReportHeading(report)
     console.log()
     console.log(`Generating ${report.name} ...`)
     await createReportPath(report)
+
+    if (!report.sections || report.sections.length == 0) {
+      console.log('WARNING: report has no sections.  continuing')
+      continue
+    }
 
     for (let sectionIdx = 0; sectionIdx < report.sections.length; sectionIdx++) {
       const reportSection = report.sections[sectionIdx]
@@ -191,27 +205,6 @@ export async function generate(token: string, configYaml: string): Promise<Repor
       const reportModule = `${reportSection.name}`
 
       const reportGenerator = loadRuntimeModule('report', reportModule) as ProjectReportBuilder
-
-      // if it's a relative path, find in the workflow repo relative path.
-      // this allows for consume of action to create their own report sections
-      // else look for built-ins
-      // console.log(`Report module ${reportModule}`)
-      // let reportModulePath
-
-      // if (reportModule.startsWith('./')) {
-      //   reportModulePath = path.join(process.env['GITHUB_WORKSPACE'], `${reportModule}`)
-      // } else {
-      //   reportModulePath = path.join(__dirname, `./reports/${reportSection.name}`)
-      // }
-
-      // console.log(`Loading: ${reportModulePath}`)
-
-      // if (!fs.existsSync(reportModulePath)) {
-      //   throw new Error(`Report not found: ${reportSection.name}`)
-      // }
-
-      // /* eslint-disable-next-line @typescript-eslint/no-var-requires */
-      // const reportGenerator = require(reportModulePath) as ProjectReportBuilder
 
       // overlay user settings over default settings
       const config = reportGenerator.getDefaultConfiguration()
@@ -233,6 +226,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
         console.log(`Crawling target: '${targetName}' for report: '${report.name}', section '${reportSection.name}'`)
         console.log('-------------------------------------------------------------------------------')
         const target = crawlCfg[targetName]
+        console.log(`Stages: ${target.stages}`)
         targets.push(target)
 
         if (reportGenerator.reportType !== 'any' && reportGenerator.reportType !== target.type) {
@@ -320,18 +314,11 @@ function getReportHeading(report: ReportConfig) {
   return lines.join(os.EOL)
 }
 
-async function deleteFilesInPath(targetPath: string) {
+async function ensureCleanReportsFolder(targetPath: string) {
   console.log()
-  if (!fs.existsSync(targetPath)) {
-    return
-  }
-
-  let existingRootFiles = fs.readdirSync(targetPath).map(item => path.join(targetPath, item))
-  existingRootFiles = existingRootFiles.filter(item => fs.lstatSync(item).isFile())
-  for (const file of existingRootFiles) {
-    console.log(`cleaning up ${file}`)
-    fs.unlinkSync(file)
-  }
+  console.log(`Cleaning report path: ${targetPath}`)
+  fs.rmdirSync(targetPath, {recursive: true})
+  fs.mkdirSync(targetPath, {recursive: true})
 }
 
 async function writeDrillIn(

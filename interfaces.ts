@@ -1,3 +1,4 @@
+import {GitHubClient} from './github'
 import {IssueList, ProjectIssue} from './project-reports-lib'
 
 export interface GeneratorConfiguration {
@@ -16,6 +17,7 @@ export interface CrawlingTarget {
   columnMap: {[key: string]: string[]}
   // only needed for type project
   projectId?: number
+  stages: boolean
 }
 
 export type CrawlingConfig = {[name: string]: CrawlingTarget}
@@ -83,7 +85,9 @@ export interface RuntimeModule {
 // process a list of issues from a target
 export interface ProjectProcessor extends RuntimeModule {
   targetType: 'project' | 'repo' | 'any'
-  process(target: CrawlingTarget, config: any, data: IssueList): void
+
+  // async
+  process(target: CrawlingTarget, config: any, data: IssueList, github: GitHubClient): Promise<void>
 }
 
 export interface ProjectReportBuilder extends RuntimeModule {

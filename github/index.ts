@@ -121,28 +121,87 @@ export class GitHubClient {
     })
   }
 
+  private issueParts(issueUrl) {
+    const issURL = new url.URL(issueUrl)
+
+    // apiUrl: https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
+    // htmlUrl: https://github.com/bryanmacfarlane/quotes-feed/issues/9
+    const apiUrl = issURL.host.startsWith('api.')
+
+    const parts = issURL.pathname.split('/').filter(e => e)
+    const owner = parts[apiUrl ? 1 : 0]
+    const repo = parts[apiUrl ? 2 : 1]
+    const issue_number = parts[apiUrl ? 4 : 3]
+
+    return {
+      owner,
+      repo,
+      issue_number
+    }
+  }
+
+  public async ensureLabel(owner: string, repo: string, name: string, color: string): Promise<void> {
+    console.log(`ensure label ${owner} ${repo} ${name} ${color}`)
+
+    try {
+      const res = await this.octokit.issues.getLabel({
+        owner,
+        repo,
+        name
+      })
+
+      console.log(`${name} exists`)
+      return
+    } catch {
+      console.log(`Creating label ${name} ${color}`)
+    }
+
+    // create
+    const res = await this.octokit.issues.createLabel({
+      owner,
+      repo,
+      name,
+      color
+    })
+    console.log('created')
+  }
+
+  public async ensureIssueHasLabel(issueUrl: string, name: string, color: string): Promise<void> {
+    const issueParts = this.issueParts(issueUrl)
+    await this.ensureLabel(issueParts.owner, issueParts.repo, name, color)
+
+    const labels = [name]
+    const res = await this.octokit.issues.addLabels({
+      ...issueParts,
+      labels
+    })
+    console.log('added')
+  }
+
+  public async removeIssueLabel(issueUrl: string, name: string) {
+    await this.octokit.issues.removeLabel({
+      ...this.issueParts(issueUrl),
+      name
+    })
+    console.log(`removed ${name}`)
+  }
+
   // returns null if not an issue
-  public async getIssueForCard(card: any, projectId: number): Promise<ProjectIssue> {
+  public async getIssueForCard(card: any): Promise<ProjectIssue> {
     if (!card.content_url) {
       return null
     }
 
-    const cardUrl = new url.URL(card.content_url)
-    const cardParts = cardUrl.pathname.split('/').filter(e => e)
+    return this.getIssue(card.content_url)
+  }
 
-    // /repos/:owner/:repo/issues/events/:event_id
-    // https://api.github.com/repos/bryanmacfarlane/quotes-feed/issues/9
-
-    const owner = cardParts[1]
-    const repo = cardParts[2]
-    const issue_number = cardParts[4]
+  public async getIssue(issueUrl: string): Promise<ProjectIssue> {
+    const issueParts = this.issueParts(issueUrl)
 
     const issueCard = <ProjectIssue>{}
 
     const res = await this.octokit.issues.get({
-      owner: owner,
-      repo: repo,
-      issue_number: issue_number,
+      ...issueParts,
       per_page: 100
     })
 
@@ -150,6 +209,7 @@ export class GitHubClient {
 
     issueCard.number = issue.number
     issueCard.title = issue.title
+    issueCard.body = issue.body
     issueCard.number = issue.number
     issueCard.html_url = issue.html_url
     issueCard.closed_at = DateOrNull(issue.closed_at)
@@ -161,13 +221,13 @@ export class GitHubClient {
 
     issueCard.comments = []
     if (issue.comments > 0) {
-      issueCard.comments = await this.getIssueComments(owner, repo, issue_number)
+      issueCard.comments = await this.getIssueComments(issueParts.owner, issueParts.repo, issueParts.issue_number)
     }
 
     issueCard.events = await this.octokit.paginate('GET /repos/:owner/:repo/issues/:id/events', {
-      owner: owner,
-      repo: repo,
-      id: issue_number,
+      owner: issueParts.owner,
+      repo: issueParts.repo,
+      id: issueParts.issue_number,
       per_page: 100
     })
 
