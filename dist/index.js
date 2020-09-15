@@ -7085,8 +7085,6 @@ function generate(token, configYaml) {
             throw new Error('GITHUB_WORKSPACE not defined');
         }
         const configPath = path.join(workspacePath, configYaml);
-        const cachePath = path.join(workspacePath, '.reports', '.data');
-        util.mkdirP(cachePath);
         const config = yaml.load(fs.readFileSync(configPath, 'utf-8'));
         const snapshot = {};
         snapshot.datetime = new Date();
@@ -7095,6 +7093,8 @@ function generate(token, configYaml) {
         snapshot.config = config;
         snapshot.config.output = snapshot.config.output || '.reports';
         snapshot.rootPath = path.join(workspacePath, snapshot.config.output);
+        const cachePath = path.join(snapshot.rootPath, '.data');
+        util.mkdirP(cachePath);
         console.log(`Writing snapshot to ${snapshot.rootPath}`);
         yield createDataDir(snapshot);
         // update report config details
@@ -7124,12 +7124,18 @@ function generate(token, configYaml) {
             crawlCfg = config.targets;
         }
         // apply defaults to targets
-        console.log('Applying target defaults');
+        console.log('Applying target defaults ...');
         for (const targetName in crawlCfg) {
             const target = crawlCfg[targetName];
+            console.log(targetName);
             if (target.type === 'project') {
                 if (!target.columnMap) {
                     target.columnMap = {};
+                }
+                // we always process stages unless you tell us not to
+                console.log(`stages: ${target.stages}`);
+                if (target.stages === undefined) {
+                    target['stages'] = true;
                 }
                 if (!target.stages) {
                     continue;
