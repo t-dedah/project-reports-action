@@ -14,5 +14,5 @@ $ export GHPAT="yourpat-to-read-proj-data"
 $ ./interactive.sh samples/sample.yaml
 ```
 
-After you run it, you should see stuff under _reports.
-All the query results will be cached and written to _cache if you want to inspect.
+After you run it, you should see stuff under .reports.
+All the query results will be cached and written to .reports/.data if you want to inspect.
