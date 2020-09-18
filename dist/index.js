@@ -7278,6 +7278,7 @@ function generate(token, configYaml) {
                 };
                 const processed = reportGenerator.process(config, clone_1.default(set), drillInCb);
                 const sectionPath = `${sectionIdx.toString().padStart(2, '0')}-${reportModule}`;
+                config['_asof'] = new Date().toISOString();
                 yield writeSectionData(report, sectionPath, config, {
                     type: reportModule,
                     config: config,

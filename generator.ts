@@ -265,6 +265,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
       const sectionPath = `${sectionIdx.toString().padStart(2, '0')}-${reportModule}`
 
+      config['_asof'] = new Date().toISOString()
       await writeSectionData(report, sectionPath, config, {
         type: reportModule,
         config: config,
