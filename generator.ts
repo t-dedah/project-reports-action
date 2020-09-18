@@ -267,6 +267,7 @@ export async function generate(token: string, configYaml: string): Promise<Repor
 
       await writeSectionData(report, sectionPath, config, {
         type: reportModule,
+        config: config,
         output: processed
       })
 

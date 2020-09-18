@@ -3,7 +3,7 @@ _cache
 # interactive running
 _reports
 .reports
-
+dbg.log
 dist/samples
 
 samples/debug*.yml

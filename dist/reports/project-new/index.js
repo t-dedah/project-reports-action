@@ -105,7 +105,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.extractUrlsFromChecklist = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.extractUrlsFromChecklist = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.readFieldFromBody = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
 const clone_1 = __importDefault(__webpack_require__(263));
 const moment_1 = __importDefault(__webpack_require__(431));
 const os = __importStar(__webpack_require__(87));
@@ -164,25 +164,61 @@ function getStringFromLabel(card, re) {
     return str;
 }
 exports.getStringFromLabel = getStringFromLabel;
+//
+// Will read a value from a field in the form of a key: value
+//
+//    somekey: some value
+//
+// or, a heading key with the value being the next non empty line.
+// for example, if the key was '### somekey'
+//
+//    ### somekey
+//
+//    some value
+//
+function readFieldFromBody(key, body) {
+    let val = '';
+    let headerMatch = false;
+    if (!body || body.length === 0) {
+        return val;
+    }
+    const lines = body.split(os.EOL);
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        if (headerMatch && line.trim().length > 0) {
+            // previous non empty line was the key as a heading
+            return line.trim();
+        }
+        line = line.trim();
+        const parts = line.split(':');
+        if (parts.length === 2 && fuzzyMatch(parts[0], key)) {
+            val = parts[1].trim();
+            break;
+        }
+        else if (line.toLowerCase() === key.toLowerCase()) {
+            headerMatch = true;
+        }
+    }
+    return val;
+}
+exports.readFieldFromBody = readFieldFromBody;
+//
+// reads a fields value an issue by reading issue body first and then the comment bodies from last to first
+//
 function getLastCommentField(issue, field) {
     let val = '';
     if (!issue.comments) {
         return '';
     }
+    val = readFieldFromBody(field, issue.body);
     for (let i = issue.comments.length - 1; i >= 0; i--) {
         const comment = issue.comments[i];
         if (!comment) {
             break;
         }
-        const lines = comment.body.split(os.EOL);
-        for (const line of lines) {
-            const parts = line.trim().split(':');
-            if (parts.length === 2 && fuzzyMatch(parts[0], field)) {
-                val = parts[1].trim();
-                break;
-            }
-        }
-        if (val) {
+        const commentValue = readFieldFromBody(field, comment.body);
+        if (commentValue) {
+            val = commentValue;
             break;
         }
     }

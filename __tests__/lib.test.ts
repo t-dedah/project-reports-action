@@ -102,6 +102,14 @@ describe('report-lib', () => {
   })
 
   const card = <ProjectIssue>{
+    body:
+      '\
+This is the body \r\n\
+\r\n\
+ body_key_field: the body key value\r\n\
+ ### body key heading \r\n\
+ body heading value \r\n\
+ \r\n',
     comments: [
       {
         body: '## update 2',
@@ -112,10 +120,25 @@ describe('report-lib', () => {
         updated_at: new Date('2020-07-23T03:29:07.282Z')
       },
       {
+        body:
+          '\
+        This is a comment body \r\n\
+        \r\n\
+        comment_key_field: the comment value\r\n\
+        ### comment key heading \r\n\
+        \r\n\
+        comment heading value \r\n\
+        \r\n'
+      },
+      {
         body: ' foo: bar '
       },
       {
         body: ' target date : 8-4-20 '
+      },
+      {
+        body:
+          '### Update\r\n\r\nSample sentence\r\n\r\n### Projected ship date\r\n\r\n2020-09-01\r\n\r\n### Next\r\n\r\nFoo'
       },
       {
         body: '## update 3',
@@ -123,6 +146,33 @@ describe('report-lib', () => {
       }
     ]
   }
+
+  it('gets last comments date field value from comment heading', async () => {
+    const v = rptLib.getLastCommentDateField(card, '### Projected ship date')
+    expect(v.getUTCMonth()).toBe(8) // 0 based
+    expect(v.getUTCDate()).toBe(1)
+    expect(v.getUTCFullYear()).toBe(2020)
+  })
+
+  it('gets field value from issue comment body', async () => {
+    const v = rptLib.getLastCommentField(card, 'comment_key_field')
+    expect(v).toBe('the comment value')
+  })
+
+  it('gets field value from issue comment body heading with empty lines', async () => {
+    const v = rptLib.getLastCommentField(card, '### comment key heading')
+    expect(v).toBe('comment heading value')
+  })
+
+  it('gets field value from issue body', async () => {
+    const v = rptLib.getLastCommentField(card, 'body_key_field')
+    expect(v).toBe('the body key value')
+  })
+
+  it('gets comment field value from issue body heading', async () => {
+    const v = rptLib.getLastCommentField(card, '### body key heading')
+    expect(v).toBe('body heading value')
+  })
 
   it('gets last comment updated_at value', async () => {
     const d = rptLib.getLastCommentPattern(card, '^(#){1,4} update')
@@ -147,13 +197,6 @@ describe('report-lib', () => {
   it('handles no comments for field value from issue', async () => {
     const v = rptLib.getLastCommentField(<ProjectIssue>{comments: []}, 'foo')
     expect(v).toBeFalsy()
-  })
-
-  it('gets last comments date field value from issue', async () => {
-    const v = rptLib.getLastCommentDateField(card, 'target date')
-    expect(v.getUTCMonth()).toBe(7) // 0 based
-    expect(v.getUTCDate()).toBe(4)
-    expect(v.getUTCFullYear()).toBe(2020)
   })
 
   it('handles no comments for field date value from issue', async () => {

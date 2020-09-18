@@ -26,7 +26,7 @@ export function getDefaultConfiguration(): any {
     'status-label-match': '(?:green|yellow|red)',
     'last-updated-days-flag': 3.0,
     'last-updated-scheme': 'LastCommentPattern',
-    'last-updated-scheme-data': '^(#){1,4} update',
+    'last-updated-scheme-data': '^(#){1,4} [Uu]pdate',
     // last status a week before this wednesday (last wednesday)
     'status-day': 'Wednesday',
     'previous-days-ago': 7,
