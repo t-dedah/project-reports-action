@@ -523,30 +523,20 @@ export class IssueList {
           fromLevel = stageLevel[fromStage]
         }
 
-        // last occurence of moving to these columns from a lesser or no column
-        // example. if moved to accepted from proposed (or less),
-        //      then in-progress (greater) and then back to accepted, first wins
-        if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-          if (toLevel > fromLevel) {
-            issue[this.stageAtNames[toLevel]] = eventDateTime
-          }
-          //moving back, clear the stage at dates up to fromLevel
-          else if (toLevel < fromLevel) {
-            for (let i = toLevel + 1; i <= fromLevel; i++) {
-              delete issue[this.stageAtNames[i]]
-            }
+        // last occurence of moving to a stage from a lesser stage
+        // example: if an item is not blocked but put on hold for 6 months,
+        //          then the in-progress date will be when it went back in progress
+
+        // moving forward
+        if (fromLevel < toLevel) {
+          issue[this.stageAtNames[toLevel]] = eventDateTime
+        }
+        //moving back, clear the stage at dates up to fromLevel
+        else if (fromLevel > toLevel) {
+          for (let i = toLevel + 1; i <= fromLevel; i++) {
+            delete issue[this.stageAtNames[i]]
           }
         }
-
-        if (toStage === 'Done') {
-          doneTime = eventDateTime
-        }
-      }
-
-      // done_at and blocked_at is only set if it's currently at that stage
-      if (currentStage === 'Done') {
-        issue.project_done_at = doneTime
-        console.log(`project_done_at: ${issue.project_done_at}`)
       }
 
       if (addedTime) {

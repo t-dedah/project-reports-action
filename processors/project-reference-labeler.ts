@@ -9,10 +9,8 @@ const now = moment()
 const reportType = 'project'
 export {reportType}
 
-/*
- * Gives visibility into whether the team has untriaged debt, an approval bottleneck and
- * how focused the team is (e.g. how many efforts are going on)
- * A wip is a work in progress unit of resourcing.  e.g. it may be one developer or it might mean 4 developers.
+/**
+ * Creates labels on referenced issues with a specified label
  */
 export function getDefaultConfiguration(): any {
   return <any>{

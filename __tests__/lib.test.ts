@@ -131,6 +131,20 @@ This is the body \r\n\
         \r\n'
       },
       {
+        body:
+          '### Update \r\n\
+        \r\n\
+        An update message\
+        \r\n\
+        ### Status\
+        \r\n\
+        green\
+        \r\n\
+        ### Some date\
+        \r\n\
+        2020-09-23'
+      },
+      {
         body: ' foo: bar '
       },
       {
@@ -157,6 +171,11 @@ This is the body \r\n\
   it('gets field value from issue comment body', async () => {
     const v = rptLib.getLastCommentField(card, 'comment_key_field')
     expect(v).toBe('the comment value')
+  })
+
+  it('gets field value from issue comment body heading', async () => {
+    const v = rptLib.getLastCommentField(card, '### Status')
+    expect(v).toBe('green')
   })
 
   it('gets field value from issue comment body heading with empty lines', async () => {

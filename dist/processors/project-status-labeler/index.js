@@ -40,7 +40,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(323);
+/******/ 		return __webpack_require__(222);
 /******/ 	};
 /******/ 	// initialize runtime
 /******/ 	runtime(__webpack_require__);
@@ -51,7 +51,278 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
-/***/ 323:
+/***/ 87:
+/***/ (function(module) {
+
+module.exports = require("os");
+
+/***/ }),
+
+/***/ 97:
+/***/ (function(module) {
+
+var clone = (function() {
+'use strict';
+
+function _instanceof(obj, type) {
+  return type != null && obj instanceof type;
+}
+
+var nativeMap;
+try {
+  nativeMap = Map;
+} catch(_) {
+  // maybe a reference error because no `Map`. Give it a dummy value that no
+  // value will ever be an instanceof.
+  nativeMap = function() {};
+}
+
+var nativeSet;
+try {
+  nativeSet = Set;
+} catch(_) {
+  nativeSet = function() {};
+}
+
+var nativePromise;
+try {
+  nativePromise = Promise;
+} catch(_) {
+  nativePromise = function() {};
+}
+
+/**
+ * Clones (copies) an Object using deep copying.
+ *
+ * This function supports circular references by default, but if you are certain
+ * there are no circular references in your object, you can save some CPU time
+ * by calling clone(obj, false).
+ *
+ * Caution: if `circular` is false and `parent` contains circular references,
+ * your program may enter an infinite loop and crash.
+ *
+ * @param `parent` - the object to be cloned
+ * @param `circular` - set to true if the object to be cloned may contain
+ *    circular references. (optional - true by default)
+ * @param `depth` - set to a number if the object is only to be cloned to
+ *    a particular depth. (optional - defaults to Infinity)
+ * @param `prototype` - sets the prototype to be used when cloning an object.
+ *    (optional - defaults to parent prototype).
+ * @param `includeNonEnumerable` - set to true if the non-enumerable properties
+ *    should be cloned as well. Non-enumerable properties on the prototype
+ *    chain will be ignored. (optional - false by default)
+*/
+function clone(parent, circular, depth, prototype, includeNonEnumerable) {
+  if (typeof circular === 'object') {
+    depth = circular.depth;
+    prototype = circular.prototype;
+    includeNonEnumerable = circular.includeNonEnumerable;
+    circular = circular.circular;
+  }
+  // maintain two arrays for circular references, where corresponding parents
+  // and children have the same index
+  var allParents = [];
+  var allChildren = [];
+
+  var useBuffer = typeof Buffer != 'undefined';
+
+  if (typeof circular == 'undefined')
+    circular = true;
+
+  if (typeof depth == 'undefined')
+    depth = Infinity;
+
+  // recurse this function so we don't reset allParents and allChildren
+  function _clone(parent, depth) {
+    // cloning null always returns null
+    if (parent === null)
+      return null;
+
+    if (depth === 0)
+      return parent;
+
+    var child;
+    var proto;
+    if (typeof parent != 'object') {
+      return parent;
+    }
+
+    if (_instanceof(parent, nativeMap)) {
+      child = new nativeMap();
+    } else if (_instanceof(parent, nativeSet)) {
+      child = new nativeSet();
+    } else if (_instanceof(parent, nativePromise)) {
+      child = new nativePromise(function (resolve, reject) {
+        parent.then(function(value) {
+          resolve(_clone(value, depth - 1));
+        }, function(err) {
+          reject(_clone(err, depth - 1));
+        });
+      });
+    } else if (clone.__isArray(parent)) {
+      child = [];
+    } else if (clone.__isRegExp(parent)) {
+      child = new RegExp(parent.source, __getRegExpFlags(parent));
+      if (parent.lastIndex) child.lastIndex = parent.lastIndex;
+    } else if (clone.__isDate(parent)) {
+      child = new Date(parent.getTime());
+    } else if (useBuffer && Buffer.isBuffer(parent)) {
+      if (Buffer.allocUnsafe) {
+        // Node.js >= 4.5.0
+        child = Buffer.allocUnsafe(parent.length);
+      } else {
+        // Older Node.js versions
+        child = new Buffer(parent.length);
+      }
+      parent.copy(child);
+      return child;
+    } else if (_instanceof(parent, Error)) {
+      child = Object.create(parent);
+    } else {
+      if (typeof prototype == 'undefined') {
+        proto = Object.getPrototypeOf(parent);
+        child = Object.create(proto);
+      }
+      else {
+        child = Object.create(prototype);
+        proto = prototype;
+      }
+    }
+
+    if (circular) {
+      var index = allParents.indexOf(parent);
+
+      if (index != -1) {
+        return allChildren[index];
+      }
+      allParents.push(parent);
+      allChildren.push(child);
+    }
+
+    if (_instanceof(parent, nativeMap)) {
+      parent.forEach(function(value, key) {
+        var keyChild = _clone(key, depth - 1);
+        var valueChild = _clone(value, depth - 1);
+        child.set(keyChild, valueChild);
+      });
+    }
+    if (_instanceof(parent, nativeSet)) {
+      parent.forEach(function(value) {
+        var entryChild = _clone(value, depth - 1);
+        child.add(entryChild);
+      });
+    }
+
+    for (var i in parent) {
+      var attrs;
+      if (proto) {
+        attrs = Object.getOwnPropertyDescriptor(proto, i);
+      }
+
+      if (attrs && attrs.set == null) {
+        continue;
+      }
+      child[i] = _clone(parent[i], depth - 1);
+    }
+
+    if (Object.getOwnPropertySymbols) {
+      var symbols = Object.getOwnPropertySymbols(parent);
+      for (var i = 0; i < symbols.length; i++) {
+        // Don't need to worry about cloning a symbol because it is a primitive,
+        // like a number or string.
+        var symbol = symbols[i];
+        var descriptor = Object.getOwnPropertyDescriptor(parent, symbol);
+        if (descriptor && !descriptor.enumerable && !includeNonEnumerable) {
+          continue;
+        }
+        child[symbol] = _clone(parent[symbol], depth - 1);
+        if (!descriptor.enumerable) {
+          Object.defineProperty(child, symbol, {
+            enumerable: false
+          });
+        }
+      }
+    }
+
+    if (includeNonEnumerable) {
+      var allPropertyNames = Object.getOwnPropertyNames(parent);
+      for (var i = 0; i < allPropertyNames.length; i++) {
+        var propertyName = allPropertyNames[i];
+        var descriptor = Object.getOwnPropertyDescriptor(parent, propertyName);
+        if (descriptor && descriptor.enumerable) {
+          continue;
+        }
+        child[propertyName] = _clone(parent[propertyName], depth - 1);
+        Object.defineProperty(child, propertyName, {
+          enumerable: false
+        });
+      }
+    }
+
+    return child;
+  }
+
+  return _clone(parent, depth);
+}
+
+/**
+ * Simple flat clone using prototype, accepts only objects, usefull for property
+ * override on FLAT configuration object (no nested props).
+ *
+ * USE WITH CAUTION! This may not behave as you wish if you do not know how this
+ * works.
+ */
+clone.clonePrototype = function clonePrototype(parent) {
+  if (parent === null)
+    return null;
+
+  var c = function () {};
+  c.prototype = parent;
+  return new c();
+};
+
+// private utility functions
+
+function __objToStr(o) {
+  return Object.prototype.toString.call(o);
+}
+clone.__objToStr = __objToStr;
+
+function __isDate(o) {
+  return typeof o === 'object' && __objToStr(o) === '[object Date]';
+}
+clone.__isDate = __isDate;
+
+function __isArray(o) {
+  return typeof o === 'object' && __objToStr(o) === '[object Array]';
+}
+clone.__isArray = __isArray;
+
+function __isRegExp(o) {
+  return typeof o === 'object' && __objToStr(o) === '[object RegExp]';
+}
+clone.__isRegExp = __isRegExp;
+
+function __getRegExpFlags(re) {
+  var flags = '';
+  if (re.global) flags += 'g';
+  if (re.ignoreCase) flags += 'i';
+  if (re.multiline) flags += 'm';
+  return flags;
+}
+clone.__getRegExpFlags = __getRegExpFlags;
+
+return clone;
+})();
+
+if ( true && module.exports) {
+  module.exports = clone;
+}
+
+
+/***/ }),
+
+/***/ 189:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -75,6 +346,406 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) __createBinding(exports, m, p);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.IssueList = exports.getProjectStageIssues = exports.ProjectStages = exports.extractUrlsFromChecklist = exports.fuzzyMatch = exports.sumCardProperty = exports.getLastCommentDateField = exports.getLastCommentField = exports.readFieldFromBody = exports.getStringFromLabel = exports.getCountFromLabel = exports.filterByLabel = exports.repoPropsFromUrl = void 0;
+const clone_1 = __importDefault(__webpack_require__(97));
+const moment_1 = __importDefault(__webpack_require__(431));
+const os = __importStar(__webpack_require__(87));
+const url = __importStar(__webpack_require__(835));
+// TODO: separate npm module.  for now it's a file till we flush out
+__exportStar(__webpack_require__(385), exports);
+function repoPropsFromUrl(htmlUrl) {
+    const rUrl = new url.URL(htmlUrl);
+    const parts = rUrl.pathname.split('/').filter(e => e);
+    return {
+        owner: parts[0],
+        repo: parts[1]
+    };
+}
+exports.repoPropsFromUrl = repoPropsFromUrl;
+//
+// filter cards by label
+//
+function filterByLabel(issues, name) {
+    return issues.filter(card => card.labels.findIndex(label => label.name.trim().toLowerCase() === name.toLowerCase()) >= 0);
+}
+exports.filterByLabel = filterByLabel;
+//
+// Get number from a label by regex.
+// e.g. get 2 from label "2-wip", new RegExp("(\\d+)-wip")
+// returns NaN if no labels match
+//
+function getCountFromLabel(card, re) {
+    let num = NaN;
+    for (const label of card.labels) {
+        const matches = label.name.match(re);
+        if (matches && matches.length > 0) {
+            num = parseInt(matches[1]);
+            if (num) {
+                break;
+            }
+        }
+    }
+    return num;
+}
+exports.getCountFromLabel = getCountFromLabel;
+function getStringFromLabel(card, re) {
+    let str = '';
+    for (const label of card.labels) {
+        const matches = label.name.trim().match(re);
+        if (matches && matches.length > 0) {
+            str = matches[0];
+            if (str) {
+                break;
+            }
+        }
+    }
+    if (str) {
+        str = str.trim();
+    }
+    return str;
+}
+exports.getStringFromLabel = getStringFromLabel;
+//
+// Will read a value from a field in the form of a key: value
+//
+//    somekey: some value
+//
+// or, a heading key with the value being the next non empty line.
+// for example, if the key was '### somekey'
+//
+//    ### somekey
+//
+//    some value
+//
+function readFieldFromBody(key, body) {
+    let val = '';
+    let headerMatch = false;
+    if (!body || body.length === 0) {
+        return val;
+    }
+    const lines = body.split(os.EOL);
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        if (headerMatch && line.trim().length > 0) {
+            // previous non empty line was the key as a heading
+            return line.trim();
+        }
+        line = line.trim();
+        const parts = line.split(':');
+        if (parts.length === 2 && fuzzyMatch(parts[0], key)) {
+            val = parts[1].trim();
+            break;
+        }
+        else if (line.toLowerCase() === key.toLowerCase()) {
+            headerMatch = true;
+        }
+    }
+    return val;
+}
+exports.readFieldFromBody = readFieldFromBody;
+//
+// reads a fields value an issue by reading issue body first and then the comment bodies from last to first
+//
+function getLastCommentField(issue, field) {
+    let val = '';
+    if (!issue.comments) {
+        return '';
+    }
+    val = readFieldFromBody(field, issue.body);
+    for (let i = issue.comments.length - 1; i >= 0; i--) {
+        const comment = issue.comments[i];
+        if (!comment) {
+            break;
+        }
+        const commentValue = readFieldFromBody(field, comment.body);
+        if (commentValue) {
+            val = commentValue;
+            break;
+        }
+    }
+    return val;
+}
+exports.getLastCommentField = getLastCommentField;
+// returns a valid date field value from a comment field
+function getLastCommentDateField(issue, field) {
+    let d = null;
+    const val = getLastCommentField(issue, field);
+    if (val) {
+        d = new Date(val);
+    }
+    return d;
+}
+exports.getLastCommentDateField = getLastCommentDateField;
+function sumCardProperty(cards, prop) {
+    return cards.reduce((a, b) => a + (b[prop] || 0), 0);
+}
+exports.sumCardProperty = sumCardProperty;
+function fuzzyMatch(content, match) {
+    let matchWords = match.match(/[a-zA-Z0-9]+/g);
+    matchWords = matchWords.map(item => item.toLowerCase());
+    let contentWords = content.match(/[a-zA-Z0-9]+/g);
+    contentWords = contentWords.map(item => item.toLowerCase());
+    let isMatch = true;
+    for (const matchWord of matchWords) {
+        if (contentWords.indexOf(matchWord) === -1) {
+            isMatch = false;
+            break;
+        }
+    }
+    return isMatch;
+}
+exports.fuzzyMatch = fuzzyMatch;
+function extractUrlsFromChecklist(body) {
+    return (body === null || body === void 0 ? void 0 : body.match(/(?<=-\s*\[.*?\].*?)(https?:\/{2}(?:[/-\w.]|(?:%[\da-fA-F]{2}))+)/g)) || [];
+}
+exports.extractUrlsFromChecklist = extractUrlsFromChecklist;
+// stages more discoverable
+exports.ProjectStages = {
+    Proposed: 'Proposed',
+    Accepted: 'Accepted',
+    InProgress: 'In-Progress',
+    Done: 'Done',
+    Missing: 'Missing'
+};
+function getProjectStageIssues(issues) {
+    const projIssues = {};
+    for (const projIssue of issues) {
+        const stage = projIssue['project_stage'];
+        if (!stage) {
+            // the engine will handle and add to an issues list
+            continue;
+        }
+        if (!projIssues[stage]) {
+            projIssues[stage] = [];
+        }
+        projIssues[stage].push(projIssue);
+    }
+    return projIssues;
+}
+exports.getProjectStageIssues = getProjectStageIssues;
+const stageLevel = {
+    None: 0,
+    Proposed: 1,
+    Accepted: 2,
+    'In-Progress': 3,
+    Done: 4,
+    Unmapped: 5
+};
+class IssueList {
+    constructor(identifier) {
+        // keep in order indexed by level above
+        // TODO: unify both to avoid out of sync problems
+        this.stageAtNames = ['none', 'project_proposed_at', 'project_accepted_at', 'project_in_progress_at', 'project_done_at'];
+        this.seen = new Map();
+        this.identifier = identifier;
+        this.items = [];
+    }
+    // returns whether any were added
+    add(data) {
+        this.processed = null;
+        let added = false;
+        if (Array.isArray(data)) {
+            for (const item of data) {
+                const res = this.add_item(item);
+                if (!added) {
+                    added = res;
+                }
+            }
+        }
+        else {
+            return this.add_item(data);
+        }
+        return added;
+    }
+    add_item(item) {
+        const id = this.identifier(item);
+        if (!this.seen.has(id)) {
+            this.items.push(item);
+            this.seen.set(id, item);
+            return true;
+        }
+        return false;
+    }
+    getItem(identifier) {
+        return this.seen.get(identifier);
+    }
+    getItems() {
+        if (this.processed) {
+            return this.processed;
+        }
+        // call process
+        for (const item of this.items) {
+            this.processStages(item);
+        }
+        this.processed = this.items;
+        return this.processed;
+    }
+    getItemsAsof(datetime) {
+        const issues = [];
+        for (const item of this.items) {
+            const id = this.identifier(item);
+            issues.push(this.getItemAsof(id, datetime));
+        }
+        return issues;
+    }
+    //
+    // Gets an issue from a number of days, hours ago.
+    // Clones the issue and Replays events (labels, column moves, milestones)
+    // and reprocesses the stages.
+    // If the issue doesn't exist in the list, returns null
+    //
+    getItemAsof(identifier, datetime) {
+        console.log(`getting asof ${datetime} : ${identifier}`);
+        let issue = this.getItem(identifier);
+        if (!issue) {
+            return issue;
+        }
+        issue = clone_1.default(issue);
+        const momentAgo = moment_1.default(datetime);
+        // clear everything we're going to re-apply
+        issue.labels = [];
+        delete issue.project_column;
+        delete issue.project_added_at;
+        delete issue.project_proposed_at;
+        delete issue.project_in_progress_at;
+        delete issue.project_accepted_at;
+        delete issue.project_done_at;
+        delete issue.project_stage;
+        delete issue.closed_at;
+        // stages and labels
+        const filteredEvents = [];
+        const labelMap = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                if (moment_1.default(event.created_at).isAfter(momentAgo)) {
+                    continue;
+                }
+                filteredEvents.push(event);
+                if (event.event === 'labeled') {
+                    labelMap[event.label.name] = event.label;
+                }
+                else if (event.event === 'unlabeled') {
+                    delete labelMap[event.label.name];
+                }
+                if (event.event === 'closed') {
+                    issue.closed_at = event.created_at;
+                }
+                if (event.event === 'reopened') {
+                    delete issue.closed_at;
+                }
+            }
+        }
+        issue.events = filteredEvents;
+        for (const labelName in labelMap) {
+            issue.labels.push(labelMap[labelName]);
+        }
+        this.processStages(issue);
+        // comments
+        const filteredComments = [];
+        for (const comment of issue.comments) {
+            if (moment_1.default(comment.created_at).isAfter(momentAgo)) {
+                continue;
+            }
+            filteredComments.push(comment);
+        }
+        issue.comments = filteredComments;
+        return issue;
+    }
+    //
+    // Process the events to set project specific fields like project_done_at, project_in_progress_at, etc
+    // Call initially and then call again if events are filtered (get issue asof)
+    //
+    processStages(issue) {
+        console.log();
+        console.log(`Processing stages for ${issue.html_url}`);
+        // card events should be in order chronologically
+        let currentStage;
+        let currentColumn;
+        let doneTime;
+        let addedTime;
+        const tempLabels = {};
+        if (issue.events) {
+            for (const event of issue.events) {
+                let eventDateTime;
+                if (event.created_at) {
+                    eventDateTime = event.created_at;
+                }
+                //
+                // Process Project Stages
+                //
+                let toStage;
+                let toLevel;
+                let fromStage;
+                let fromLevel = 0;
+                if (event.project_card && event.project_card.column_name) {
+                    if (!addedTime) {
+                        addedTime = eventDateTime;
+                    }
+                    if (issue.project_stage !== 'None' && !event.project_card.stage_name) {
+                        throw new Error(`stage_name should have been set already for ${event.project_card.column_name}`);
+                    }
+                    toStage = event.project_card.stage_name;
+                    toLevel = stageLevel[toStage];
+                    currentStage = toStage;
+                    currentColumn = event.project_card.column_name;
+                }
+                if (issue.project_stage !== 'None' && event.project_card && event.project_card.previous_column_name) {
+                    if (!event.project_card.previous_stage_name) {
+                        throw new Error(`previous_stage_name should have been set already for ${event.project_card.previous_column_name}`);
+                    }
+                    fromStage = event.project_card.previous_stage_name;
+                    fromLevel = stageLevel[fromStage];
+                }
+                // last occurence of moving to a stage from a lesser stage
+                // example: if an item is not blocked but put on hold for 6 months,
+                //          then the in-progress date will be when it went back in progress
+                // moving forward
+                if (fromLevel < toLevel) {
+                    issue[this.stageAtNames[toLevel]] = eventDateTime;
+                }
+                //moving back, clear the stage at dates up to fromLevel
+                else if (fromLevel > toLevel) {
+                    for (let i = toLevel + 1; i <= fromLevel; i++) {
+                        delete issue[this.stageAtNames[i]];
+                    }
+                }
+            }
+            if (addedTime) {
+                issue.project_added_at = addedTime;
+                console.log(`project_added_at: ${issue.project_added_at}`);
+            }
+            // current board processing does by column so we already know these
+            // asof replays events and it's possible to have the same time and therefore can be out of order.
+            // only take that fragility during narrow asof cases.
+            // asof clears these
+            if (!issue.project_column) {
+                issue.project_column = currentColumn;
+            }
+            if (!issue.project_stage) {
+                issue.project_stage = currentStage;
+            }
+            console.log(`project_stage: ${issue.project_stage}`);
+            console.log(`project_column: ${issue.project_column}`);
+        }
+    }
+}
+exports.IssueList = IssueList;
+
+
+/***/ }),
+
+/***/ 222:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -86,106 +757,130 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.process = exports.getDefaultConfiguration = exports.reportType = void 0;
-const moment = __webpack_require__(431);
-const url = __importStar(__webpack_require__(835));
-const now = moment();
+const project_reports_lib_1 = __webpack_require__(189);
 const reportType = 'project';
 exports.reportType = reportType;
 /**
- * Creates labels on referenced issues with a specified label
+ * Reads the latest status from a comment and creates the corresponding label
  */
 function getDefaultConfiguration() {
     return {
         'process-with-label': 'feature',
-        'column-label-prefix': '> ',
-        'linked-label-prefix': '>> ',
-        'label-color': 'FFFFFF',
+        'status-field-name': '### Status',
+        // names and corresponding colors should align
+        'status-labels': ['green', 'yellow', 'red'],
+        'status-colors': ['22a524', 'fbca04', 'b60205'],
         // need to actually set to true, otherwise it's just a preview of what it would write
         'write-labels': false
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
-// const noiseWords = ['the', 'in', 'and', 'of']
-function cleanLabelName(prefix, title) {
-    title = title.replace(/\([^()]*\)/g, '').replace(/ *\[[^\]]*]/, '');
-    const words = title.match(/[a-zA-Z0-9&]+/g);
-    //  words = words.map(item => item.toLowerCase())
-    //words = words.filter(word => noiseWords.indexOf(word) < 0)
-    return `${prefix.trim()} ${words.join(' ')}`;
-}
 // ensures that only a label with this prefix exists
-function ensureOnlyLabel(github, issue, labelName, prefix, config) {
+function ensureOnlyLabel(github, issue, labelName, config) {
     return __awaiter(this, void 0, void 0, function* () {
         const write = config['write-labels'];
         if (!write) {
             console.log('Preview mode only');
         }
-        const initLabels = issue.labels.filter(label => label.name.trim().toLowerCase() === labelName.trim().toLowerCase());
-        if (initLabels.length === 0) {
-            // add, but first ...
-            // remove any other labels with that prefix
-            for (const label of issue.labels) {
-                if (label.name.trim().startsWith(prefix)) {
-                    console.log(`Removing label: ${label.name}`);
-                    if (write) {
-                        yield github.removeIssueLabel(issue.html_url, label.name);
-                    }
+        const currentLabels = issue.labels.map(label => label.name.toLowerCase());
+        // add, but first ...
+        // remove any other status labels not the desired one
+        for (const candidate of config['status-labels']) {
+            // if the candidate label is currently set
+            // but it's not the desired label, remove it
+            if (currentLabels.indexOf(candidate.toLowerCase()) >= 0 && candidate.toLowerCase() !== labelName.toLowerCase()) {
+                console.log(`Removing label: ${candidate}`);
+                if (write) {
+                    yield github.removeIssueLabel(issue.html_url, candidate);
                 }
             }
-            console.log(`Adding label: ${labelName}`);
-            if (write) {
-                yield github.ensureIssueHasLabel(issue.html_url, labelName, config['label-color']);
-            }
+        }
+        if (currentLabels.indexOf(labelName.toLowerCase()) >= 0) {
+            console.log(`Label '${labelName}' already exists on issue`);
         }
         else {
-            console.log(`Label already exists: ${labelName}`);
+            const candidates = config['status-labels'].map(label => label.toLowerCase());
+            const index = candidates.indexOf(labelName.toLowerCase());
+            let color = 'FFFFFF';
+            if (index < config['status-colors'].length) {
+                color = config['status-colors'][index];
+            }
+            console.log(`Adding label: ${labelName} with color ${color}`);
+            if (write) {
+                yield github.ensureIssueHasLabel(issue.html_url, labelName, color);
+            }
         }
     });
 }
 // get alphanumeric clean version of string (strip special chars). spaces to chars.  remove common filler words (a, the, &, and)
 function process(target, config, data, github) {
-    var _a;
     return __awaiter(this, void 0, void 0, function* () {
+        console.log();
+        console.log('Processing status labels');
+        console.log();
         for (const issue of data.getItems()) {
-            console.log();
-            console.log(`initiative : ${issue.project_column}`);
-            console.log(`epic       : ${issue.title}`);
-            console.log('creates    :');
-            let initLabel;
-            if (issue.project_column) {
-                initLabel = cleanLabelName(config['column-label-prefix'], issue.project_column);
-                console.log(`  initiative label : '${initLabel}'`);
-            }
-            const epicLabel = cleanLabelName(config['linked-label-prefix'], issue.title);
-            console.log(`  epic label       : '${epicLabel}'`);
-            console.log(issue.body);
-            console.log();
-            // get issues that have a checkbox in front of it
-            const urls = (_a = issue.body) === null || _a === void 0 ? void 0 : _a.match(/(?<=-\s*\[.*?\].*?)(https?:\/{2}(?:[/-\w.]|(?:%[\da-fA-F]{2}))+)/g);
-            for (const match of urls || []) {
-                try {
-                    console.log(`match: ${match}`);
-                    const u = new url.URL(match);
-                    const issue = yield github.getIssue(match);
-                    const processLabel = issue.labels.filter(label => label.name.toLowerCase() === config['process-with-label'].toLowerCase());
-                    if (processLabel.length == 0) {
-                        console.log(`Skipping.  Only processing with label ${config['process-with-label']}`);
-                        console.log();
-                        continue;
-                    }
-                    yield ensureOnlyLabel(github, issue, initLabel, config['column-label-prefix'], config);
-                    yield ensureOnlyLabel(github, issue, epicLabel, config['linked-label-prefix'], config);
-                }
-                catch (err) {
-                    console.log(`Ignoring invalid issue url: ${match}`);
-                    console.log(`(${err.message})`);
-                }
+            console.log(`issue : ${issue.title}`);
+            console.log(`url   : ${issue.html_url}`);
+            const processLabel = issue.labels.filter(label => label.name.toLowerCase() === config['process-with-label'].toLowerCase());
+            if (processLabel.length == 0) {
+                console.log(`Skipping.  Only processing with label ${config['process-with-label']}`);
                 console.log();
+                continue;
             }
+            const status = project_reports_lib_1.getLastCommentField(issue, config['status-field-name']);
+            if (!status) {
+                console.log('No status.  Skipping.');
+                console.log();
+                continue;
+            }
+            console.log(`Latest status: ${status}`);
+            const validLabelsLower = config['status-labels'].map(label => label.toLowerCase());
+            const idx = validLabelsLower.indexOf(status.toLowerCase());
+            if (status && idx >= 0) {
+                yield ensureOnlyLabel(github, issue, config['status-labels'][idx], config);
+            }
+            else {
+                console.log(`skipping. ${status} is not a valid status label `);
+            }
+            console.log();
         }
     });
 }
 exports.process = process;
+
+
+/***/ }),
+
+/***/ 385:
+/***/ (function(module, exports) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getLastCommentPattern = exports.dataFromCard = void 0;
+function dataFromCard(card, filterBy, data) {
+    const fn = module.exports[`get${filterBy}`];
+    if (!fn) {
+        throw new Error(`Invalid filter: ${filterBy}`);
+    }
+    return fn(card, data);
+}
+exports.dataFromCard = dataFromCard;
+//
+// returns last updated using last comment with a body matching a pattern
+//
+function getLastCommentPattern(card, pattern) {
+    if (!card.comments) {
+        return '';
+    }
+    const re = new RegExp(pattern);
+    const comment = card.comments.filter(comment => comment.body.match(re)).pop();
+    return comment ? comment['updated_at'] : null;
+}
+exports.getLastCommentPattern = getLastCommentPattern;
+// export function diffHours(date1: Date, date2: Date): number {
+//     return Math.abs(date1.getTime() - date2.getTime()) / (60*60*1000);
+// }
 
 
 /***/ }),

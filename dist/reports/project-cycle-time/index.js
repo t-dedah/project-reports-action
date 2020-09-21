@@ -711,28 +711,19 @@ class IssueList {
                     fromStage = event.project_card.previous_stage_name;
                     fromLevel = stageLevel[fromStage];
                 }
-                // last occurence of moving to these columns from a lesser or no column
-                // example. if moved to accepted from proposed (or less),
-                //      then in-progress (greater) and then back to accepted, first wins
-                if (toStage === 'Proposed' || toStage === 'Accepted' || toStage === 'In-Progress') {
-                    if (toLevel > fromLevel) {
-                        issue[this.stageAtNames[toLevel]] = eventDateTime;
-                    }
-                    //moving back, clear the stage at dates up to fromLevel
-                    else if (toLevel < fromLevel) {
-                        for (let i = toLevel + 1; i <= fromLevel; i++) {
-                            delete issue[this.stageAtNames[i]];
-                        }
+                // last occurence of moving to a stage from a lesser stage
+                // example: if an item is not blocked but put on hold for 6 months,
+                //          then the in-progress date will be when it went back in progress
+                // moving forward
+                if (fromLevel < toLevel) {
+                    issue[this.stageAtNames[toLevel]] = eventDateTime;
+                }
+                //moving back, clear the stage at dates up to fromLevel
+                else if (fromLevel > toLevel) {
+                    for (let i = toLevel + 1; i <= fromLevel; i++) {
+                        delete issue[this.stageAtNames[i]];
                     }
                 }
-                if (toStage === 'Done') {
-                    doneTime = eventDateTime;
-                }
-            }
-            // done_at and blocked_at is only set if it's currently at that stage
-            if (currentStage === 'Done') {
-                issue.project_done_at = doneTime;
-                console.log(`project_done_at: ${issue.project_done_at}`);
             }
             if (addedTime) {
                 issue.project_added_at = addedTime;
@@ -910,9 +901,12 @@ function process(config, issueList, drillIn) {
         console.log('|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\|/-\\');
         console.log(`Computing cycle-time asof ${ago.format('MMM Do YY')} for ${windowDays} back (${windowAgo.format('MMM Do YY')})`);
         const agoIssues = i == 0 ? issues.getItems() : issues.getItemsAsof(ago.toDate());
+        // all issue done after the window of time ago
+        // which has ever been in progress.  (closed proposed items automate to done column routinely)
         // get done issues within the sliding window
         // do a deep clone because we're going to mutate the issue by writing cycle_time to it later
         const doneIssues = clone_1.default(agoIssues.filter(issue => issue.project_stage === project_reports_lib_1.ProjectStages.Done &&
+            issue.project_in_progress_at &&
             new Date(issue.project_done_at).getTime() > windowAgo.toDate().getTime()));
         console.log(`${doneIssues.length} issues done in that window`);
         //doneIssues.sort((a, b) => new Date(a.project_done_at).getTime() - new Date(b.project_done_at).getTime())
@@ -964,12 +958,12 @@ exports.renderMarkdown = renderMarkdown;
 //
 function calculateCycleTime(card) {
     // cycle time starts at Accepted, ends at Done.
-    const accepted_time = new Date(card.project_added_at);
+    const in_progress_at = new Date(card.project_in_progress_at);
     const done_time = new Date(card.project_done_at);
-    if (accepted_time == null || done_time == null) {
+    if (in_progress_at == null || done_time == null) {
         return 0;
     }
-    return moment_1.default(done_time).diff(moment_1.default(accepted_time), 'days', true);
+    return moment_1.default(done_time).diff(moment_1.default(in_progress_at), 'days', true);
 }
 
 

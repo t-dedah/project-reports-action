@@ -90,12 +90,15 @@ export function process(
 
     const agoIssues = i == 0 ? issues.getItems() : issues.getItemsAsof(ago.toDate())
 
+    // all issue done after the window of time ago
+    // which has ever been in progress.  (closed proposed items automate to done column routinely)
     // get done issues within the sliding window
     // do a deep clone because we're going to mutate the issue by writing cycle_time to it later
     const doneIssues = clone(
       agoIssues.filter(
         issue =>
           issue.project_stage === ProjectStages.Done &&
+          issue.project_in_progress_at &&
           new Date(issue.project_done_at).getTime() > windowAgo.toDate().getTime()
       )
     )
@@ -165,12 +168,12 @@ export function renderMarkdown(targets: CrawlingTarget[], processedData: any): s
 //
 function calculateCycleTime(card: ProjectIssue): number {
   // cycle time starts at Accepted, ends at Done.
-  const accepted_time: Date = new Date(card.project_added_at)
+  const in_progress_at: Date = new Date(card.project_in_progress_at)
   const done_time: Date = new Date(card.project_done_at)
 
-  if (accepted_time == null || done_time == null) {
+  if (in_progress_at == null || done_time == null) {
     return 0
   }
 
-  return moment(done_time).diff(moment(accepted_time), 'days', true)
+  return moment(done_time).diff(moment(in_progress_at), 'days', true)
 }
