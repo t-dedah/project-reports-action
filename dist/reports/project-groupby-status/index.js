@@ -109,7 +109,7 @@ function getDefaultConfiguration() {
         'flag-in-progress-days': 21,
         'wip-limit': 2,
         limits: {},
-        'status-label-match': '(?:green|yellow|red)'
+        'status-label-match': '(^green$|^yellow$|^red$)'
     };
 }
 exports.getDefaultConfiguration = getDefaultConfiguration;
@@ -149,7 +149,7 @@ function getBreakdown(config, name, issues, drillIn) {
         issues.filter(issue => rptLib.getStringFromLabel(issue, statusRegEx).toLowerCase() === 'yellow') || [];
     drillIn(drillInName(name, 'yellow'), `${name} with a status yellow`, groupByData.flagged.yellow);
     groupByData.flagged.inProgressDuration = issues.filter(issue => {
-        if (issue.project_in_progress_at) {
+        if (issue.project_stage === project_reports_lib_1.ProjectStages.InProgress) {
             const days = moment().diff(moment(issue.project_in_progress_at), 'days');
             console.log(`In progress, ${days}: ${issue.title}`);
             if (days > config['flag-in-progress-days']) {

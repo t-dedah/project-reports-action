@@ -24,7 +24,7 @@ export function getDefaultConfiguration(): any {
     'flag-in-progress-days': 21,
     'wip-limit': 2,
     limits: {},
-    'status-label-match': '(?:green|yellow|red)'
+    'status-label-match': '(^green$|^yellow$|^red$)'
   }
 }
 
@@ -114,7 +114,7 @@ function getBreakdown(
   drillIn(drillInName(name, 'yellow'), `${name} with a status yellow`, groupByData.flagged.yellow)
 
   groupByData.flagged.inProgressDuration = issues.filter(issue => {
-    if (issue.project_in_progress_at) {
+    if (issue.project_stage === ProjectStages.InProgress) {
       const days = moment().diff(moment(issue.project_in_progress_at), 'days')
       console.log(`In progress, ${days}: ${issue.title}`)
       if (days > config['flag-in-progress-days']) {
